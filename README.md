@@ -13,7 +13,7 @@ próprio "rolo".
 
 ## Deploy
 
-Todo push em `main` gera a imagem `ghcr.io/lhduarten/mango` (GitHub Actions,
+Todo push em `main` gera a imagem `ghcr.io/mango-startup/mango` (GitHub Actions,
 [.github/workflows/docker.yml](.github/workflows/docker.yml)). O servidor só puxa a imagem
 (tag `sha-<commit>`) e a serve com nginx. Em pull request o workflow apenas testa o build.
 O app não roda mais no GitHub Pages.
