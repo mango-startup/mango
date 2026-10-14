@@ -4,9 +4,9 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
-  // GitHub Pages serve o projeto em /mango/, não na raiz do domínio
-  base: command === 'build' ? '/mango/' : '/',
+export default defineConfig(() => ({
+  // O app roda na raiz do domínio (servidor próprio), não mais em /mango/ do GitHub Pages
+  base: '/',
   plugins: [react(), tailwindcss(), basicSsl()],
   server: {
     // câmera exige HTTPS ou localhost; acesso via IP da rede local não funciona sem certificado.
