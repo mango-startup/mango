@@ -1,35 +1,9 @@
 export function MangoLogo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 110" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="mangoBody" x1="0.1" y1="0.05" x2="0.85" y2="0.95">
-          <stop offset="0%" stopColor="#FF5E3A" />
-          <stop offset="45%" stopColor="#FFB648" />
-          <stop offset="100%" stopColor="#FFE08A" />
-        </linearGradient>
-        <linearGradient id="mangoLeaf" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#B7DB5B" />
-          <stop offset="100%" stopColor="#4F8A2B" />
-        </linearGradient>
-        <radialGradient id="mangoBlush" cx="0.3" cy="0.25" r="0.5">
-          <stop offset="0%" stopColor="#FF3B30" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#FF3B30" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <g transform="rotate(-24 50 60)">
-        <path
-          d="M50 14 C68 14 80 34 80 58 C80 84 66 100 48 100 C30 100 18 82 18 58 C18 34 32 14 50 14 Z"
-          fill="url(#mangoBody)"
-        />
-        <path
-          d="M50 14 C68 14 80 34 80 58 C80 84 66 100 48 100 C30 100 18 82 18 58 C18 34 32 14 50 14 Z"
-          fill="url(#mangoBlush)"
-        />
-      </g>
+    <svg viewBox="0 0 40 52" className={className} fill="currentColor" aria-hidden="true">
       <path
-        d="M46 18 C40 10 41 2 48 -4 C54 2 55 11 49 19 C48 19 47 19 46 18 Z"
-        fill="url(#mangoLeaf)"
-        transform="translate(0 10) rotate(-18 46 12)"
+        fillRule="evenodd"
+        d="M2 2H38V38L26 50H2Z M5 7h3v4H5z M5 16h3v4H5z M5 25h3v4H5z M5 34h3v4H5z M5 43h3v4H5z M32 7h3v4h-3z M32 16h3v4h-3z M32 25h3v4h-3z M32 34h3v4h-3z M12 7h16v36H12z"
       />
     </svg>
   )

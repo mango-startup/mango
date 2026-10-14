@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 interface CameraViewProps {
   onCapture: (video: HTMLVideoElement) => void
   disabled?: boolean
+  caption?: string
 }
 
-export function CameraView({ onCapture, disabled }: CameraViewProps) {
+export function CameraView({ onCapture, disabled, caption }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
@@ -44,24 +45,33 @@ export function CameraView({ onCapture, disabled }: CameraViewProps) {
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="font-display text-lg">Não foi possível acessar a câmera</p>
+        <p className="font-display text-xl">Não foi possível acessar a câmera</p>
         <p className="text-sm text-muted">{error}</p>
       </div>
     )
   }
 
   return (
-    <div className="relative h-full w-full">
-      <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
-      <div className="absolute inset-x-0 bottom-9 flex justify-center">
+    <div className="flex h-full flex-col">
+      <div className="relative mx-3.5 flex-1 overflow-hidden rounded-3xl bg-surface">
+        <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+        <i className="absolute left-3.5 top-3.5 h-5 w-5 border-l-[1.5px] border-t-[1.5px] border-paper/90" />
+        <i className="absolute right-3.5 top-3.5 h-5 w-5 border-r-[1.5px] border-t-[1.5px] border-paper/90" />
+        <i className="absolute bottom-3.5 left-3.5 h-5 w-5 border-b-[1.5px] border-l-[1.5px] border-paper/90" />
+        <i className="absolute bottom-3.5 right-3.5 h-5 w-5 border-b-[1.5px] border-r-[1.5px] border-paper/90" />
+      </div>
+      <div className="relative h-[168px] shrink-0">
+        {caption && (
+          <p className="absolute inset-x-0 top-5 text-center text-[15px] text-muted">{caption}</p>
+        )}
         <button
           type="button"
           disabled={!ready || disabled}
           onClick={() => videoRef.current && onCapture(videoRef.current)}
           aria-label="Tirar foto"
-          className="flex h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] border-cream/70 bg-black/20 backdrop-blur-sm transition active:scale-95 disabled:opacity-30"
+          className="absolute bottom-8 left-1/2 flex h-[72px] w-[72px] -translate-x-1/2 items-center justify-center rounded-full border-2 border-paper transition active:scale-95 disabled:opacity-30"
         >
-          <span className="h-[58px] w-[58px] rounded-full bg-gradient-to-b from-mango-300 to-mango-500 shadow-[0_4px_20px_-4px_rgba(255,138,61,0.7)]" />
+          <span className="h-14 w-14 rounded-full bg-paper" />
         </button>
       </div>
     </div>

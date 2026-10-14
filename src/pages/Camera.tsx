@@ -18,6 +18,7 @@ export function CameraPage() {
   }, [])
 
   const filmeEsgotado = photosTaken >= MAX_PHOTOS
+  const restantes = MAX_PHOTOS - photosTaken
 
   async function handleCapture(video: HTMLVideoElement) {
     setStatus('uploading')
@@ -35,39 +36,37 @@ export function CameraPage() {
   }
 
   return (
-    <div className="flex h-svh flex-col bg-ink text-cream">
-      <header className="flex items-center justify-between px-4 py-3 text-sm">
-        <Link to="/" className="flex items-center gap-1.5 font-display tracking-tight">
-          <MangoLogo className="h-5 w-5" />
-          Mango
+    <div className="flex h-svh flex-col bg-base text-paper">
+      <header className="flex items-center justify-between px-5 pb-3 pt-5">
+        <Link to="/" className="flex items-center gap-2 font-display text-[22px] leading-none">
+          <MangoLogo className="h-[21px] w-4" />
+          <span className="pb-0.5">mango</span>
         </Link>
-        <span className="text-muted">
-          {filmeEsgotado ? 'Filme esgotado' : `${MAX_PHOTOS - photosTaken} fotos restantes`}
+        <span className="text-base font-bold tabular-nums">
+          {photosTaken} / {MAX_PHOTOS}
         </span>
       </header>
 
-      <div className="relative flex-1 overflow-hidden">
+      <div className="relative min-h-0 flex-1">
         {filmeEsgotado ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-            <p className="font-display text-xl">Filme esgotado 🎞️</p>
-            <p className="text-sm text-muted">
-              Você já tirou todas as {MAX_PHOTOS} fotos disponíveis.
+            <p className="font-display text-[32px] leading-none">Acabou o filme!</p>
+            <p className="text-[15px] text-muted">
+              Você já tirou as {MAX_PHOTOS} fotos do rolo.
             </p>
             <Link
               to="/galeria"
-              className="rounded-full bg-gradient-to-b from-mango-300 to-mango-500 px-5 py-2.5 text-sm font-semibold text-ink"
+              className="flex h-[52px] items-center rounded-[14px] bg-paper px-6 text-base font-semibold text-base"
             >
-              Ver fotos salvas
+              Ver as fotos
             </Link>
           </div>
         ) : (
-          <CameraView onCapture={handleCapture} disabled={status === 'uploading'} />
-        )}
-
-        {status === 'uploading' && (
-          <div className="absolute inset-x-0 top-4 flex justify-center">
-            <span className="rounded-full bg-ink/80 px-3 py-1 text-xs">Salvando...</span>
-          </div>
+          <CameraView
+            onCapture={handleCapture}
+            disabled={status === 'uploading'}
+            caption={status === 'uploading' ? 'Salvando...' : `${restantes} fotos restantes`}
+          />
         )}
       </div>
 
@@ -79,9 +78,9 @@ export function CameraPage() {
 
       <Link
         to="/galeria"
-        className="border-t border-cream/10 px-4 py-3 text-center text-sm text-muted transition hover:text-cream"
+        className="border-t border-line px-4 py-3.5 text-center text-[15px] font-semibold text-muted transition hover:text-paper"
       >
-        Ver galeria →
+        Galeria
       </Link>
     </div>
   )

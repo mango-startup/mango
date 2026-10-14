@@ -1,128 +1,134 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MangoLogo } from '../components/MangoLogo'
 
+// Fotos de exemplo do Pexels, só para a landing do protótipo
+const STRIP_PHOTOS = [6224713, 6174129, 3171742]
+const photoUrl = (id: number) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=500`
+
+const STEPS = [
+  { title: 'Crie a câmera', text: 'Nome, data e quantas fotos cada convidado leva.' },
+  { title: 'Compartilhe o link', text: 'Ninguém instala nada. Abriu, fotografou.' },
+  { title: 'Revele', text: 'Quando você decidir, o rolo vira álbum. Todo mundo vê junto.' },
+]
+
 export function LandingPage() {
   return (
-    <div className="min-h-svh bg-ink text-cream">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
-        <span className="flex items-center gap-2 font-display text-xl tracking-tight">
-          <MangoLogo className="h-6 w-6" />
-          Mango
-        </span>
-        <Link
-          to="/camera"
-          className="rounded-full border border-cream/15 px-4 py-2 text-sm text-cream/80 transition hover:border-cream/30 hover:text-cream"
-        >
-          Experimentar
-        </Link>
-      </header>
+    <div className="min-h-svh bg-base text-paper">
+      <div className="mx-auto max-w-[520px]">
+        <section className="rounded-b-[32px] bg-paper pb-8 text-base">
+          <header className="flex items-center justify-between px-6 pt-6">
+            <span className="flex items-center gap-2 font-display text-[26px] leading-none">
+              <MangoLogo className="h-[26px] w-5" />
+              <span className="pb-1">mango</span>
+            </span>
+            <a href="#como-funciona" className="border-b border-current pb-px text-sm font-semibold">
+              Como funciona
+            </a>
+          </header>
 
-      <main className="mx-auto flex max-w-3xl flex-col items-center px-6 pb-20 pt-10 text-center sm:pt-16">
-        <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-mango-500/30 bg-mango-500/10 px-4 py-1.5 text-xs uppercase tracking-[0.18em] text-mango-400">
-          Câmera descartável digital
-        </span>
+          <h1 className="mt-14 px-6 font-display text-[48px] leading-none sm:text-[54px]">
+            Todo mundo
+            <br />
+            fotografa.
+            <br />
+            Ninguém vê.
+          </h1>
+          <p className="mt-5 max-w-[350px] px-6 text-[17px] leading-normal opacity-90">
+            Uma câmera descartável para a sua festa. Cada convidado leva um rolo. As fotos só
+            aparecem quando você revelar.
+          </p>
+          <div className="mt-6 px-6">
+            <Link
+              to="/camera"
+              className="flex h-[52px] items-center justify-center rounded-[14px] bg-base text-base font-semibold text-paper transition active:scale-[0.98]"
+            >
+              Criar uma câmera
+            </Link>
+            <p className="mt-3 text-sm opacity-75">Sem app. Só um link.</p>
+          </div>
+        </section>
 
-        <h1 className="font-display text-[2.5rem] leading-[1.1] font-medium tracking-tight sm:text-6xl">
-          Todos fotografam.
-          <br />
-          <span className="text-mango-400 italic">Ninguém vê</span> antes da hora.
-        </h1>
+        <PhotoStrip />
 
-        <p className="mt-6 max-w-lg text-lg leading-relaxed text-balance text-muted">
-          Uma câmera compartilhada para o seu evento. Os convidados fotografam pelo
-          celular, direto do navegador — e o álbum só aparece no momento da
-          revelação. Como um rolo de filme.
-        </p>
+        <section id="como-funciona" className="mt-10 bg-surface px-6 py-3">
+          {STEPS.map((step, i) => (
+            <div
+              key={step.title}
+              className="grid grid-cols-[40px_1fr] gap-x-1 border-t border-line py-5 first:border-t-0"
+            >
+              <span className="pt-0.5 font-display text-[22px] text-paper">0{i + 1}</span>
+              <h2 className="font-display text-[26px] leading-tight">{step.title}</h2>
+              <p className="col-start-2 mt-1.5 text-[15px] leading-normal text-muted">{step.text}</p>
+            </div>
+          ))}
+        </section>
 
-        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+        <section className="mt-14 px-6">
+          <h2 className="font-display text-[40px] leading-[1.02]">
+            A festa acontece.
+            <span className="block text-muted">As fotos ficam em segredo.</span>
+          </h2>
           <Link
             to="/camera"
-            className="rounded-full bg-gradient-to-b from-mango-300 to-mango-500 px-7 py-3.5 text-sm font-semibold text-ink shadow-[0_8px_30px_-8px_rgba(255,138,61,0.55)] transition hover:brightness-105"
+            className="mt-6 flex h-[52px] items-center justify-center rounded-[14px] bg-paper text-base font-semibold text-base transition active:scale-[0.98]"
           >
-            Experimentar a câmera
+            Criar uma câmera
           </Link>
-          <span className="text-xs text-muted">Protótipo em construção</span>
-        </div>
+        </section>
 
-        <ShutterGraphic />
-      </main>
-
-      <section className="border-t border-cream/8">
-        <div className="mx-auto grid max-w-4xl gap-10 px-6 py-16 sm:grid-cols-3">
-          <Step
-            number="01"
-            title="Crie o evento"
-            text="Defina o nome, a data e quantas fotos cada convidado pode tirar."
-          />
-          <Step
-            number="02"
-            title="Todos fotografam"
-            text="Os convidados abrem o link e já estão dentro. Sem instalar nada."
-          />
-          <Step
-            number="03"
-            title="Revele junto"
-            text="No momento certo, o álbum aparece pra todo mundo, ao mesmo tempo."
-          />
-        </div>
-      </section>
-
-      <footer className="px-6 py-10 text-center text-xs text-muted/70">
-        Mango — mango.cam
-      </footer>
+        <footer className="flex items-center justify-between px-6 pb-7 pt-14 text-sm text-muted">
+          <span className="flex items-center gap-2 font-display text-lg text-paper">
+            <MangoLogo className="h-[18px] w-3.5" />
+            mango
+          </span>
+          <span>mango.cam</span>
+        </footer>
+      </div>
     </div>
   )
 }
 
-function Step({ number, title, text }: { number: string; title: string; text: string }) {
-  return (
-    <div className="text-left">
-      <span className="font-display text-sm text-mango-400">{number}</span>
-      <h3 className="mt-2 font-display text-lg text-cream">{title}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-muted">{text}</p>
-    </div>
-  )
-}
+// Três quadros borrados que se revelam ao toque — o gesto central do produto.
+function PhotoStrip() {
+  const [revealed, setRevealed] = useState<boolean[]>([false, false, false])
 
-// Gráfico decorativo inspirado no obturador/íris de uma câmera — reforça o
-// tema sem depender de fotos reais, que ainda não existem neste protótipo.
-function ShutterGraphic() {
-  const blades = Array.from({ length: 8 }, (_, i) => {
-    const angle = (i / 8) * Math.PI * 2
-    return {
-      x1: 100 + Math.cos(angle) * 34,
-      y1: 100 + Math.sin(angle) * 34,
-      x2: 100 + Math.cos(angle) * 62,
-      y2: 100 + Math.sin(angle) * 62,
-    }
-  })
+  useEffect(() => {
+    const timer = setTimeout(() => setRevealed((r) => [true, r[1], r[2]]), 1200)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
-    <div className="relative mt-16 flex h-40 w-40 items-center justify-center sm:h-48 sm:w-48">
-      <div className="absolute inset-0 rounded-full bg-mango-500/20 blur-3xl" />
-      <svg viewBox="0 0 200 200" className="relative h-full w-full">
-        <circle cx="100" cy="100" r="98" fill="none" stroke="#F6EFE4" strokeOpacity="0.12" />
-        <circle cx="100" cy="100" r="70" fill="none" stroke="#F6EFE4" strokeOpacity="0.18" />
-        {blades.map((b, i) => (
-          <line
-            key={i}
-            x1={b.x1}
-            y1={b.y1}
-            x2={b.x2}
-            y2={b.y2}
-            stroke="url(#mangoGrad)"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
+    <>
+      <div className="mx-6 mt-7 grid grid-cols-3 gap-2.5">
+        {STRIP_PHOTOS.map((id, i) => (
+          <button
+            key={id}
+            type="button"
+            aria-label={revealed[i] ? `Foto ${i + 1} revelada` : `Revelar foto ${i + 1}`}
+            onClick={() => setRevealed((r) => r.map((v, j) => (j === i ? !v : v)))}
+            className={`relative aspect-[3/4.2] overflow-hidden rounded-xl bg-surface ${
+              i === 1 ? 'mt-6' : i === 2 ? 'mt-2' : ''
+            }`}
+            style={{ clipPath: 'polygon(0 0, 100% 0, 100% 86%, 86% 100%, 0 100%)' }}
+          >
+            <img
+              src={photoUrl(id)}
+              alt=""
+              className={`h-full w-full object-cover transition duration-700 ease-out ${
+                revealed[i] ? '' : 'scale-110 blur-lg brightness-50 saturate-50'
+              }`}
+            />
+            {!revealed[i] && (
+              <span className="absolute bottom-0 left-0 p-2.5 text-sm font-semibold">
+                00{i + 1}
+              </span>
+            )}
+          </button>
         ))}
-        <circle cx="100" cy="100" r="30" fill="url(#mangoGrad)" />
-        <defs>
-          <linearGradient id="mangoGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FFCA85" />
-            <stop offset="100%" stopColor="#FF8A3D" />
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
+      </div>
+      <p className="mx-6 mt-5 text-sm text-muted">Toque nos quadros. É assim que o álbum aparece.</p>
+    </>
   )
 }

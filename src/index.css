@@ -1,18 +1,14 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-display: 'Fraunces', ui-serif, Georgia, serif;
-  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'DM Serif Display', ui-serif, Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  --color-ink: #120e0a;
-  --color-ink-soft: #1c150f;
-  --color-cream: #f6efe4;
-  --color-muted: #b3a89a;
-
-  --color-mango-300: #ffca85;
-  --color-mango-400: #ffb648;
-  --color-mango-500: #ff8a3d;
-  --color-mango-600: #e96a1f;
+  --color-base: #151513;
+  --color-surface: #1e1e1b;
+  --color-line: #34332f;
+  --color-paper: #f4f2ec;
+  --color-muted: #a6a39b;
 }
 
 :root {
@@ -27,19 +23,21 @@ body,
 }
 
 body {
-  background: var(--color-ink);
-  color: var(--color-cream);
+  background: var(--color-base);
+  color: var(--color-paper);
   font-family: var(--font-sans);
 }
 
-/* Textura de grão sutil, para reforçar a estética analógica/filme */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 999;
-  opacity: 0.05;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+:focus-visible {
+  outline: 2px solid var(--color-paper);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
 }

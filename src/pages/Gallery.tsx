@@ -32,43 +32,47 @@ export function GalleryPage() {
   }
 
   return (
-    <div className="min-h-svh bg-ink text-cream">
-      <header className="flex items-center justify-between px-4 py-4">
-        <Link to="/camera" className="text-sm text-muted transition hover:text-cream">
-          ← Câmera
+    <div className="min-h-svh bg-base text-paper">
+      <header className="flex items-center justify-between px-5 py-5">
+        <Link to="/camera" className="text-[15px] font-semibold text-muted transition hover:text-paper">
+          Câmera
         </Link>
-        <span className="font-display text-sm">{photos.length} fotos</span>
+        <span className="font-display text-2xl leading-none">
+          {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
+        </span>
       </header>
 
       {loading && <p className="p-6 text-center text-sm text-muted">Carregando...</p>}
       {error && <p className="p-6 text-center text-sm text-red-400">{error}</p>}
       {!loading && !error && photos.length === 0 && (
-        <p className="p-6 text-center text-sm text-muted">Nenhuma foto salva ainda.</p>
+        <p className="p-6 text-center text-[15px] text-muted">
+          Nenhuma foto ainda. Abra a câmera e tire a primeira.
+        </p>
       )}
 
-      <div className="grid grid-cols-3 gap-1 p-1">
+      <div className="grid grid-cols-2 gap-2 px-2 pb-2">
         {photos.map((photo) => (
-          <div key={photo.id} className="relative aspect-square overflow-hidden bg-cream/5">
+          <div key={photo.id} className="relative aspect-[3/4] overflow-hidden rounded-[14px] bg-surface">
             <a href={photo.url} download className="block h-full w-full">
               <img src={photo.url} alt="" className="h-full w-full object-cover" loading="lazy" />
             </a>
 
             {confirmingId === photo.id ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/90 p-2 text-center backdrop-blur-sm">
-                <p className="text-xs leading-tight">Excluir para sempre?</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-base/90 p-3 text-center backdrop-blur-sm">
+                <p className="text-sm font-semibold">Excluir para sempre?</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     disabled={deletingId === photo.id}
                     onClick={() => handleDelete(photo.id)}
-                    className="rounded-full bg-red-600 px-3 py-1 text-xs font-medium disabled:opacity-50"
+                    className="rounded-[10px] bg-red-600 px-3.5 py-2 text-sm font-semibold disabled:opacity-50"
                   >
                     {deletingId === photo.id ? 'Excluindo...' : 'Excluir'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmingId(null)}
-                    className="rounded-full bg-cream/15 px-3 py-1 text-xs font-medium"
+                    className="rounded-[10px] bg-paper/15 px-3.5 py-2 text-sm font-semibold"
                   >
                     Cancelar
                   </button>
@@ -79,7 +83,7 @@ export function GalleryPage() {
                 type="button"
                 onClick={() => setConfirmingId(photo.id)}
                 aria-label="Excluir foto"
-                className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-ink/60 text-sm leading-none backdrop-blur-sm"
+                className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-base/60 text-sm leading-none backdrop-blur-sm"
               >
                 🗑
               </button>
