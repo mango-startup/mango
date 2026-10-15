@@ -12,7 +12,8 @@ export type Estado =
   | 'expirado'
   | 'cancelado'
 
-export type Pacote = 'teste' | 'festa' | 'celebracao' | 'casamento'
+/** Id do pacote. Os pacotes são editados e criados pelos admins (`teste`, `festa`, `celebracao` e `casamento` vêm de fábrica). */
+export type Pacote = string
 
 export interface DefinicaoPacote {
   id: Pacote

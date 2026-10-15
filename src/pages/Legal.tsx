@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { MangoLogo } from '../components/MangoLogo'
+import { useConfigPublica } from '../lib/configPublica'
 
 // Textos provisórios: seguem as regras do plano do MVP e precisam de revisão jurídica antes do lançamento.
 
@@ -53,9 +54,11 @@ function DocumentoLegal({ titulo, resumo, secoes, rascunho = true }: { titulo: s
   )
 }
 
-const contato = (
-  <>O canal de contato do Mango será publicado aqui antes do lançamento.</>
-)
+// O canal de contato é a configuração `contato_suporte` (admin). Sem ela, avisa que ainda será publicado.
+function Contato() {
+  const { contato_suporte: canal } = useConfigPublica()
+  return canal ? <>Fale com a gente: {canal}.</> : <>O canal de contato do Mango será publicado aqui antes do lançamento.</>
+}
 
 export function TermsPage() {
   return (
@@ -117,7 +120,7 @@ export function TermsPage() {
             </p>
           ),
         },
-        { titulo: 'Contato', conteudo: <p>{contato}</p> },
+        { titulo: 'Contato', conteudo: <p><Contato /></p> },
       ]}
     />
   )
@@ -180,7 +183,7 @@ export function PrivacyPage() {
           titulo: 'Seus direitos',
           conteudo: (
             <p>
-              Pela LGPD, você pode pedir acesso, correção ou exclusão dos seus dados e a remoção de fotos em que aparece. {contato}
+              Pela LGPD, você pode pedir acesso, correção ou exclusão dos seus dados e a remoção de fotos em que aparece. <Contato />
             </p>
           ),
         },
@@ -240,9 +243,9 @@ export function HelpPage() {
         },
         {
           titulo: 'Evento com mais de 200 convidados',
-          conteudo: <p>Casamentos e formaturas grandes têm preço combinado. {contato}</p>,
+          conteudo: <p>Casamentos e formaturas grandes têm preço combinado. <Contato /></p>,
         },
-        { titulo: 'Falar com a gente', conteudo: <p>{contato}</p> },
+        { titulo: 'Falar com a gente', conteudo: <p><Contato /></p> },
       ]}
     />
   )

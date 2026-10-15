@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Botao } from '../../components/Botao'
 import { ErroApi, api, type Entrada, type EventoPublico } from '../../lib/api'
+import { useConfigPublica } from '../../lib/configPublica'
 import { quando } from '../../lib/datas'
 
 interface BoasVindasProps {
@@ -15,6 +16,7 @@ interface BoasVindasProps {
 // Primeira tela do convidado: o que é, as regras em três linhas e um nome opcional.
 export function BoasVindas({ codigo, evento, onEntrou, onMudou }: BoasVindasProps) {
   const idNome = useId()
+  const apelidoMax = useConfigPublica().apelido_max
   const [apelido, setApelido] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -68,7 +70,7 @@ export function BoasVindas({ codigo, evento, onEntrou, onMudou }: BoasVindasProp
           id={idNome}
           value={apelido}
           onChange={(e) => setApelido(e.target.value)}
-          maxLength={40}
+          maxLength={apelidoMax}
           autoComplete="given-name"
           enterKeyHint="go"
           placeholder="Marina"

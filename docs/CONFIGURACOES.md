@@ -96,12 +96,27 @@ O pacote `teste` é a porta de entrada gratuita e **não pode ser desativado nem
 | Intervalo do agendador (1 min), lote da limpeza (200), cache da configuração (10 s) | Detalhe técnico |
 | Formato e tamanho do `id` de pacote | Validação de entrada |
 
-## O que ainda está fixo **no front** (a migrar, #96)
+## O que o front lê da configuração
 
-- Opções de poses (`POSES = [12, 24, 36]` em `CreateEvent.tsx`) e `7 dias` em `criar/horarios.ts`.
-- `PAGAMENTO_DISPONIVEL` (`src/lib/config.ts`), e `MAX_DIMENSION` / `JPEG_QUALITY` (`src/lib/constants.ts`).
-- Regras repetidas na api simulada (`src/lib/api/regras.ts`).
+O front busca `GET /api/config` ao abrir (e no máximo a cada 5 minutos), com valores de fábrica se o servidor estiver fora ou na api simulada (`src/lib/configPublica.ts`). Cada campo é conferido pelo tipo antes de valer.
+
+| Configuração | Onde aparece |
+|---|---|
+| `poses_validas`, `poses_padrao` | opções e sugestão de poses na criação do evento (`CreateEvent.tsx`) |
+| `pacotes_pagos_disponiveis` | habilita ou bloqueia os pacotes pagos e troca "Em breve" pelo preço (criação e `/precos`) |
+| `criacao_aberta` | aviso e botão bloqueado na criação do evento |
+| `nome_evento_max`, `apelido_max` | limite dos campos de nome do evento e de apelido do convidado |
+| `revelacao_max_dias` | validação e mensagem do prazo da revelação (`criar/horarios.ts`) |
+| `foto_dimensao_max_px`, `foto_qualidade_jpeg` | compressão da foto no aparelho (`lib/compress.ts`) |
+| `contato_suporte` | contato nas páginas de termos, privacidade e ajuda |
+
+Pacotes (nome, preço, convidados, retenção, poses máx., ordem) vêm de `GET /api/pacotes`. O `id` de pacote criado no admin funciona em `/criar?pacote=<id>`.
+
+## O que ainda está fixo no front
+
 - Textos da landing, do FAQ e dos termos com números ("12, 24 ou 36 poses", "12 meses", "30 dias"): se o admin mudar a retenção ou as poses, esses textos passam a prometer o que não vale mais (#97).
+- Regras repetidas na api simulada (`src/lib/api/regras.ts`), usada só em desenvolvimento sem servidor.
+- Chaves lidas pelo front mas ainda sem uso em tela: `captura_max_horas`, `revelacao_padrao_horas`, `foto_max_kb`, `miniatura_max_kb`, `envio_atrasado_horas` e `pedido_remocao_motivo_max` (o servidor já aplica todas).
 
 ## Mudou um valor, e agora?
 
