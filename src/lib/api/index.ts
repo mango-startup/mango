@@ -13,6 +13,11 @@ const simulada = criarApiSimulada({
 
 export const api: MangoApi = simulada
 
+/** Resolve quando a api pode ser usada (a simulada cria os exemplos na primeira visita). */
+export const apiPronta: Promise<void> = simulada.preparar().catch((e: unknown) => {
+  console.error('Falha ao preparar os dados simulados:', e)
+})
+
 // No console do navegador: mango.eventos(), mango.forcarEstado('ABERTA27', 'revelado'), mango.resetar()
 if (import.meta.env.DEV) Object.assign(window, { mango: simulada.dev })
 

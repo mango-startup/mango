@@ -9,6 +9,10 @@
   --color-line: #34332f;
   --color-paper: #f4f2ec;
   --color-muted: #a6a39b;
+
+  /* Ação destrutiva (fundo) e texto de erro: vermelho quente, para combinar com a base */
+  --color-danger: #b23a2a;
+  --color-danger-ink: #ec8b78;
 }
 
 :root {
@@ -28,9 +32,28 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Superfícies creme trocam --focus-ring para a cor da base (classe .sobre-creme) */
 :focus-visible {
-  outline: 2px solid var(--color-paper);
+  outline: 2px solid var(--focus-ring, var(--color-paper));
   outline-offset: 3px;
+}
+
+.sobre-creme {
+  --focus-ring: var(--color-base);
+}
+
+/* Clarão rápido no visor ao disparar a câmera */
+@keyframes clarao {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.clarao {
+  opacity: 0;
+  animation: clarao 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* Entrada escalonada do hero */

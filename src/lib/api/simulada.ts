@@ -59,7 +59,11 @@ export interface FerramentasSimulada {
   resetar(): Promise<void>
 }
 
-export type ApiSimulada = MangoApi & { dev: FerramentasSimulada }
+export type ApiSimulada = MangoApi & {
+  dev: FerramentasSimulada
+  /** Cria os exemplos na primeira visita, sem o atraso simulado. */
+  preparar(): Promise<void>
+}
 
 const CHAVE_BANCO = 'banco'
 const chaveFoto = (id: string) => `foto:${id}`
@@ -246,7 +250,7 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
     return semInternos(e)
   }
 
-  const api: MangoApi = {
+  const api: Omit<MangoApi, 'anfitriaoNesteAparelho'> = {
     async pacotes() {
       return Object.values(PACOTES)
     },
@@ -582,5 +586,13 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
     },
   }
 
-  return { ...serializar(api), dev: serializar(dev) }
+  return {
+    ...serializar(api),
+    // Síncrono: só olha os tokens guardados no aparelho.
+    anfitriaoNesteAparelho: () => Object.keys(sessao.tokensDoAnfitriao()).length > 0,
+    preparar: async () => {
+      await abrir()
+    },
+    dev: serializar(dev),
+  }
 }
