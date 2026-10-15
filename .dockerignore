@@ -4,3 +4,6 @@ dist
 .github
 .env*
 Dockerfile
+server
+docs
+docker-compose.dev.yml
