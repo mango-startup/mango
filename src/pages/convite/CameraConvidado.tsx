@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BlocoEstado } from '../../components/BlocoEstado'
 import { Botao } from '../../components/Botao'
 import { CameraView } from '../../components/CameraView'
 import { ContadorPoses } from '../../components/ContadorPoses'
-import { api, type EventoPublico, type Eu } from '../../lib/api'
+import type { EventoPublico, Eu } from '../../lib/api'
 import { capturarParaEnvio, comprimirArquivo, type FotoParaEnvio } from '../../lib/compress'
 import { quando } from '../../lib/datas'
-import { enfileirar, enviarPendentes, naoEnviadas, type Recusa } from '../../lib/filaDeEnvio'
+import { enfileirar } from '../../lib/filaDeEnvio'
 import { CascaConvite } from './CascaConvite'
+import { useEnvioPendente } from './useEnvioPendente'
 
 interface CameraConvidadoProps {
   codigo: string
@@ -15,7 +16,6 @@ interface CameraConvidadoProps {
   eu: Eu
 }
 
-const NOVA_TENTATIVA_MS = 15_000
 const CHAVE_PERMISSAO = 'mango.camera-explicada'
 
 /** Já explicamos a câmera neste aparelho, ou o navegador já deu a permissão? */
@@ -47,59 +47,30 @@ function textoRevelacao(e: EventoPublico) {
 
 // Câmera do convidado: dispara na hora, guarda a foto no aparelho e envia em segundo plano.
 export function CameraConvidado({ codigo, evento, eu }: CameraConvidadoProps) {
-  const [posesNoServidor, setPosesNoServidor] = useState(eu.poses_restantes)
-  const [aguardando, setAguardando] = useState(0)
-  const [recusa, setRecusa] = useState<Recusa | null>(null)
+  const { aguardando, recusa, posesNoServidor, adicionou } = useEnvioPendente(codigo, eu.poses_restantes)
   const [explicar, setExplicar] = useState<boolean | null>(null)
   const [ocupada, setOcupada] = useState(false)
   const arquivo = useRef<HTMLInputElement>(null)
 
-  const restantes = Math.max(0, posesNoServidor - aguardando)
+  const restantes = Math.max(0, (posesNoServidor ?? eu.poses_restantes) - aguardando)
 
-  const sincronizar = useCallback(async () => {
-    const resultado = await enviarPendentes(codigo)
-    setAguardando(await naoEnviadas(codigo))
-    if (resultado.recusadas.length > 0) setRecusa(resultado.recusadas[0])
-    try {
-      setPosesNoServidor((await api.eu(codigo)).poses_restantes)
-    } catch {
-      // sem conexão: mantém a última contagem conhecida
-    }
-  }, [codigo])
-
-  // Envia o que ficou de antes, de novo quando a conexão volta ou o app volta à frente, e a cada 15 s se ainda houver fila.
   useEffect(() => {
     let ativo = true
     cameraJaLiberada().then((ok) => ativo && setExplicar(!ok))
-    naoEnviadas(codigo).then((n) => ativo && setAguardando(n))
-    const primeiro = setTimeout(() => void sincronizar(), 0)
-    const aoVoltar = () => document.visibilityState === 'visible' && void sincronizar()
-    window.addEventListener('online', sincronizar)
-    document.addEventListener('visibilitychange', aoVoltar)
     return () => {
       ativo = false
-      clearTimeout(primeiro)
-      window.removeEventListener('online', sincronizar)
-      document.removeEventListener('visibilitychange', aoVoltar)
     }
-  }, [codigo, sincronizar])
-
-  useEffect(() => {
-    if (aguardando === 0) return
-    const timer = setInterval(() => void sincronizar(), NOVA_TENTATIVA_MS)
-    return () => clearInterval(timer)
-  }, [aguardando, sincronizar])
+  }, [])
 
   async function guardar(preparar: () => Promise<FotoParaEnvio>) {
     if (restantes <= 0 || ocupada) return
     setOcupada(true)
     try {
       await enfileirar(codigo, await preparar())
-      setAguardando((n) => n + 1)
+      adicionou()
     } finally {
       setOcupada(false)
     }
-    void sincronizar()
   }
 
   const contador = <ContadorPoses restantes={restantes} />

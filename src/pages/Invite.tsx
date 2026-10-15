@@ -6,6 +6,7 @@ import { ErroApi, api, type EventoPublico, type Eu } from '../lib/api'
 import { dataPorExtenso, quando } from '../lib/datas'
 import { BoasVindas } from './convite/BoasVindas'
 import { CameraConvidado } from './convite/CameraConvidado'
+import { Espera } from './convite/Espera'
 import { CascaConvite } from './convite/CascaConvite'
 
 type Carga =
@@ -151,18 +152,7 @@ export function InvitePage() {
       return casca(<BoasVindas codigo={codigo} evento={e} onEntrou={() => void carregar()} onMudou={() => void carregar()} />)
 
     case 'captura_encerrada':
-      // Tela de espera: issue #20
-      return casca(
-        <BlocoEstado
-          className="flex-1"
-          titulo="A câmera fechou"
-          texto={
-            e.revelacao_manual || !e.revelacao_em
-              ? 'As fotos aparecem quando o anfitrião revelar. Volte neste mesmo link.'
-              : `Revelação ${quando(e.revelacao_em)}. Volte neste mesmo link.`
-          }
-        />,
-      )
+      return <Espera codigo={codigo} evento={e} eu={eu} />
 
     case 'revelado':
       if (e.album_privado) {

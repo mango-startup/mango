@@ -412,6 +412,7 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
         expira_em: e.expira_em,
         album_privado: e.album_privado,
         lotado: banco.convidados.filter((c) => c.evento_id === e.id).length >= e.limite_convidados,
+        fotos: ativas(banco, e.id).length,
       }
     },
 
