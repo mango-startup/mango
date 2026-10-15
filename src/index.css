@@ -33,7 +33,83 @@ body {
   outline-offset: 3px;
 }
 
+/* Entrada escalonada do hero */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(6px);
+  }
+}
+
+/* Brilho que atravessa o botão (estilo shimmer button) */
+@keyframes shimmer {
+  to {
+    transform: translateX(260%) skewX(-20deg);
+  }
+}
+
+/* Flutuação suave dos quadros */
+@keyframes float {
+  50% {
+    transform: translateY(-10px) rotate(var(--tilt, 0deg));
+  }
+}
+
+.anim-up {
+  animation: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -60%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(244 242 236 / 0.28), transparent);
+  transform: skewX(-20deg);
+  animation: shimmer 3.2s ease-in-out infinite;
+}
+.btn-shimmer-dark::after {
+  background: linear-gradient(90deg, transparent, rgb(21 21 19 / 0.14), transparent);
+}
+
+.frame {
+  transform: rotate(var(--tilt, 0deg));
+  animation: float 6s ease-in-out infinite;
+  animation-delay: var(--d, 0ms);
+  transition: scale 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.frame:hover {
+  scale: 1.05;
+}
+
+/* Revelação ao rolar */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  filter: blur(6px);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms),
+    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms);
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
   *,
   *::before,
   *::after {
