@@ -48,16 +48,21 @@ function recusar(c: Context, segundos: number, mensagem: string) {
   return erro(c, 429, 'muitas_requisicoes', mensagem, { retry_em_segundos: segundos })
 }
 
-export function criarLimites(limites: Limites, agora: () => Date): MiddlewareHandler[] {
-  const criar = new Limitador(limites.criarEventoPorHora, HORA)
-  const uploads = new Limitador(limites.uploadsPorMinutoPorConvidado, MINUTO)
-  const falhas = new Limitador(limites.falhasPorMinuto, MINUTO)
-  const remocoes = new Limitador(limites.pedidosRemocaoPorHora, HORA)
+/** Os valores vigentes, lidos a cada requisição (o admin muda na configuração). `null` = limites desligados. */
+export type ProvedorLimites = () => Promise<Limites | null> | Limites | null
+
+export function criarLimites(provedor: ProvedorLimites, agora: () => Date): MiddlewareHandler[] {
+  const criar = new Limitador(LIMITES_PADRAO.criarEventoPorHora, HORA)
+  const uploads = new Limitador(LIMITES_PADRAO.uploadsPorMinutoPorConvidado, MINUTO)
+  const falhas = new Limitador(LIMITES_PADRAO.falhasPorMinuto, MINUTO)
+  const remocoes = new Limitador(LIMITES_PADRAO.pedidosRemocaoPorHora, HORA)
   const agoraMs = () => agora().getTime()
 
   const porFalhas: MiddlewareHandler = async (c, next) => {
+    const limites = await provedor()
+    if (!limites) return next()
     const ip = ipDoCliente(c)
-    const espera = falhas.espera(ip, agoraMs())
+    const espera = falhas.espera(ip, agoraMs(), limites.falhasPorMinuto)
     if (espera) return recusar(c, espera, 'Muitas tentativas inválidas. Tente de novo em instantes.')
     await next()
     if (c.res.status === 401 || c.res.status === 404) falhas.registrar(ip, agoraMs())
@@ -65,23 +70,29 @@ export function criarLimites(limites: Limites, agora: () => Date): MiddlewareHan
 
   const porCriacao: MiddlewareHandler = async (c, next) => {
     if (c.req.method !== 'POST' || new URL(c.req.url).pathname !== '/api/eventos') return next()
-    const r = criar.consumir(ipDoCliente(c), agoraMs())
+    const limites = await provedor()
+    if (!limites) return next()
+    const r = criar.consumir(ipDoCliente(c), agoraMs(), limites.criarEventoPorHora)
     if (!r.permitido) return recusar(c, r.retryEmSegundos, 'Muitos eventos criados deste endereço. Tente de novo mais tarde.')
     return next()
   }
 
   const porUpload: MiddlewareHandler = async (c, next) => {
     if (c.req.method !== 'PUT') return next()
+    const limites = await provedor()
+    if (!limites) return next()
     const token = c.req.header('x-convidado-token')
     const chave = token ? `t:${hashToken(token)}` : `ip:${ipDoCliente(c)}`
-    const r = uploads.consumir(chave, agoraMs())
+    const r = uploads.consumir(chave, agoraMs(), limites.uploadsPorMinutoPorConvidado)
     if (!r.permitido) return recusar(c, r.retryEmSegundos, 'Envios rápidos demais. O aparelho tenta de novo sozinho.')
     return next()
   }
 
   const porRemocao: MiddlewareHandler = async (c, next) => {
     if (c.req.method !== 'POST') return next()
-    const r = remocoes.consumir(ipDoCliente(c), agoraMs())
+    const limites = await provedor()
+    if (!limites) return next()
+    const r = remocoes.consumir(ipDoCliente(c), agoraMs(), limites.pedidosRemocaoPorHora)
     if (!r.permitido) return recusar(c, r.retryEmSegundos, 'Muitos pedidos de remoção deste endereço. Tente de novo mais tarde.')
     return next()
   }

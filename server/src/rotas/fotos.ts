@@ -1,17 +1,16 @@
 import { Hono } from 'hono'
-import type { Context } from 'hono'
+import type { Context, MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import type { Pool } from 'pg'
-import { avancarEstados } from '../agendador.ts'
-import { DAY_MS } from '../estados.ts'
+import type { Servicos } from '../servicos.ts'
 import type { Storage } from '../storage/storage.ts'
 import { hashToken } from '../tokens.ts'
 import { erro } from './util.ts'
 
-export const FOTO_MAX_BYTES = 2 * 1024 * 1024
-export const MINIATURA_MAX_BYTES = 512 * 1024
-/** Depois que a câmera fecha, ainda aceitamos envios atrasados por este tempo (plano, seção 2.1 etapa 12). */
-const ENVIO_ATRASADO_MS = DAY_MS
+/** 2048 → "2 MB"; 512 → "512 KB". */
+function rotuloTamanho(kb: number): string {
+  return kb >= 1024 ? `${Math.round((kb / 1024) * 10) / 10} MB` : `${kb} KB`
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -35,14 +34,14 @@ function inteiro(valor: string | undefined, min: number, max: number): number | 
   return Number.isInteger(n) && n >= min && n <= max ? n : 'invalido'
 }
 
-export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () => new Date()): Hono {
+export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () => new Date(), servicos: Servicos): Hono {
   const app = new Hono()
 
   /** Acha o convidado pelo token do aparelho dentro do evento do código. */
   async function convidadoDaRequisicao(c: Context): Promise<Contexto | null> {
     const token = c.req.header('x-convidado-token')
     if (!token) return null
-    await avancarEstados(pool, agora())
+    await servicos.avancar()
     const r = await pool.query<Contexto>(
       `select e.id as evento_id, e.estado, e.captura_fim, e.poses_por_convidado, e.limite_fotos,
               c.id as convidado_id, c.apelido
@@ -53,19 +52,25 @@ export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () 
     return r.rows[0] ?? null
   }
 
-  function aceitaEnvio(ctx: Contexto): boolean {
+  /** Depois que a câmera fecha, ainda aceitamos envios atrasados pelo prazo da configuração (`envio_atrasado_horas`). */
+  function aceitaEnvio(ctx: Contexto, atrasoHoras: number): boolean {
     if (ctx.estado === 'captura_aberta') return true
     if (ctx.estado === 'captura_encerrada' && ctx.captura_fim) {
-      return agora().getTime() <= ctx.captura_fim.getTime() + ENVIO_ATRASADO_MS
+      return agora().getTime() <= ctx.captura_fim.getTime() + atrasoHoras * 3600_000
     }
     return false
   }
 
-  const limite = (max: number) =>
-    bodyLimit({
-      maxSize: max,
-      onError: (c) => erro(c, 413, 'arquivo_grande', `O arquivo passa de ${Math.round(max / 1024)} KB.`),
-    })
+  /** Limite de corpo lido da configuração a cada envio (o admin pode mudar sem reiniciar). */
+  const limite =
+    (qual: 'foto_max_kb' | 'miniatura_max_kb'): MiddlewareHandler =>
+    async (c, next) => {
+      const kb = (await servicos.config.valores())[qual]
+      return bodyLimit({
+        maxSize: kb * 1024,
+        onError: (c2) => erro(c2, 413, 'arquivo_grande', `O arquivo passa de ${rotuloTamanho(kb)}.`),
+      })(c, next)
+    }
 
   // Estado do convidado: poses que sobram e quais fotos o servidor já tem (para a fila de envio do aparelho).
   app.get('/api/eventos/:codigo/eu', async (c) => {
@@ -85,7 +90,7 @@ export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () 
   })
 
   // Envio da foto. O id é gerado no aparelho, então repetir o envio é seguro (idempotente).
-  app.put('/api/eventos/:codigo/fotos/:fotoId', limite(FOTO_MAX_BYTES), async (c) => {
+  app.put('/api/eventos/:codigo/fotos/:fotoId', limite('foto_max_kb'), async (c) => {
     const fotoId = c.req.param('fotoId').toLowerCase()
     if (!UUID.test(fotoId)) return erro(c, 400, 'id_invalido', 'O id da foto precisa ser um UUID.')
     if (!(c.req.header('content-type') ?? '').startsWith('image/jpeg')) {
@@ -100,9 +105,10 @@ export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () 
 
     const ctx = await convidadoDaRequisicao(c)
     if (!ctx) return erro(c, 401, 'nao_autorizado', 'Convidado não reconhecido neste evento.')
+    const cfg = await servicos.config.valores()
 
     const dados = new Uint8Array(await c.req.arrayBuffer())
-    if (dados.length > FOTO_MAX_BYTES) return erro(c, 413, 'arquivo_grande', 'A foto passa de 2 MB.')
+    if (dados.length > cfg.foto_max_kb * 1024) return erro(c, 413, 'arquivo_grande', `A foto passa de ${rotuloTamanho(cfg.foto_max_kb)}.`)
     if (!ehJpeg(dados)) return erro(c, 415, 'tipo_invalido', 'O arquivo não é um JPEG.')
 
     const chave = `${ctx.evento_id}/${fotoId}.jpg`
@@ -121,7 +127,7 @@ export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () 
         return c.json({ foto_id: fotoId, repetida: true })
       }
 
-      if (!aceitaEnvio(ctx)) {
+      if (!aceitaEnvio(ctx, cfg.envio_atrasado_horas)) {
         await cliente.query('rollback')
         return erro(c, 409, 'captura_fechada', 'A câmera deste evento não aceita mais fotos.', { estado: ctx.estado })
       }
@@ -164,7 +170,7 @@ export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () 
   })
 
   // Miniatura (gerada no aparelho). A foto precisa existir e ser do mesmo convidado.
-  app.put('/api/eventos/:codigo/fotos/:fotoId/miniatura', limite(MINIATURA_MAX_BYTES), async (c) => {
+  app.put('/api/eventos/:codigo/fotos/:fotoId/miniatura', limite('miniatura_max_kb'), async (c) => {
     const fotoId = c.req.param('fotoId').toLowerCase()
     if (!UUID.test(fotoId)) return erro(c, 400, 'id_invalido', 'O id da foto precisa ser um UUID.')
     if (!(c.req.header('content-type') ?? '').startsWith('image/jpeg')) {
@@ -172,13 +178,14 @@ export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () 
     }
     const ctx = await convidadoDaRequisicao(c)
     if (!ctx) return erro(c, 401, 'nao_autorizado', 'Convidado não reconhecido neste evento.')
-    if (!aceitaEnvio(ctx)) return erro(c, 409, 'captura_fechada', 'A câmera deste evento não aceita mais fotos.', { estado: ctx.estado })
+    const cfg = await servicos.config.valores()
+    if (!aceitaEnvio(ctx, cfg.envio_atrasado_horas)) return erro(c, 409, 'captura_fechada', 'A câmera deste evento não aceita mais fotos.', { estado: ctx.estado })
 
     const foto = await pool.query('select 1 from fotos where id = $1 and convidado_id = $2 and removida_em is null', [fotoId, ctx.convidado_id])
     if (foto.rowCount === 0) return erro(c, 404, 'nao_encontrada', 'Foto não encontrada.')
 
     const dados = new Uint8Array(await c.req.arrayBuffer())
-    if (dados.length > MINIATURA_MAX_BYTES) return erro(c, 413, 'arquivo_grande', 'A miniatura passa de 512 KB.')
+    if (dados.length > cfg.miniatura_max_kb * 1024) return erro(c, 413, 'arquivo_grande', `A miniatura passa de ${rotuloTamanho(cfg.miniatura_max_kb)}.`)
     if (!ehJpeg(dados)) return erro(c, 415, 'tipo_invalido', 'O arquivo não é um JPEG.')
 
     const chave = `${ctx.evento_id}/${fotoId}_min.jpg`

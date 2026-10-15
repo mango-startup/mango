@@ -18,6 +18,8 @@ before(async () => {
   if (!pool) return
   await pool.query('drop schema public cascade; create schema public')
   await migrar(pool)
+  // Os testes de pacote pago precisam do pagamento "ligado" (padrão: desligado até o #37).
+  await pool.query("insert into configuracoes (chave, valor) values ('pacotes_pagos_disponiveis', 'true')")
 })
 after(async () => {
   await pool?.end()

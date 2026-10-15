@@ -23,6 +23,8 @@ services:
       PORT: "3000"
       DATABASE_URL: postgres://mango:mango@db:5432/mango
       STORAGE_DIR: /dados/fotos
+      # Área de admin local: usuários raziel e lucas com esta senha inicial (a troca é obrigatória no primeiro login).
+      ADMIN_SENHA_INICIAL: mango-dev-2026
     ports:
       - "3000:3000"
     volumes:

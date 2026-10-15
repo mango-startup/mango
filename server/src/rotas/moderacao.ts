@@ -3,20 +3,20 @@ import { Hono } from 'hono'
 import type { Pool } from 'pg'
 import { ipDoCliente } from '../limites.ts'
 import { hashToken } from '../tokens.ts'
+import type { Servicos } from '../servicos.ts'
 import { criarAcesso } from './acesso.ts'
 import { erro } from './util.ts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const MOTIVO_MAX = 300
 
 /**
  * Moderação (plano, item A9): o anfitrião apaga fotos e o convidado pede remoção.
  * O pedido fica gravado (o anfitrião lê pela API) e também sai numa linha de log estruturada,
  * que é o que o suporte lê enquanto não existe e-mail (issue #58).
  */
-export function rotasModeracao(pool: Pool, agora: () => Date = () => new Date(), log: (linha: string) => void = console.log): Hono {
+export function rotasModeracao(pool: Pool, agora: () => Date = () => new Date(), servicos: Servicos, log: (linha: string) => void = console.log): Hono {
   const app = new Hono()
-  const { acesso, anfitriao } = criarAcesso(pool, agora)
+  const { acesso, anfitriao } = criarAcesso(pool, servicos)
 
   // Apaga a foto: some do álbum na hora; o arquivo sai do armazenamento em até 30 dias (limpeza.ts).
   app.delete('/api/anfitriao/fotos/:fotoId', async (c) => {
@@ -45,7 +45,7 @@ export function rotasModeracao(pool: Pool, agora: () => Date = () => new Date(),
     let motivo: string | null = null
     try {
       const corpo = (await c.req.json()) as { motivo?: unknown }
-      if (typeof corpo.motivo === 'string') motivo = corpo.motivo.trim().slice(0, MOTIVO_MAX) || null
+      if (typeof corpo.motivo === 'string') motivo = corpo.motivo.trim().slice(0, (await servicos.config.valores()).pedido_remocao_motivo_max) || null
     } catch {
       // sem corpo: o motivo é opcional
     }

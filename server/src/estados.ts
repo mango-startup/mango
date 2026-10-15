@@ -23,7 +23,3 @@ const TRANSICOES: Record<Estado, Estado[]> = {
 export function podeTransicionar(de: Estado, para: Estado): boolean {
   return TRANSICOES[de].includes(para)
 }
-
-export const DAY_MS = 24 * 60 * 60 * 1000
-export const CAPTURA_MAX_MS = 48 * 60 * 60 * 1000
-export const REVELACAO_MAX_MS = 7 * DAY_MS

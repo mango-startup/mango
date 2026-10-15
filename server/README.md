@@ -40,6 +40,18 @@ Os testes de migração e de eventos precisam de um banco descartável (**apaga 
 - `migrations/002_*.sql` token secreto do anfitrião (e-mail opcional)
 - `migrations/001_*.sql` tabelas `eventos`, `convidados`, `fotos` (estados conforme seção 3.3 do plano)
 
+## Área de admin e configuração (gestão pelos donos)
+
+Preços, planos, limites e demais valores de negócio **não ficam mais no código**: moram no banco e são editados por Raziel e Lucas em `/admin`. O que é configurável, o padrão de cada chave e o que continua fixo (de propósito) está em [`docs/CONFIGURACOES.md`](../docs/CONFIGURACOES.md).
+
+- **Código:** `src/configuracao.ts` (definições com padrão, faixa e descrição; serviço com cache de 10 s e validação), `src/pacotes.ts` (serviço de pacotes), `src/servicos.ts` (junta os dois), `src/admin/` (login, senha com scrypt) e `src/rotas/admin.ts`.
+- **Acesso:** `ADMIN_USUARIOS` (padrão `raziel:Raziel,lucas:Lucas`) e `ADMIN_SENHA_INICIAL` criam os admins na primeira subida, **uma vez** (quem já existe não é alterado). A senha inicial só serve para o primeiro login: a troca é obrigatória (`trocar_senha_obrigatoria` em tudo, menos `eu`, `sair` e `trocar-senha`). Sem `ADMIN_SENHA_INICIAL` nenhum admin é criado.
+- **Sessão:** cookie `mango_admin` (HttpOnly, SameSite=Strict, `Path=/api/admin`, só o hash no banco), 8 h. Tudo que muda estado exige o header `X-Mango-Admin: 1` (anti-CSRF). Cinco senhas erradas bloqueiam a conta por 15 minutos. Um admin pode gerar uma senha temporária para o outro.
+- **Rotas** (`/api/admin/*`, ver `openapi.json`): `entrar`, `sair`, `eu`, `trocar-senha`, `resumo`, `pacotes` (listar, criar, editar), `configuracoes` (listar, alterar tudo ou nada), `auditoria`, `administradores` e `redefinir-senha`.
+- **Público:** `GET /api/pacotes` (só os ativos) e `GET /api/config` (o que o front pode usar).
+- **Efeito:** valem na hora (cache de até 10 s). Evento já criado não muda: convidados e retenção ficam gravados nele. O servidor **recusa pacote pago** enquanto `pacotes_pagos_disponiveis` estiver desligado (padrão, até o pagamento existir).
+- **Local:** `docker compose -f docker-compose.dev.yml up` já define `ADMIN_SENHA_INICIAL: mango-dev-2026` (só para desenvolvimento).
+
 ## Contrato da API
 
 `openapi.json` (OpenAPI 3.1) descreve todas as rotas, schemas, headers de autenticação, erros e limites. É o ponto de encontro com o frontend (`src/lib/api/tipos.ts` segue os mesmos formatos). Para ler com interface, cole o arquivo em https://editor.swagger.io. Ele é mantido à mão e **o teste `test/contrato.test.ts` falha** se uma rota existir sem estar documentada (ou o contrário), se uma referência quebrar ou se um parâmetro de caminho faltar. Não precisa de banco para rodar.
@@ -100,7 +112,7 @@ Pensados para festa: dezenas de convidados no mesmo Wi-Fi compartilham UM IP, en
 | Tentativas que falham com 401/404 | 600 por minuto | IP (só falha conta; sucesso nunca) |
 | Pedido de remoção de foto | 30 por hora | IP |
 
-Estourou: `429` com `Retry-After` e `{ "erro": "muitas_requisicoes", "retry_em_segundos": N }`. O limite de upload cobre a fila offline despejando de uma vez (36 fotos + miniaturas). Os contadores ficam em memória (uma instância só) e se esvaziam sozinhos se a tabela crescer demais (falha aberta, nunca derruba a API). Em emergência, `RATE_LIMIT=off` desliga tudo. O IP vem do **fim** do `X-Forwarded-For` (o que o Caddy escreve); sem proxy, vale o socket. Valores em `src/limites.ts`.
+Estourou: `429` com `Retry-After` e `{ "erro": "muitas_requisicoes", "retry_em_segundos": N }`. O limite de upload cobre a fila offline despejando de uma vez (36 fotos + miniaturas). Os contadores ficam em memória (uma instância só) e se esvaziam sozinhos se a tabela crescer demais (falha aberta, nunca derruba a API). Em emergência, `RATE_LIMIT=off` desliga tudo. O IP vem do **fim** do `X-Forwarded-For` (o que o Caddy escreve); sem proxy, vale o socket. Os valores são editados no admin (chaves `rl_*`, padrões em `src/configuracao.ts`).
 
 ## Moderação e limpeza (A9 e A10 do plano)
 
@@ -117,4 +129,4 @@ Cada pedido novo também sai numa linha de log JSON (`{"aviso":"pedido_remocao",
 
 ## Variáveis
 
-`DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`), `RATE_LIMIT=off` (desliga os limites). Nenhum segredo no repo.
+`DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`), `RATE_LIMIT=off` (desliga os limites), `ADMIN_USUARIOS` e `ADMIN_SENHA_INICIAL` (admins iniciais). Nenhum segredo no repo.

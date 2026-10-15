@@ -1,13 +1,14 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import type { Pool } from 'pg'
+import type { Servicos } from '../servicos.ts'
 import type { Storage } from '../storage/storage.ts'
 import { gerarCodigo, hashToken } from '../tokens.ts'
 import { criarAcesso } from './acesso.ts'
 import { criarZip } from '../zip.ts'
 import { erro } from './util.ts'
 
-const ZIP_MAX_BYTES = 4_000_000_000
+/** Limite do formato ZIP sem ZIP64: o tamanho máximo configurável (`zip_max_gb`) nunca passa de 4 GB. */
 const ZIP_MAX_ARQUIVOS = 65_000
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -15,16 +16,17 @@ function slug(texto: string): string {
   return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
 }
 
-export function rotasAlbum(pool: Pool, storage: Storage, agora: () => Date = () => new Date()): Hono {
+export function rotasAlbum(pool: Pool, storage: Storage, agora: () => Date = () => new Date(), servicos: Servicos): Hono {
   const app = new Hono()
-  const { acesso, anfitriao } = criarAcesso(pool, agora)
+  const { acesso, anfitriao } = criarAcesso(pool, servicos)
 
   // Folha de contato: lista paginada. "numero" é a posição no álbum inteiro, mesmo com o filtro "minhas".
   app.get('/api/eventos/:codigo/album', async (c) => {
     const a = await acesso(c)
     if (a instanceof Response) return a
 
-    const limite = Math.min(200, Math.max(1, Number(c.req.query('limite') ?? 60) || 60))
+    const cfg = await servicos.config.valores()
+    const limite = Math.min(cfg.album_pagina_max, Math.max(1, Number(c.req.query('limite') ?? cfg.album_pagina_padrao) || cfg.album_pagina_padrao))
     const pagina = Math.max(1, Number(c.req.query('pagina') ?? 1) || 1)
 
     let soDoConvidado: string | null = null
@@ -102,7 +104,8 @@ export function rotasAlbum(pool: Pool, storage: Storage, agora: () => Date = () 
     )
     if (r.rows.length === 0) return erro(c, 404, 'sem_fotos', 'Este álbum ainda não tem fotos.')
     const total = r.rows.reduce((s, f) => s + f.tamanho_bytes, 0)
-    if (r.rows.length > ZIP_MAX_ARQUIVOS || total > ZIP_MAX_BYTES) {
+    const zipMaxBytes = Math.min(4_000_000_000, (await servicos.config.valores()).zip_max_gb * 1_000_000_000)
+    if (r.rows.length > ZIP_MAX_ARQUIVOS || total > zipMaxBytes) {
       return erro(c, 413, 'zip_grande', 'O álbum é grande demais para um ZIP só. Baixe as fotos pelo álbum.')
     }
     const corpo = criarZip(
