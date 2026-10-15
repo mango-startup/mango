@@ -43,6 +43,8 @@ proxy: { '/api': { target: 'http://localhost:3000', changeOrigin: true } },
 ```
 Assim o front chama sempre `/api/...` (caminho relativo), no dev e em produção. Para olhar a produção de verdade, aponte o `target` para `https://mango.razielhub.cloud`, ciente do aviso acima.
 
+**Roteiro de verificação:** com a API local no ar, `npm run smoke:api` (ou `node scripts/smoke-api.ts http://localhost:3000`) percorre o ciclo inteiro pela `criarApiReal`: criar evento, entrar, fotografar com reenvio, moderar, revelar, álbum, ZIP, privacidade e excluir (14 verificações). Mexeu em `real.ts` ou numa rota? Rode antes do PR. Recusa rodar contra a produção.
+
 **Testar o ciclo inteiro rápido:** crie o evento com `captura_inicio` no passado, `captura_fim` daqui a 2 minutos e `revelacao_em` igual ao `captura_fim`. A câmera abre na hora, fecha em 2 minutos e revela 1 minuto depois (o relógio do servidor roda a cada minuto e também antes de responder). Ou use `revelacao_manual: true` e `POST .../revelar`.
 
 ## 3. Mapa: `MangoApi` → rota
