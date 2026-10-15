@@ -5,6 +5,7 @@ import type { Limites } from './limites.ts'
 import { rotasAlbum } from './rotas/album.ts'
 import { rotasEventos } from './rotas/eventos.ts'
 import { rotasFotos } from './rotas/fotos.ts'
+import { rotasModeracao } from './rotas/moderacao.ts'
 import type { Storage } from './storage/storage.ts'
 
 /** `limites: null` desliga os limites de requisição (emergência: RATE_LIMIT=off). */
@@ -17,11 +18,12 @@ export function criarApp(
   const app = new Hono()
 
   if (limites) {
-    const [porFalhas, porCriacao, porUpload] = criarLimites(limites, agora)
+    const [porFalhas, porCriacao, porUpload, porRemocao] = criarLimites(limites, agora)
     app.use('/api/*', porFalhas)
     app.use('/api/eventos', porCriacao)
     app.use('/api/eventos/:codigo/fotos/:fotoId', porUpload)
     app.use('/api/eventos/:codigo/fotos/:fotoId/miniatura', porUpload)
+    app.use('/api/eventos/:codigo/fotos/:fotoId/pedir-remocao', porRemocao)
   }
 
   app.get('/api/saude', async (c) => {
@@ -36,6 +38,7 @@ export function criarApp(
   app.route('/', rotasEventos(pool, agora))
   app.route('/', rotasFotos(pool, storage, agora))
   app.route('/', rotasAlbum(pool, storage, agora))
+  app.route('/', rotasModeracao(pool, agora))
 
   return app
 }

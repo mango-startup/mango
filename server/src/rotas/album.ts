@@ -1,9 +1,9 @@
-import { Hono } from 'hono'
 import type { Context } from 'hono'
+import { Hono } from 'hono'
 import type { Pool } from 'pg'
-import { avancarEstados } from '../agendador.ts'
 import type { Storage } from '../storage/storage.ts'
 import { gerarCodigo, hashToken } from '../tokens.ts'
+import { criarAcesso } from './acesso.ts'
 import { criarZip } from '../zip.ts'
 import { erro } from './util.ts'
 
@@ -11,58 +11,13 @@ const ZIP_MAX_BYTES = 4_000_000_000
 const ZIP_MAX_ARQUIVOS = 65_000
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-interface EventoAcesso {
-  id: string
-  codigo: string
-  nome: string
-  estado: string
-  album_privado: boolean
-  revelacao_em: Date | null
-  expira_em: Date | null
-}
-
-type Papel = 'anfitriao' | 'publico'
-
-function bearer(c: Context): string | null {
-  const m = /^Bearer (\S+)$/.exec(c.req.header('authorization') ?? '')
-  return m ? m[1] : null
-}
-
 function slug(texto: string): string {
   return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
 }
 
 export function rotasAlbum(pool: Pool, storage: Storage, agora: () => Date = () => new Date()): Hono {
   const app = new Hono()
-
-  /**
-   * Quem pode ver as fotos de um evento:
-   * - anfitrião (token): sempre, para moderar antes da revelação e baixar depois;
-   * - qualquer pessoa com o código: só depois de revelado e se o álbum não for privado.
-   * Devolve a resposta de erro pronta quando o acesso é negado.
-   */
-  async function acesso(c: Context): Promise<{ evento: EventoAcesso; papel: Papel } | Response> {
-    await avancarEstados(pool, agora())
-    const r = await pool.query<EventoAcesso>(
-      `select id, codigo, nome, estado, album_privado, revelacao_em, expira_em
-       from eventos where codigo = $1 and excluido_em is null`,
-      [c.req.param('codigo')!.toUpperCase()],
-    )
-    const evento = r.rows[0]
-    if (!evento) return erro(c, 404, 'nao_encontrado', 'Evento não encontrado.')
-    if (evento.estado === 'expirado') return erro(c, 410, 'expirado', 'Este álbum expirou.', { expira_em: evento.expira_em })
-
-    const token = bearer(c)
-    if (token) {
-      const dono = await pool.query('select 1 from eventos where id = $1 and anfitriao_token_hash = $2', [evento.id, hashToken(token)])
-      if (dono.rowCount) return { evento, papel: 'anfitriao' }
-    }
-    if (evento.estado !== 'revelado') {
-      return erro(c, 409, 'nao_revelado', 'As fotos só aparecem na revelação.', { estado: evento.estado, revelacao_em: evento.revelacao_em })
-    }
-    if (evento.album_privado) return erro(c, 403, 'album_privado', 'O anfitrião deixou este álbum privado.')
-    return { evento, papel: 'publico' }
-  }
+  const { acesso, anfitriao } = criarAcesso(pool, agora)
 
   // Folha de contato: lista paginada. "numero" é a posição no álbum inteiro, mesmo com o filtro "minhas".
   app.get('/api/eventos/:codigo/album', async (c) => {
@@ -132,18 +87,6 @@ export function rotasAlbum(pool: Pool, storage: Storage, agora: () => Date = () 
   app.get('/api/eventos/:codigo/fotos/:fotoId/miniatura', (c) => servirArquivo(c, true))
 
   // --- Anfitrião ---
-  async function anfitriao(c: Context): Promise<EventoAcesso | null> {
-    const token = bearer(c)
-    if (!token) return null
-    await avancarEstados(pool, agora())
-    const r = await pool.query<EventoAcesso>(
-      `select id, codigo, nome, estado, album_privado, revelacao_em, expira_em
-       from eventos where anfitriao_token_hash = $1 and excluido_em is null`,
-      [hashToken(token)],
-    )
-    return r.rows[0] ?? null
-  }
-
   // ZIP com todas as fotos, só depois de revelado.
   app.get('/api/anfitriao/album.zip', async (c) => {
     const e = await anfitriao(c)
