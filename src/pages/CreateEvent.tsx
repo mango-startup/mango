@@ -5,6 +5,7 @@ import { CampoCopiavel } from '../components/CampoCopiavel'
 import { MangoLogo } from '../components/MangoLogo'
 import { ErroApi, api, type DefinicaoPacote, type Evento, type Pacote } from '../lib/api'
 import { quando } from '../lib/datas'
+import { PAGAMENTO_DISPONIVEL } from '../lib/config'
 import { precoEmReais } from '../lib/formato'
 import { guardarRascunho, lerRascunho } from './criar/rascunho'
 import { montarHorarios, type CampoHorario, type CamposHorario, type ModoRevelacao } from './criar/horarios'
@@ -27,7 +28,8 @@ function hojeMais(dias: number): string {
 
 function formularioInicial(pacote: Pacote | null): Formulario {
   const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', poses: 24, pacote: 'teste', revelacao: 'manha', revelacaoEm: '' }
-  return { ...padrao, ...lerRascunho<Formulario>(), ...(pacote ? { pacote } : {}) }
+  const f: Formulario = { ...padrao, ...lerRascunho<Formulario>(), ...(pacote ? { pacote } : {}) }
+  return PAGAMENTO_DISPONIVEL || f.pacote === 'teste' ? f : { ...f, pacote: 'teste', poses: Math.min(f.poses, 12) }
 }
 
 /** Erros da api que dizem respeito a um campo específico. */
@@ -196,10 +198,10 @@ export function CreateEventPage() {
           <legend className="mb-3 text-sm font-semibold">Convidados</legend>
           <div className="grid grid-cols-2 gap-2">
             {pacotes.map((p) => (
-              <Opcao key={p.id} nome="pacote" marcada={form.pacote === p.id} onEscolher={() => mudar('pacote', p.id)} alinhar="esquerda">
+              <Opcao key={p.id} nome="pacote" marcada={form.pacote === p.id} desabilitada={!p.gratis && !PAGAMENTO_DISPONIVEL} onEscolher={() => mudar('pacote', p.id)} alinhar="esquerda">
                 <span className="flex flex-col gap-1 py-1">
                   <span className="font-display text-[26px] leading-none tabular-nums">até {p.convidados}</span>
-                  <span className="text-sm text-muted">{p.gratis ? 'Grátis' : precoEmReais(p.preco_centavos)}</span>
+                  <span className="text-sm text-muted">{p.gratis ? 'Grátis' : PAGAMENTO_DISPONIVEL ? precoEmReais(p.preco_centavos) : 'Em breve'}</span>
                 </span>
               </Opcao>
             ))}

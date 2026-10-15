@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Botao } from '../components/Botao'
 import { MangoLogo } from '../components/MangoLogo'
 import { api, type DefinicaoPacote } from '../lib/api'
+import { PAGAMENTO_DISPONIVEL } from '../lib/config'
 import { precoEmReais } from '../lib/formato'
 
 function retencao(dias: number): string {
@@ -66,15 +67,22 @@ export function PricingPage() {
                   <span className="ml-2 text-[18px]">convidados</span>
                 </p>
                 <p className="mt-4 text-[22px] font-semibold tabular-nums">{p.gratis ? 'Grátis' : precoEmReais(p.preco_centavos)}</p>
+                {!p.gratis && !PAGAMENTO_DISPONIVEL && <p className="mt-1 text-sm opacity-70">Pagamento em breve</p>}
                 <ul className={`mt-5 flex flex-1 flex-col gap-2 border-t pt-4 text-[15px] leading-snug ${p.id === 'celebracao' ? 'border-base/15' : 'border-line'}`}>
                   <li>{poses(p.poses_opcoes)} por convidado</li>
                   <li>Álbum no ar por {retencao(p.retencao_dias)}</li>
                   <li>Download de todas as fotos</li>
                   {p.gratis && <li>Bom para testar num jantar</li>}
                 </ul>
-                <Botao para={`/criar?pacote=${p.id}`} variante={p.id === 'celebracao' ? 'escuro' : 'secundario'} className="mt-6 w-full">
-                  {p.gratis ? 'Testar grátis' : `Escolher ${p.nome}`}
-                </Botao>
+                {p.gratis || PAGAMENTO_DISPONIVEL ? (
+                  <Botao para={`/criar?pacote=${p.id}`} variante={p.id === 'celebracao' ? 'escuro' : 'secundario'} className="mt-6 w-full">
+                    {p.gratis ? 'Testar grátis' : `Escolher ${p.nome}`}
+                  </Botao>
+                ) : (
+                  <Botao variante="secundario" disabled className="mt-6 w-full">
+                    Em breve
+                  </Botao>
+                )}
               </li>
             ))}
           </ul>
