@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Icone } from './Icone'
 
 interface CameraViewProps {
   onCapture: (video: HTMLVideoElement) => void
@@ -128,12 +129,7 @@ export function CameraView({ onCapture, disabled, caption }: CameraViewProps) {
             aria-label="Trocar câmera"
             className="absolute bottom-[42px] right-8 flex h-12 w-12 items-center justify-center rounded-full border border-line text-paper transition hover:bg-surface active:scale-95"
           >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M20 7h-9a5 5 0 0 0-5 5v1" />
-              <path d="m17 4 3 3-3 3" />
-              <path d="M4 17h9a5 5 0 0 0 5-5v-1" />
-              <path d="m7 20-3-3 3-3" />
-            </svg>
+<Icone nome="trocarCamera" />
           </button>
         )}
       </div>

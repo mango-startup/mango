@@ -56,7 +56,7 @@ export function LandingPage() {
     <div className="min-h-svh bg-base text-paper">
       <div className="mx-auto max-w-[520px] lg:max-w-[1360px] lg:px-10">
         <div className="lg:mt-8 lg:grid lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[1fr_1fr] lg:items-stretch lg:gap-16">
-        <section className="rounded-b-[32px] bg-paper pb-8 text-base lg:flex lg:flex-col lg:rounded-[40px] lg:pb-16">
+        <section className="sobre-creme rounded-b-[32px] bg-paper pb-8 text-base lg:flex lg:flex-col lg:rounded-[40px] lg:pb-16">
           <header className="anim-up flex items-center justify-between px-6 pt-6 lg:px-14 lg:pt-12">
             <span className="flex items-center gap-2 font-display text-[26px] leading-none">
               <MangoLogo className="h-[26px] w-5" />
