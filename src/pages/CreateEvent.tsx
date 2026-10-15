@@ -6,6 +6,7 @@ import { MangoLogo } from '../components/MangoLogo'
 import { ErroApi, api, type DefinicaoPacote, type Evento, type Pacote } from '../lib/api'
 import { quando } from '../lib/datas'
 import { precoEmReais } from '../lib/formato'
+import { guardarRascunho, lerRascunho } from './criar/rascunho'
 import { montarHorarios, type CampoHorario, type CamposHorario, type ModoRevelacao } from './criar/horarios'
 
 interface Formulario extends CamposHorario {
@@ -16,7 +17,6 @@ interface Formulario extends CamposHorario {
 
 type CampoErro = 'nome' | 'poses' | 'pacote' | CampoHorario | 'geral'
 
-const CHAVE_RASCUNHO = 'mango.rascunho-evento'
 const POSES = [12, 24, 36]
 
 function hojeMais(dias: number): string {
@@ -27,22 +27,7 @@ function hojeMais(dias: number): string {
 
 function formularioInicial(pacote: Pacote | null): Formulario {
   const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', poses: 24, pacote: 'teste', revelacao: 'manha', revelacaoEm: '' }
-  try {
-    const salvo = localStorage.getItem(CHAVE_RASCUNHO)
-    if (salvo) return { ...padrao, ...(JSON.parse(salvo) as Partial<Formulario>), ...(pacote ? { pacote } : {}) }
-  } catch {
-    // sem rascunho
-  }
-  return { ...padrao, ...(pacote ? { pacote } : {}) }
-}
-
-function guardarRascunho(f: Formulario | null) {
-  try {
-    if (f) localStorage.setItem(CHAVE_RASCUNHO, JSON.stringify(f))
-    else localStorage.removeItem(CHAVE_RASCUNHO)
-  } catch {
-    // o rascunho é só conveniência
-  }
+  return { ...padrao, ...lerRascunho<Formulario>(), ...(pacote ? { pacote } : {}) }
 }
 
 /** Erros da api que dizem respeito a um campo específico. */

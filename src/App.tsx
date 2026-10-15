@@ -28,7 +28,7 @@ export default function App() {
         <Route path="/criar" element={<CreateEventPage />} />
         <Route path="/entrar" element={<HostSignInPage />} />
         <Route path="/anfitriao" element={<HostLinkPage />} />
-        <Route path="/eventos" element={<RequireHost><MyEventsPage /></RequireHost>} />
+        <Route path="/eventos" element={<MyEventsPage />} />
         <Route path="/eventos/:id" element={<RequireHost><EventDashboardPage /></RequireHost>} />
         <Route path="/eventos/:id/pagamento" element={<RequireHost><PaymentStatusPage /></RequireHost>} />
         <Route path="/eventos/:id/moderacao" element={<RequireHost><ModerationPage /></RequireHost>} />
