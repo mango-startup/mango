@@ -29,6 +29,7 @@ Os testes de migração e de eventos precisam de um banco descartável (**apaga 
 ## Estrutura
 
 - `src/rotas/fotos.ts` envio · `src/rotas/album.ts` leitura, ZIP e privacidade · `src/zip.ts` escritor de ZIP
+- `src/limite.ts` contador por janela · `src/limites.ts` limites e IP do cliente
 - `src/app.ts` monta as rotas (`GET /api/saude` checa o banco) · `src/rotas/eventos.ts` eventos, convidado e anfitrião · `src/estados.ts` · `src/pacotes.ts` · `src/tokens.ts` · `src/config.ts` variáveis de ambiente
 - `src/migracoes.ts` runner: aplica `migrations/*.sql` em ordem, uma transação por arquivo, registro na tabela `migracoes`
 - `src/storage/` interface `Storage` (`salvar`, `ler`, `apagar`) e implementação em disco; trocar por R2 = nova classe
@@ -77,6 +78,18 @@ Quem vê as fotos: **o anfitrião (token) sempre**, para moderar antes da revela
 
 Estado de erro do acesso: `409 nao_revelado` (com `revelacao_em`), `403 album_privado`, `410 expirado`. Fotos usam `cache-control: private`.
 
+## Limites de requisição
+
+Pensados para festa: dezenas de convidados no mesmo Wi-Fi compartilham UM IP, então leitura e upload **não** são limitados por IP. Só o que é abuso:
+
+| Limite | Valor | Chave |
+|---|---|---|
+| Criar evento | 30 por hora | IP |
+| Upload de foto/miniatura | 300 por minuto | aparelho do convidado (token) |
+| Tentativas que falham com 401/404 | 600 por minuto | IP (só falha conta; sucesso nunca) |
+
+Estourou: `429` com `Retry-After` e `{ "erro": "muitas_requisicoes", "retry_em_segundos": N }`. O limite de upload cobre a fila offline despejando de uma vez (36 fotos + miniaturas). Os contadores ficam em memória (uma instância só) e se esvaziam sozinhos se a tabela crescer demais (falha aberta, nunca derruba a API). Em emergência, `RATE_LIMIT=off` desliga tudo. O IP vem do **fim** do `X-Forwarded-For` (o que o Caddy escreve); sem proxy, vale o socket. Valores em `src/limites.ts`.
+
 ## Variáveis
 
-`DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`). Nenhum segredo no repo.
+`DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`), `RATE_LIMIT=off` (desliga os limites). Nenhum segredo no repo.

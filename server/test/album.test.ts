@@ -264,3 +264,50 @@ test('álbum expirado responde 410 para todos', opcoes, async () => {
   assert.equal(publico.json.erro, 'expirado')
   assert.equal((await chamar('GET', `/api/eventos/${codigo}/album`, { cab: host })).status, 410)
 })
+
+test('festa inteira no mesmo Wi-Fi (um IP só) com os limites padrão: nada é barrado', opcoes, async () => {
+  agora = inicio
+  const wifi = { 'x-forwarded-for': '200.200.200.200' }
+  const criado = await chamar('POST', '/api/eventos', { corpo: { nome: 'Festa lotada', captura_inicio: h(1).toISOString(), captura_fim: h(7).toISOString() }, cab: wifi })
+  const codigo = criado.json.evento.codigo as string
+  agora = h(2)
+  const convidados: string[] = []
+  for (let i = 0; i < 10; i++) {
+    const r = await chamar('POST', `/api/eventos/${codigo}/entrar`, { corpo: { apelido: `C${i}` }, cab: wifi })
+    assert.equal(r.status, 201)
+    convidados.push(r.json.convidado_token)
+  }
+  let pedidos = 0
+  const status429: number[] = []
+  // 10 convidados x 12 poses: foto + miniatura de cada uma, tudo pelo mesmo IP.
+  await Promise.all(
+    convidados.map(async (token) => {
+      for (let i = 0; i < 12; i++) {
+        const id = randomUUID()
+        const f = await chamar('PUT', `/api/eventos/${codigo}/fotos/${id}`, { bruto: jpeg(i + 1), cab: { ...wifi, 'x-convidado-token': token } })
+        const m = await chamar('PUT', `/api/eventos/${codigo}/fotos/${id}/miniatura`, { bruto: jpeg(i + 1, 10), cab: { ...wifi, 'x-convidado-token': token } })
+        pedidos += 2
+        for (const r of [f, m]) if (r.status === 429) status429.push(r.status)
+        assert.equal(f.status, 201)
+        assert.equal(m.status, 200)
+      }
+    }),
+  )
+  agora = h(20)
+  const album = await chamar('GET', `/api/eventos/${codigo}/album?limite=200`, { cab: wifi })
+  assert.equal(album.status, 200)
+  assert.equal(album.json.total, 120)
+  // Cada convidado abre o álbum e baixa todas as miniaturas, do mesmo IP.
+  await Promise.all(
+    convidados.map(async () => {
+      for (const foto of album.json.fotos as { id: string }[]) {
+        const r = await chamar('GET', `/api/eventos/${codigo}/fotos/${foto.id}/miniatura`, { cab: wifi })
+        pedidos++
+        if (r.status === 429) status429.push(r.status)
+        assert.equal(r.status, 200)
+      }
+    }),
+  )
+  assert.ok(pedidos > 1000)
+  assert.deepEqual(status429, [])
+})
