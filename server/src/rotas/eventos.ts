@@ -83,8 +83,9 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
   // Estado público do evento (o que o convidado vê no link /c/:codigo).
   app.get('/api/eventos/:codigo', async (c) => {
     await avancarEstados(pool, agora())
-    const r = await pool.query<EventoLinha & { convidados: string }>(
-      `select ${COLUNAS}, (select count(*) from convidados where evento_id = eventos.id) as convidados
+    const r = await pool.query<EventoLinha & { convidados: string; fotos: string }>(
+      `select ${COLUNAS}, (select count(*) from convidados where evento_id = eventos.id) as convidados,
+              (select count(*) from fotos where evento_id = eventos.id and removida_em is null) as fotos
        from eventos where codigo = $1 and excluido_em is null`,
       [c.req.param('codigo').toUpperCase()],
     )
@@ -101,6 +102,8 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
       revelado_em: e.revelado_em,
       expira_em: e.expira_em,
       album_privado: e.album_privado,
+      // Total de fotos no rolo (não revela nenhuma foto): a tela de espera mostra "N fotos no rolo".
+      fotos: Number(e.fotos),
       lotado: Number(e.convidados) >= e.limite_convidados,
     })
   })

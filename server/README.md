@@ -51,7 +51,7 @@ Anfitrião sem login no piloto: ao criar o evento ele recebe um **token secreto*
 | Rota | Quem | O que faz |
 |---|---|---|
 | `POST /api/eventos` | qualquer um | cria o evento (`nome`, `pacote`, `poses_por_convidado`, `captura_inicio`, `captura_fim`, `revelacao_em` ou `revelacao_manual`). Grátis nasce `pronto`; pago fica `aguardando_pagamento` (pagamento ainda não existe) |
-| `GET /api/eventos/:codigo` | convidado | estado público: nome, estado, datas, poses, `lotado` |
+| `GET /api/eventos/:codigo` | convidado | estado público: nome, estado, datas, poses, `fotos` (total no rolo), `lotado`, `album_privado` |
 | `POST /api/eventos/:codigo/entrar` | convidado | cria o convidado (só com a câmera aberta e dentro do limite) ou reconhece o aparelho |
 | `GET /api/anfitriao/evento` | anfitrião | evento + contagem de convidados e fotos |
 | `POST /api/anfitriao/evento/encerrar` e `/revelar` | anfitrião | transições manuais, só na ordem do plano |
