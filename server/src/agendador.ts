@@ -24,6 +24,13 @@ export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date
        and revelacao_manual = false and revelacao_em <= $1`,
     [agora],
   )
+  // Rascunho ou pagamento que ninguém concluiu em 7 dias some (exclusão lógica).
+  await pool.query(
+    `update eventos set excluido_em = $1::timestamptz, atualizado_em = $1::timestamptz
+     where estado in ('rascunho', 'aguardando_pagamento') and excluido_em is null
+       and criado_em <= $1::timestamptz - interval '7 days'`,
+    [agora],
+  )
   await pool.query(
     `update eventos set estado = 'expirado', atualizado_em = $1
      where estado = 'revelado' and expira_em <= $1`,

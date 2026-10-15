@@ -2,9 +2,10 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import type { Pool } from 'pg'
 import { avancarEstados } from '../agendador.ts'
-import { CAPTURA_MAX_MS, REVELACAO_MAX_MS, podeTransicionar } from '../estados.ts'
+import { podeTransicionar } from '../estados.ts'
 import { PACOTES, POSES_VALIDAS, ehPacote } from '../pacotes.ts'
 import { gerarCodigo, gerarToken, hashToken } from '../tokens.ts'
+import { validarConfig } from '../validacao.ts'
 import { erro } from './util.ts'
 
 interface EventoLinha {
@@ -37,12 +38,6 @@ async function lerCorpo(c: Context): Promise<Record<string, unknown> | null> {
   }
 }
 
-function lerData(valor: unknown): Date | null {
-  if (typeof valor !== 'string') return null
-  const data = new Date(valor)
-  return Number.isNaN(data.getTime()) ? null : data
-}
-
 function bearer(c: Context): string | null {
   const m = /^Bearer (\S+)$/.exec(c.req.header('authorization') ?? '')
   return m ? m[1] : null
@@ -56,37 +51,13 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
     const corpo = await lerCorpo(c)
     if (!corpo) return erro(c, 400, 'corpo_invalido', 'Envie um JSON válido.')
 
-    const nome = typeof corpo.nome === 'string' ? corpo.nome.trim() : ''
-    if (nome.length < 1 || nome.length > 80) return erro(c, 400, 'nome_invalido', 'O nome precisa ter de 1 a 80 caracteres.')
-
     const pacoteNome = corpo.pacote ?? 'teste'
     if (!ehPacote(pacoteNome)) return erro(c, 400, 'pacote_invalido', 'Pacote desconhecido.')
     const pacote = PACOTES[pacoteNome]
 
-    const poses = corpo.poses_por_convidado ?? Math.min(24, pacote.posesMax)
-    if (typeof poses !== 'number' || !POSES_VALIDAS.includes(poses) || poses > pacote.posesMax) {
-      return erro(c, 400, 'poses_invalidas', `As poses podem ser ${POSES_VALIDAS.filter((p) => p <= pacote.posesMax).join(', ')}.`)
-    }
-
-    const inicio = lerData(corpo.captura_inicio)
-    const fim = lerData(corpo.captura_fim)
-    if (!inicio || !fim) return erro(c, 400, 'datas_invalidas', 'Informe captura_inicio e captura_fim (ISO 8601).')
-    if (fim <= agora()) return erro(c, 400, 'fim_no_passado', 'O fim da captura precisa ser no futuro.')
-    if (fim <= inicio) return erro(c, 400, 'periodo_invalido', 'O fim precisa ser depois do início.')
-    if (fim.getTime() - inicio.getTime() > CAPTURA_MAX_MS) {
-      return erro(c, 400, 'periodo_longo', 'A câmera pode ficar aberta por no máximo 48 horas.')
-    }
-
-    const manual = corpo.revelacao_manual === true
-    let revelacao: Date | null = null
-    if (!manual) {
-      // Padrão: 12 h depois do fim. O front costuma mandar "10h do dia seguinte" no fuso do anfitrião.
-      revelacao = corpo.revelacao_em === undefined ? new Date(fim.getTime() + 12 * 3600_000) : lerData(corpo.revelacao_em)
-      if (!revelacao) return erro(c, 400, 'revelacao_invalida', 'revelacao_em inválida.')
-      if (revelacao < fim || revelacao.getTime() - fim.getTime() > REVELACAO_MAX_MS) {
-        return erro(c, 400, 'revelacao_fora_do_prazo', 'A revelação deve ser depois do fim e em até 7 dias.')
-      }
-    }
+    const validado = validarConfig(corpo, pacote, agora())
+    if (!validado.ok) return erro(c, 400, validado.erro, validado.mensagem)
+    const { nome, poses, inicio, fim, manual, revelacao } = validado.config
 
     const token = gerarToken()
     // Pacote pago fica aguardando pagamento (o pagamento entra depois); o grátis já nasce pronto.
@@ -255,6 +226,95 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
     if (!e) return erro(c, 401, 'nao_autorizado', 'Token do anfitrião inválido.')
     await pool.query('update eventos set excluido_em = $2, atualizado_em = $2 where id = $1', [e.id, agora()])
     return c.body(null, 204)
+  })
+
+  // Pacotes vindos do servidor (limites e preço não ficam no front).
+  app.get('/api/pacotes', (c) =>
+    c.json({
+      pacotes: Object.entries(PACOTES).map(([id, p]) => ({
+        id,
+        nome: p.nome,
+        convidados: p.convidados,
+        gratis: p.gratis,
+        preco_centavos: p.precoCentavos,
+        retencao_dias: p.retencaoDias,
+        poses_max: p.posesMax,
+        poses_opcoes: POSES_VALIDAS.filter((n) => n <= p.posesMax),
+      })),
+    }),
+  )
+
+  const CAMPOS_CONFIG = ['nome', 'poses_por_convidado', 'captura_inicio', 'captura_fim', 'revelacao_em', 'revelacao_manual']
+  const ESTADOS_EDITAVEIS = ['rascunho', 'aguardando_pagamento', 'pronto']
+
+  // Edita o evento. Nome, poses e horários só antes de a câmera abrir; "álbum privado" a qualquer momento.
+  app.patch('/api/anfitriao/evento', async (c) => {
+    const e = await eventoDoAnfitriao(c)
+    if (!e) return erro(c, 401, 'nao_autorizado', 'Token do anfitrião inválido.')
+    const corpo = await lerCorpo(c)
+    if (!corpo) return erro(c, 400, 'corpo_invalido', 'Envie um JSON válido.')
+
+    const desconhecido = Object.keys(corpo).find((k) => ![...CAMPOS_CONFIG, 'album_privado'].includes(k))
+    if (desconhecido) return erro(c, 400, 'campo_desconhecido', `O campo "${desconhecido}" não pode ser alterado.`)
+    if (Object.keys(corpo).length === 0) return erro(c, 400, 'corpo_invalido', 'Nada para alterar.')
+    if (corpo.album_privado !== undefined && typeof corpo.album_privado !== 'boolean') {
+      return erro(c, 400, 'album_privado_invalido', 'album_privado precisa ser true ou false.')
+    }
+
+    const mexeConfig = CAMPOS_CONFIG.some((k) => corpo[k] !== undefined)
+    let atualizado: EventoLinha = e
+    if (mexeConfig) {
+      if (!ESTADOS_EDITAVEIS.includes(e.estado)) {
+        return erro(c, 409, 'evento_em_andamento', 'Depois que a câmera abre, só o álbum privado pode mudar.', { estado: e.estado })
+      }
+      const mudouHorario = corpo.captura_inicio !== undefined || corpo.captura_fim !== undefined
+      const entrada: Record<string, unknown> = {
+        nome: corpo.nome ?? e.nome,
+        poses_por_convidado: corpo.poses_por_convidado ?? e.poses_por_convidado,
+        captura_inicio: corpo.captura_inicio ?? e.captura_inicio?.toISOString(),
+        captura_fim: corpo.captura_fim ?? e.captura_fim?.toISOString(),
+        revelacao_manual: corpo.revelacao_manual ?? e.revelacao_manual,
+        // Mudou o horário sem informar a revelação: volta ao padrão (fim + 12 h) em vez de manter uma data que pode ficar inválida.
+        revelacao_em: corpo.revelacao_em ?? (mudouHorario ? undefined : e.revelacao_em?.toISOString()),
+      }
+      const validado = validarConfig(entrada, PACOTES[e.pacote as keyof typeof PACOTES], agora())
+      if (!validado.ok) return erro(c, 400, validado.erro, validado.mensagem)
+      const { nome, poses, inicio, fim, manual, revelacao } = validado.config
+      const r = await pool.query<EventoLinha>(
+        `update eventos set nome = $2, poses_por_convidado = $3, limite_fotos = limite_convidados * $3,
+           captura_inicio = $4, captura_fim = $5, revelacao_em = $6, revelacao_manual = $7, atualizado_em = $8
+         where id = $1 and estado = any($9::text[]) returning ${COLUNAS}`,
+        [e.id, nome, poses, inicio, fim, revelacao, manual, agora(), ESTADOS_EDITAVEIS],
+      )
+      // O estado pode ter mudado entre a leitura e a escrita (o agendador abriu a câmera).
+      if (!r.rows[0]) return erro(c, 409, 'evento_em_andamento', 'Depois que a câmera abre, só o álbum privado pode mudar.')
+      atualizado = r.rows[0]
+    }
+    if (typeof corpo.album_privado === 'boolean') {
+      const r = await pool.query<EventoLinha>(
+        `update eventos set album_privado = $2, atualizado_em = $3 where id = $1 returning ${COLUNAS}`,
+        [e.id, corpo.album_privado, agora()],
+      )
+      atualizado = r.rows[0]
+    }
+    return c.json({ evento: atualizado, album_privado: atualizado.album_privado })
+  })
+
+  // Cancela antes da primeira foto. O estorno do pagamento entra com o pagamento (#62).
+  app.post('/api/anfitriao/evento/cancelar', async (c) => {
+    const e = await eventoDoAnfitriao(c)
+    if (!e) return erro(c, 401, 'nao_autorizado', 'Token do anfitrião inválido.')
+    if (!podeTransicionar(e.estado as never, 'cancelado')) {
+      return erro(c, 409, 'transicao_invalida', `Não dá para cancelar um evento em ${e.estado}.`, { estado: e.estado })
+    }
+    const fotos = await pool.query('select 1 from fotos where evento_id = $1 limit 1', [e.id])
+    if (fotos.rowCount) return erro(c, 409, 'tem_fotos', 'O evento já tem fotos e não pode mais ser cancelado.')
+    const r = await pool.query<EventoLinha>(
+      `update eventos set estado = 'cancelado', atualizado_em = $2 where id = $1 and estado = 'pronto' returning ${COLUNAS}`,
+      [e.id, agora()],
+    )
+    if (!r.rows[0]) return erro(c, 409, 'transicao_invalida', 'O estado do evento mudou. Tente de novo.')
+    return c.json({ evento: r.rows[0] })
   })
 
   return app
