@@ -58,6 +58,8 @@ export interface EventoPublico {
   expira_em: string | null
   album_privado: boolean
   lotado: boolean
+  /** Total de fotos no rolo. Só na simulada por enquanto (pedido ao back na #63). */
+  fotos?: number
 }
 
 export interface NovoEvento {
