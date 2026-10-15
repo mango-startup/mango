@@ -47,7 +47,7 @@ function textoRevelacao(e: EventoPublico) {
 
 // Câmera do convidado: dispara na hora, guarda a foto no aparelho e envia em segundo plano.
 export function CameraConvidado({ codigo, evento, eu }: CameraConvidadoProps) {
-  const { aguardando, recusa, posesNoServidor, adicionou } = useEnvioPendente(codigo, eu.poses_restantes)
+  const { aguardando, recusa, semAcesso, posesNoServidor, adicionou } = useEnvioPendente(codigo, eu.poses_restantes)
   const [explicar, setExplicar] = useState<boolean | null>(null)
   const [ocupada, setOcupada] = useState(false)
   const arquivo = useRef<HTMLInputElement>(null)
@@ -80,8 +80,11 @@ export function CameraConvidado({ codigo, evento, eu }: CameraConvidadoProps) {
     </CascaConvite>
   )
 
-  const statusEnvio =
-    aguardando > 0 ? (
+  const statusEnvio = semAcesso ? (
+    <p role="alert" className="px-4 text-sm text-danger-ink">
+      Este aparelho perdeu o acesso ao evento. Suas {aguardando} {aguardando === 1 ? 'foto está guardada' : 'fotos estão guardadas'}; peça ao anfitrião para conferir o link e abra o convite de novo.
+    </p>
+  ) : aguardando > 0 ? (
       <p role="status" className="flex items-center justify-center gap-2 text-sm text-muted">
         <span aria-hidden="true" className="h-2 w-2 rounded-full bg-paper/70" />
         {aguardando === 1 ? '1 foto aguardando envio' : `${aguardando} fotos aguardando envio`}
