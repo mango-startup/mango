@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import type { Pool } from 'pg'
+import { rotasEventos } from './rotas/eventos.ts'
 
-export function criarApp(pool: Pick<Pool, 'query'>): Hono {
+export function criarApp(pool: Pool, agora: () => Date = () => new Date()): Hono {
   const app = new Hono()
 
   app.get('/api/saude', async (c) => {
@@ -12,6 +13,8 @@ export function criarApp(pool: Pick<Pool, 'query'>): Hono {
       return c.json({ status: 'erro', banco: 'indisponivel' }, 503)
     }
   })
+
+  app.route('/', rotasEventos(pool, agora))
 
   return app
 }
