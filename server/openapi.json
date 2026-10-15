@@ -1,0 +1,2361 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Mango API",
+    "version": "0.1.0",
+    "description": "Contrato da API do Mango (`server/`). Mantido à mão e conferido por um teste que compara com as rotas reais.\n\n**Autenticação sem login (piloto):** ao criar o evento o anfitrião recebe um token secreto e o manda em `Authorization: Bearer <token>`. O convidado recebe um token de aparelho em `/entrar` e o manda em `X-Convidado-Token`.\n\n**Erros:** `{ \"erro\": \"codigo\", \"mensagem\": \"...\" }` (`429` também traz `retry_em_segundos` e o header `Retry-After`).\n\n**Limites de requisição:** criar evento 30 por hora por IP; upload 300 por minuto por convidado; 600 falhas (401/404) por minuto por IP; 30 pedidos de remoção por hora por IP."
+  },
+  "servers": [
+    {
+      "url": "https://mango.razielhub.cloud",
+      "description": "Produção (temporário)"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local (docker-compose.dev.yml)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Geral"
+    },
+    {
+      "name": "Anfitrião"
+    },
+    {
+      "name": "Convidado"
+    },
+    {
+      "name": "Álbum"
+    }
+  ],
+  "paths": {
+    "/api/saude": {
+      "get": {
+        "tags": [
+          "Geral"
+        ],
+        "summary": "Saúde da API",
+        "description": "Responde 200 se o banco responde.",
+        "responses": {
+          "200": {
+            "description": "Tudo certo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "banco": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Banco indisponível.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/pacotes": {
+      "get": {
+        "tags": [
+          "Geral"
+        ],
+        "summary": "Pacotes vindos do servidor",
+        "description": "Limites, poses possíveis, retenção e preço.",
+        "responses": {
+          "200": {
+            "description": "Lista de pacotes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pacotes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DefinicaoPacote"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/eventos": {
+      "post": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Criar evento",
+        "description": "Cria o evento e devolve o token secreto do anfitrião (só desta vez). Limite: 30 por hora por IP.",
+        "responses": {
+          "201": {
+            "description": "Evento criado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoCriado"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Pedido inválido. Códigos: `corpo_invalido`, `nome_invalido`, `id_invalido` e os demais de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Veja o header `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Segundos até poder tentar de novo."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroLimite"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NovoEvento"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/eventos/{codigo}": {
+      "get": {
+        "tags": [
+          "Convidado"
+        ],
+        "summary": "Estado público do evento",
+        "description": "O que o convidado vê em `/c/:codigo`. Não vaza dados do anfitrião.",
+        "responses": {
+          "200": {
+            "description": "Estado público.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoPublico"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          }
+        ]
+      }
+    },
+    "/api/eventos/{codigo}/entrar": {
+      "post": {
+        "tags": [
+          "Convidado"
+        ],
+        "summary": "Entrar no evento",
+        "description": "Cria o convidado (só com a câmera aberta e dentro do limite) ou reconhece o aparelho se vier `X-Convidado-Token`.",
+        "responses": {
+          "201": {
+            "description": "Convidado novo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntradaNova"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Aparelho já conhecido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntradaRepetida"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Câmera fechada ou evento lotado. Códigos: `captura_fechada` (com `estado`, `captura_inicio`, `captura_fim`), `lotado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "X-Convidado-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token do aparelho devolvido em `/entrar`."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "apelido": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/eventos/{codigo}/eu": {
+      "get": {
+        "tags": [
+          "Convidado"
+        ],
+        "summary": "Meu estado",
+        "description": "Poses restantes e ids das fotos que o servidor já tem.",
+        "responses": {
+          "200": {
+            "description": "Estado do convidado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Eu"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Convidado não reconhecido neste evento. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "convidado": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "X-Convidado-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token do aparelho devolvido em `/entrar`."
+          }
+        ]
+      }
+    },
+    "/api/eventos/{codigo}/fotos/{fotoId}": {
+      "put": {
+        "tags": [
+          "Convidado"
+        ],
+        "summary": "Enviar foto",
+        "description": "Idempotente: o id é gerado no aparelho; repetir não duplica nem gasta pose. Só com a câmera aberta ou até 24 h depois do fim. Limite: 300 por minuto por convidado.",
+        "responses": {
+          "201": {
+            "description": "Foto nova.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvioFoto"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Foto repetida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvioFoto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Pedido inválido. Códigos: `corpo_invalido`, `nome_invalido`, `id_invalido` e os demais de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Convidado não reconhecido neste evento. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Não aceita a foto. Códigos: `captura_fechada`, `sem_poses`, `evento_cheio`, `id_em_uso`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Acima de 2 MB. Códigos: `arquivo_grande`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Não é um JPEG. Códigos: `tipo_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Veja o header `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Segundos até poder tentar de novo."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroLimite"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "convidado": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "fotoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID gerado no aparelho."
+          },
+          {
+            "name": "X-Convidado-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token do aparelho devolvido em `/entrar`."
+          },
+          {
+            "name": "X-Largura",
+            "in": "header",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          },
+          {
+            "name": "X-Altura",
+            "in": "header",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          },
+          {
+            "name": "X-Tirada-Em",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "JPEG da foto, até 2 MB (o servidor confere os bytes).",
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/eventos/{codigo}/fotos/{fotoId}/miniatura": {
+      "put": {
+        "tags": [
+          "Convidado"
+        ],
+        "summary": "Enviar miniatura",
+        "description": "Miniatura gerada no aparelho; só do dono da foto.",
+        "responses": {
+          "200": {
+            "description": "Miniatura gravada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "foto_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Pedido inválido. Códigos: `corpo_invalido`, `nome_invalido`, `id_invalido` e os demais de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Convidado não reconhecido neste evento. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foto não encontrada. Códigos: `nao_encontrada`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Câmera fechada. Códigos: `captura_fechada`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Acima de 512 KB. Códigos: `arquivo_grande`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Não é um JPEG. Códigos: `tipo_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Veja o header `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Segundos até poder tentar de novo."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroLimite"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "convidado": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "fotoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID gerado no aparelho."
+          },
+          {
+            "name": "X-Convidado-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token do aparelho devolvido em `/entrar`."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "JPEG da miniatura, até 512 KB.",
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Álbum"
+        ],
+        "summary": "Miniatura da foto",
+        "description": "Sem miniatura gravada, devolve a foto original. Cache `private`.",
+        "responses": {
+          "200": {
+            "description": "JPEG.",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foto não encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Álbum privado. Códigos: `album_privado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ainda não foi revelado. Códigos: `nao_revelado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Evento expirado. Códigos: `expirado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "anfitriao": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "fotoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID gerado no aparelho."
+          }
+        ]
+      }
+    },
+    "/api/eventos/{codigo}/fotos/{fotoId}/arquivo": {
+      "get": {
+        "tags": [
+          "Álbum"
+        ],
+        "summary": "Foto original",
+        "description": "`?baixar=1` força download. O anfitrião vê em qualquer estado (moderação); os demais só depois de revelado e com o álbum não privado.",
+        "responses": {
+          "200": {
+            "description": "JPEG.",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foto não encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Álbum privado. Códigos: `album_privado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ainda não foi revelado. Códigos: `nao_revelado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Evento expirado. Códigos: `expirado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "anfitriao": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "fotoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID gerado no aparelho."
+          },
+          {
+            "name": "baixar",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/eventos/{codigo}/album": {
+      "get": {
+        "tags": [
+          "Álbum"
+        ],
+        "summary": "Folha de contato",
+        "description": "Lista paginada. O anfitrião vê em qualquer estado (moderação); os demais só depois de revelado e com o álbum não privado.",
+        "responses": {
+          "200": {
+            "description": "Página do álbum.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaAlbum"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`minhas=1` sem convidado reconhecido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Álbum privado. Códigos: `album_privado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ainda não foi revelado. Códigos: `nao_revelado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Evento expirado. Códigos: `expirado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "anfitriao": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 60,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "minhas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Só as fotos deste aparelho (usa `X-Convidado-Token`)."
+          },
+          {
+            "name": "X-Convidado-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token do aparelho devolvido em `/entrar`."
+          }
+        ]
+      }
+    },
+    "/api/eventos/{codigo}/fotos/{fotoId}/pedir-remocao": {
+      "post": {
+        "tags": [
+          "Álbum"
+        ],
+        "summary": "Pedir remoção de uma foto",
+        "description": "Quem vê o álbum pode pedir. Um pedido por pessoa e foto (convidado pelo token, os demais pelo IP guardado como hash). Cada pedido novo também sai num log JSON para o suporte. Limite: 30 por hora por IP.",
+        "responses": {
+          "201": {
+            "description": "Pedido criado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pedido_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "repetido": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Esta pessoa já pediu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "repetido": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido ou anfitrião (use apagar). Códigos: `id_invalido`, `anfitriao_apaga`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foto não encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Álbum privado. Códigos: `album_privado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ainda não foi revelado. Códigos: `nao_revelado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Evento expirado. Códigos: `expirado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Veja o header `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Segundos até poder tentar de novo."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroLimite"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{8}$"
+            },
+            "description": "Código público do evento (8 caracteres; minúsculas também são aceitas)."
+          },
+          {
+            "name": "fotoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID gerado no aparelho."
+          },
+          {
+            "name": "X-Convidado-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token do aparelho devolvido em `/entrar`."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/anfitriao/evento": {
+      "get": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Painel do evento",
+        "description": "Evento e contagem de convidados e fotos.",
+        "responses": {
+          "200": {
+            "description": "Painel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PainelEvento"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Editar o evento",
+        "description": "Nome, poses e horários só antes de a câmera abrir (recalcula o teto de fotos); `album_privado` a qualquer momento.",
+        "responses": {
+          "200": {
+            "description": "Evento atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "evento": {
+                      "$ref": "#/components/schemas/Evento"
+                    },
+                    "album_privado": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Campo desconhecido ou valor inválido. Códigos: `campo_desconhecido`, `corpo_invalido`, `album_privado_invalido` e os de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A câmera já abriu. Códigos: `evento_em_andamento`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EdicaoEvento"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Excluir o evento",
+        "description": "Exclusão lógica: o link para de funcionar na hora e os arquivos saem em até 30 dias.",
+        "responses": {
+          "204": {
+            "description": "Excluído."
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/evento/encerrar": {
+      "post": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Encerrar a captura",
+        "description": "`captura_aberta` → `captura_encerrada`.",
+        "responses": {
+          "200": {
+            "description": "Evento atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "evento": {
+                      "$ref": "#/components/schemas/Evento"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estado não permite. Códigos: `transicao_invalida`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/evento/revelar": {
+      "post": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Revelar o álbum agora",
+        "description": "`captura_encerrada` → `revelado`; calcula `expira_em` (30 dias no teste, 365 nos pagos).",
+        "responses": {
+          "200": {
+            "description": "Evento atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "evento": {
+                      "$ref": "#/components/schemas/Evento"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estado não permite. Códigos: `transicao_invalida`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/evento/cancelar": {
+      "post": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Cancelar o evento",
+        "description": "`pronto` → `cancelado`, só sem fotos. O estorno entra com o pagamento.",
+        "responses": {
+          "200": {
+            "description": "Evento atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "evento": {
+                      "$ref": "#/components/schemas/Evento"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Não dá para cancelar. Códigos: `transicao_invalida`, `tem_fotos`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/evento/novo-codigo": {
+      "post": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Trocar o código do convite",
+        "description": "O link e o QR antigos param de funcionar; o token do anfitrião continua valendo.",
+        "responses": {
+          "200": {
+            "description": "Novo código.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "codigo": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/album.zip": {
+      "get": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Baixar o álbum em ZIP",
+        "description": "Só depois de revelado. Gerado em streaming, sem compressão; nomes `0001-apelido.jpg`. Acima de 4 GB ou 65 mil arquivos, `413 zip_grande`.",
+        "responses": {
+          "200": {
+            "description": "ZIP.",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Álbum sem fotos. Códigos: `sem_fotos`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ainda não revelado. Códigos: `nao_revelado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Grande demais. Códigos: `zip_grande`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/fotos/{fotoId}": {
+      "delete": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Apagar foto",
+        "description": "Some do álbum na hora (antes ou depois da revelação) e resolve os pedidos de remoção dela. O arquivo sai do armazenamento em até 30 dias.",
+        "responses": {
+          "204": {
+            "description": "Apagada."
+          },
+          "400": {
+            "description": "Pedido inválido. Códigos: `corpo_invalido`, `nome_invalido`, `id_invalido` e os demais de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foto não encontrada. Códigos: `nao_encontrada`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fotoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID gerado no aparelho."
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/pedidos-remocao": {
+      "get": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Pedidos de remoção pendentes",
+        "description": "Com o número do quadro no álbum.",
+        "responses": {
+          "200": {
+            "description": "Pendentes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pedidos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PedidoRemocao"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/anfitriao/pedidos-remocao/{pedidoId}/manter": {
+      "post": {
+        "tags": [
+          "Anfitrião"
+        ],
+        "summary": "Manter a foto",
+        "description": "Resolve o pedido sem apagar a foto.",
+        "responses": {
+          "204": {
+            "description": "Resolvido."
+          },
+          "400": {
+            "description": "Pedido inválido. Códigos: `corpo_invalido`, `nome_invalido`, `id_invalido` e os demais de validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pedido não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pedidoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Erro": {
+        "type": "object",
+        "required": [
+          "erro",
+          "mensagem"
+        ],
+        "properties": {
+          "erro": {
+            "type": "string",
+            "description": "Código estável para o front decidir o que mostrar."
+          },
+          "mensagem": {
+            "type": "string",
+            "description": "Texto em português para o usuário."
+          }
+        },
+        "additionalProperties": true
+      },
+      "ErroLimite": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Erro"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "retry_em_segundos": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "Estado": {
+        "type": "string",
+        "enum": [
+          "rascunho",
+          "aguardando_pagamento",
+          "pronto",
+          "captura_aberta",
+          "captura_encerrada",
+          "revelado",
+          "expirado",
+          "cancelado"
+        ]
+      },
+      "Pacote": {
+        "type": "string",
+        "enum": [
+          "teste",
+          "festa",
+          "celebracao",
+          "casamento"
+        ]
+      },
+      "DefinicaoPacote": {
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "convidados",
+          "gratis",
+          "preco_centavos",
+          "retencao_dias",
+          "poses_max",
+          "poses_opcoes"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Pacote"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "convidados": {
+            "type": "integer"
+          },
+          "gratis": {
+            "type": "boolean"
+          },
+          "preco_centavos": {
+            "type": "integer",
+            "description": "Hipótese do plano (seção 3.2), a validar nas entrevistas."
+          },
+          "retencao_dias": {
+            "type": "integer",
+            "description": "Dias de álbum depois da revelação."
+          },
+          "poses_max": {
+            "type": "integer"
+          },
+          "poses_opcoes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "Evento": {
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "nome",
+          "estado",
+          "pacote",
+          "limite_convidados",
+          "poses_por_convidado",
+          "revelacao_manual",
+          "album_privado"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/Estado"
+          },
+          "pacote": {
+            "$ref": "#/components/schemas/Pacote"
+          },
+          "limite_convidados": {
+            "type": "integer"
+          },
+          "poses_por_convidado": {
+            "type": "integer",
+            "enum": [
+              12,
+              24,
+              36
+            ]
+          },
+          "limite_fotos": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "captura_inicio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "captura_fim": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revelacao_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revelacao_manual": {
+            "type": "boolean"
+          },
+          "album_privado": {
+            "type": "boolean"
+          },
+          "revelado_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expira_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "EventoPublico": {
+        "type": "object",
+        "required": [
+          "nome",
+          "estado",
+          "poses_por_convidado",
+          "revelacao_manual",
+          "album_privado",
+          "lotado"
+        ],
+        "properties": {
+          "nome": {
+            "type": "string"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/Estado"
+          },
+          "poses_por_convidado": {
+            "type": "integer"
+          },
+          "captura_inicio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "captura_fim": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revelacao_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revelacao_manual": {
+            "type": "boolean"
+          },
+          "revelado_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expira_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "album_privado": {
+            "type": "boolean"
+          },
+          "lotado": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NovoEvento": {
+        "type": "object",
+        "required": [
+          "nome",
+          "captura_inicio",
+          "captura_fim"
+        ],
+        "properties": {
+          "nome": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "pacote": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Pacote"
+              }
+            ],
+            "default": "teste",
+            "description": "Pago nasce `aguardando_pagamento` (o pagamento ainda não existe); `teste` nasce `pronto`."
+          },
+          "poses_por_convidado": {
+            "type": "integer",
+            "enum": [
+              12,
+              24,
+              36
+            ],
+            "description": "Padrão: o menor entre 24 e o máximo do pacote."
+          },
+          "captura_inicio": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "captura_fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "No futuro e em até 48 h depois do início."
+          },
+          "revelacao_em": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Depois do fim e em até 7 dias. Sem valor e sem `revelacao_manual`: 12 h depois do fim."
+          },
+          "revelacao_manual": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EdicaoEvento": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": false,
+        "properties": {
+          "nome": {
+            "type": "string"
+          },
+          "poses_por_convidado": {
+            "type": "integer",
+            "enum": [
+              12,
+              24,
+              36
+            ]
+          },
+          "captura_inicio": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "captura_fim": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revelacao_em": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revelacao_manual": {
+            "type": "boolean"
+          },
+          "album_privado": {
+            "type": "boolean",
+            "description": "Aceito em qualquer estado. Os demais campos só antes de a câmera abrir."
+          }
+        }
+      },
+      "EventoCriado": {
+        "type": "object",
+        "required": [
+          "evento",
+          "anfitriao_token"
+        ],
+        "properties": {
+          "evento": {
+            "$ref": "#/components/schemas/Evento"
+          },
+          "anfitriao_token": {
+            "type": "string",
+            "description": "Token secreto do anfitrião. Aparece só nesta resposta; no banco fica o hash."
+          }
+        }
+      },
+      "PainelEvento": {
+        "type": "object",
+        "required": [
+          "evento",
+          "convidados",
+          "fotos"
+        ],
+        "properties": {
+          "evento": {
+            "$ref": "#/components/schemas/Evento"
+          },
+          "convidados": {
+            "type": "integer"
+          },
+          "fotos": {
+            "type": "integer"
+          }
+        }
+      },
+      "EntradaNova": {
+        "type": "object",
+        "required": [
+          "convidado_id",
+          "convidado_token",
+          "apelido",
+          "poses_restantes"
+        ],
+        "properties": {
+          "convidado_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "convidado_token": {
+            "type": "string",
+            "description": "Token do aparelho. Guardar e mandar em `X-Convidado-Token`."
+          },
+          "apelido": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poses_restantes": {
+            "type": "integer"
+          }
+        }
+      },
+      "EntradaRepetida": {
+        "type": "object",
+        "required": [
+          "convidado_id",
+          "apelido",
+          "poses_restantes"
+        ],
+        "properties": {
+          "convidado_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "apelido": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poses_restantes": {
+            "type": "integer"
+          }
+        }
+      },
+      "Eu": {
+        "type": "object",
+        "required": [
+          "convidado_id",
+          "apelido",
+          "estado",
+          "poses_restantes",
+          "fotos"
+        ],
+        "properties": {
+          "convidado_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "apelido": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "estado": {
+            "$ref": "#/components/schemas/Estado"
+          },
+          "poses_restantes": {
+            "type": "integer"
+          },
+          "fotos": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Ids das fotos que o servidor já tem, para a fila de envio sincronizar."
+          }
+        }
+      },
+      "EnvioFoto": {
+        "type": "object",
+        "required": [
+          "foto_id",
+          "repetida"
+        ],
+        "properties": {
+          "foto_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "repetida": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FotoAlbum": {
+        "type": "object",
+        "required": [
+          "id",
+          "numero",
+          "apelido",
+          "tem_miniatura"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "numero": {
+            "type": "integer",
+            "description": "Posição no álbum inteiro, na ordem em que as fotos foram tiradas, a partir de 1 (mesmo com `minhas=1`)."
+          },
+          "apelido": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tirada_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "largura": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "altura": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tem_miniatura": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PaginaAlbum": {
+        "type": "object",
+        "required": [
+          "evento",
+          "pagina",
+          "limite",
+          "total",
+          "fotos"
+        ],
+        "properties": {
+          "evento": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string"
+              },
+              "expira_em": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "estado": {
+                "$ref": "#/components/schemas/Estado"
+              }
+            }
+          },
+          "pagina": {
+            "type": "integer"
+          },
+          "limite": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "fotos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FotoAlbum"
+            }
+          }
+        }
+      },
+      "PedidoRemocao": {
+        "type": "object",
+        "required": [
+          "id",
+          "foto_id",
+          "numero",
+          "criado_em"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "foto_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "numero": {
+            "type": "integer",
+            "description": "Número do quadro no álbum."
+          },
+          "motivo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "criado_em": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "anfitriao": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token secreto devolvido ao criar o evento."
+      },
+      "convidado": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Convidado-Token",
+        "description": "Token do aparelho devolvido em `/entrar`."
+      }
+    }
+  }
+}

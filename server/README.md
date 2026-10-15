@@ -29,6 +29,7 @@ Os testes de migração e de eventos precisam de um banco descartável (**apaga 
 ## Estrutura
 
 - `src/rotas/fotos.ts` envio · `src/rotas/album.ts` leitura, ZIP e privacidade · `src/zip.ts` escritor de ZIP
+- `openapi.json` contrato da API (conferido por `test/contrato.test.ts`)
 - `src/rotas/acesso.ts` quem vê as fotos e quem é o anfitrião · `src/rotas/moderacao.ts` · `src/limpeza.ts`
 - `src/validacao.ts` regras de nome, poses e horários (criação e edição)
 - `src/limite.ts` contador por janela · `src/limites.ts` limites e IP do cliente
@@ -38,6 +39,10 @@ Os testes de migração e de eventos precisam de um banco descartável (**apaga 
 - `migrations/003_*.sql` `arquivo_apagado_em` e tabela `pedidos_remocao`
 - `migrations/002_*.sql` token secreto do anfitrião (e-mail opcional)
 - `migrations/001_*.sql` tabelas `eventos`, `convidados`, `fotos` (estados conforme seção 3.3 do plano)
+
+## Contrato da API
+
+`openapi.json` (OpenAPI 3.1) descreve todas as rotas, schemas, headers de autenticação, erros e limites. É o ponto de encontro com o frontend (`src/lib/api/tipos.ts` segue os mesmos formatos). Para ler com interface, cole o arquivo em https://editor.swagger.io. Ele é mantido à mão e **o teste `test/contrato.test.ts` falha** se uma rota existir sem estar documentada (ou o contrário), se uma referência quebrar ou se um parâmetro de caminho faltar. Não precisa de banco para rodar.
 
 ## API de eventos (A2 a A4 do plano)
 
