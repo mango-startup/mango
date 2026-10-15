@@ -30,3 +30,11 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/mango:sha-${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/mango:main
+      # API (server/): mesma tag sha do commit, para a produção subir sempre o par site + API.
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/mango-api:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/mango-api:main
