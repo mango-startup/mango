@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Confirmacao } from '../components/Confirmacao'
+import { Icone } from '../components/Icone'
 import { deletePhoto, listPhotos } from '../lib/storage'
 import type { Photo } from '../types'
 
@@ -34,7 +36,7 @@ export function GalleryPage() {
   return (
     <div className="min-h-svh bg-base pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-paper">
       <header className="flex items-center justify-between px-5 py-5">
-        <Link to="/camera" className="text-[15px] font-semibold text-muted transition hover:text-paper">
+        <Link to="/camera" className="-ml-2 flex min-h-11 items-center px-2 text-[15px] font-semibold text-muted transition hover:text-paper">
           Câmera
         </Link>
         <span className="font-display text-2xl leading-none">
@@ -43,7 +45,7 @@ export function GalleryPage() {
       </header>
 
       {loading && <p className="p-6 text-center text-sm text-muted">Carregando...</p>}
-      {error && <p className="p-6 text-center text-sm text-red-400">{error}</p>}
+      {error && <p className="p-6 text-center text-sm text-danger-ink">{error}</p>}
       {!loading && !error && photos.length === 0 && (
         <p className="p-6 text-center text-[15px] text-muted">
           Nenhuma foto ainda. Abra a câmera e tire a primeira.
@@ -58,34 +60,25 @@ export function GalleryPage() {
             </a>
 
             {confirmingId === photo.id ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-base/90 p-3 text-center backdrop-blur-sm">
-                <p className="text-sm font-semibold">Excluir para sempre?</p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={deletingId === photo.id}
-                    onClick={() => handleDelete(photo.id)}
-                    className="rounded-[10px] bg-red-600 px-3.5 py-2 text-sm font-semibold disabled:opacity-50"
-                  >
-                    {deletingId === photo.id ? 'Excluindo...' : 'Excluir'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingId(null)}
-                    className="rounded-[10px] bg-paper/15 px-3.5 py-2 text-sm font-semibold"
-                  >
-                    Cancelar
-                  </button>
-                </div>
+              <div className="absolute inset-0 flex items-center bg-base/90 p-3 backdrop-blur-sm">
+                <Confirmacao
+                  pergunta="Excluir para sempre?"
+                  rotuloConfirmar="Excluir"
+                  rotuloCarregando="Excluindo..."
+                  carregando={deletingId === photo.id}
+                  destrutiva
+                  onConfirmar={() => handleDelete(photo.id)}
+                  onCancelar={() => setConfirmingId(null)}
+                />
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setConfirmingId(photo.id)}
                 aria-label="Excluir foto"
-                className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-base/60 text-sm leading-none backdrop-blur-sm"
+                className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-base/60 backdrop-blur-sm transition hover:bg-base/80"
               >
-                🗑
+                <Icone nome="lixeira" className="h-5 w-5" />
               </button>
             )}
           </div>

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BlocoEstado } from '../components/BlocoEstado'
+import { Botao } from '../components/Botao'
 import { CameraView } from '../components/CameraView'
+import { ContadorPoses } from '../components/ContadorPoses'
 import { MangoLogo } from '../components/MangoLogo'
 import { listPhotos, savePhoto } from '../lib/storage'
 import { MAX_PHOTOS } from '../lib/constants'
@@ -42,36 +45,28 @@ export function CameraPage() {
           <MangoLogo className="h-[21px] w-4" />
           <span className="pb-0.5">mango</span>
         </Link>
-        <span className="text-[16px] font-bold tabular-nums">
-          {photosTaken} / {MAX_PHOTOS}
-        </span>
+        <ContadorPoses restantes={Math.max(0, restantes)} />
       </header>
 
       <div className="relative min-h-0 flex-1">
         {filmeEsgotado ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-            <p className="font-display text-[32px] leading-none">Acabou o filme!</p>
-            <p className="text-[15px] text-muted">
-              Você já tirou as {MAX_PHOTOS} fotos do rolo.
-            </p>
-            <Link
-              to="/galeria"
-              className="flex h-[52px] items-center rounded-[14px] bg-paper px-6 text-base font-semibold text-base"
-            >
-              Ver as fotos
-            </Link>
-          </div>
+          <BlocoEstado
+            className="h-full"
+            titulo="Acabou o filme!"
+            texto={`Você já tirou as ${MAX_PHOTOS} fotos do rolo.`}
+            acao={<Botao para="/galeria">Ver as fotos</Botao>}
+          />
         ) : (
           <CameraView
             onCapture={handleCapture}
             disabled={status === 'uploading'}
-            caption={status === 'uploading' ? 'Salvando...' : `${restantes} fotos restantes`}
+            caption={status === 'uploading' ? 'Salvando...' : undefined}
           />
         )}
       </div>
 
       {errorMessage && (
-        <div className="bg-red-900/60 px-4 py-2 text-center text-sm text-red-200">
+        <div className="bg-danger/25 px-4 py-2 text-center text-sm text-danger-ink">
           {errorMessage}
         </div>
       )}
