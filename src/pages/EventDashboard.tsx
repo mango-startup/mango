@@ -5,6 +5,7 @@ import { Botao } from '../components/Botao'
 import { CampoCopiavel } from '../components/CampoCopiavel'
 import { Confirmacao } from '../components/Confirmacao'
 import { Icone } from '../components/Icone'
+import { QrConvite } from '../components/QrConvite'
 import { MangoLogo } from '../components/MangoLogo'
 import { ErroApi, api, type Estado, type PainelEvento } from '../lib/api'
 import { quando } from '../lib/datas'
@@ -204,7 +205,10 @@ export function EventDashboardPage() {
 
       {COM_LINK.includes(e.estado) && (
         <section className="mt-10">
-          <CampoCopiavel rotulo="Link para os convidados" valor={linkConvidado} ajuda="Mande no grupo da festa. O QR para imprimir chega numa próxima versão." />
+          <CampoCopiavel rotulo="Link para os convidados" valor={linkConvidado} ajuda="Mande no grupo da festa ou imprima o QR abaixo." />
+          <div className="mt-6">
+            <QrConvite valor={linkConvidado} arquivo={`mango-qr-${e.codigo.toLowerCase()}`} />
+          </div>
         </section>
       )}
 
