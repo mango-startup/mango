@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Icone } from './Icone'
 
 interface CameraViewProps {
   onCapture: (video: HTMLVideoElement) => void
   disabled?: boolean
-  caption?: string
+  caption?: ReactNode
+  /** Mostrado junto do "Tentar de novo" quando a câmera não abre (ex.: usar a câmera do sistema). */
+  fallback?: ReactNode
 }
 
 type Facing = 'environment' | 'user'
 
-export function CameraView({ onCapture, disabled, caption }: CameraViewProps) {
+export function CameraView({ onCapture, disabled, caption, fallback }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
@@ -17,6 +19,8 @@ export function CameraView({ onCapture, disabled, caption }: CameraViewProps) {
   const [canSwitch, setCanSwitch] = useState(false)
   // Muda a cada pedido de nova tentativa e refaz o stream
   const [attempt, setAttempt] = useState(0)
+  // Muda a cada disparo e reinicia o clarão sobre o visor
+  const [shots, setShots] = useState(0)
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -85,6 +89,7 @@ export function CameraView({ onCapture, disabled, caption }: CameraViewProps) {
         >
           Tentar de novo
         </button>
+        {fallback}
       </div>
     )
   }
@@ -105,15 +110,20 @@ export function CameraView({ onCapture, disabled, caption }: CameraViewProps) {
         <i className="absolute right-3.5 top-3.5 h-5 w-5 border-r-[1.5px] border-t-[1.5px] border-paper/90" />
         <i className="absolute bottom-3.5 left-3.5 h-5 w-5 border-b-[1.5px] border-l-[1.5px] border-paper/90" />
         <i className="absolute bottom-3.5 right-3.5 h-5 w-5 border-b-[1.5px] border-r-[1.5px] border-paper/90" />
+        {shots > 0 && <span key={shots} aria-hidden="true" className="clarao pointer-events-none absolute inset-0 bg-paper" />}
       </div>
       <div className="relative h-[168px] shrink-0">
         {caption && (
-          <p className="absolute inset-x-0 top-5 text-center text-[15px] text-muted">{caption}</p>
+          <div className="absolute inset-x-0 top-5 text-center text-[15px] text-muted">{caption}</div>
         )}
         <button
           type="button"
           disabled={!ready || disabled}
-          onClick={() => videoRef.current && onCapture(videoRef.current)}
+          onClick={() => {
+            if (!videoRef.current) return
+            setShots((n) => n + 1)
+            onCapture(videoRef.current)
+          }}
           aria-label="Tirar foto"
           className="absolute bottom-8 left-1/2 flex h-[72px] w-[72px] -translate-x-1/2 items-center justify-center rounded-full border-2 border-paper transition active:scale-95 disabled:opacity-30"
         >
@@ -129,7 +139,7 @@ export function CameraView({ onCapture, disabled, caption }: CameraViewProps) {
             aria-label="Trocar câmera"
             className="absolute bottom-[42px] right-8 flex h-12 w-12 items-center justify-center rounded-full border border-line text-paper transition hover:bg-surface active:scale-95"
           >
-<Icone nome="trocarCamera" />
+            <Icone nome="trocarCamera" />
           </button>
         )}
       </div>

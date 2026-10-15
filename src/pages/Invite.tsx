@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { BlocoEstado } from '../components/BlocoEstado'
 import { Botao } from '../components/Botao'
-import { ContadorPoses } from '../components/ContadorPoses'
 import { ErroApi, api, type EventoPublico, type Eu } from '../lib/api'
 import { dataPorExtenso, quando } from '../lib/datas'
 import { BoasVindas } from './convite/BoasVindas'
+import { CameraConvidado } from './convite/CameraConvidado'
 import { CascaConvite } from './convite/CascaConvite'
 
 type Carga =
@@ -142,13 +142,7 @@ export function InvitePage() {
       )
 
     case 'captura_aberta':
-      if (eu) {
-        // Câmera do convidado: issue #19
-        return casca(
-          <BlocoEstado className="flex-1" titulo="Câmera" texto="A câmera do convidado chega na issue #19." />,
-          <ContadorPoses restantes={eu.poses_restantes} />,
-        )
-      }
+      if (eu) return <CameraConvidado codigo={codigo} evento={e} eu={eu} />
       if (e.lotado) {
         return casca(
           <BlocoEstado className="flex-1" titulo="Este evento atingiu o limite de convidados" texto="Avise quem te convidou: dá para aumentar o limite." />,
