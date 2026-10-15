@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mango — rebranding v7 (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#151513; --surface:#1E1E1B; --line:#34332F;
+  --text:#F4F2EC; --muted:#A6A39B;
+  --accent:#F4F2EC; --on-accent:#151513;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --display:'DM Serif Display',serif; --ui:'Plus Jakarta Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:#0E0E0D;color:var(--text);font-family:var(--ui);-webkit-font-smoothing:antialiased}
+body{padding:48px 32px 96px}
+button{font-family:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.sym{display:block;fill:currentColor}
+.wrap{max-width:1360px;margin:0 auto}
+.intro h1{font-family:var(--display);font-weight:400;font-size:56px;line-height:1}
+.intro p{max-width:620px;margin-top:14px;color:var(--muted);line-height:1.55;font-size:15px}
+.pick{position:fixed;top:16px;right:16px;z-index:50;display:flex;gap:8px;align-items:center;background:#1E1E1B;border:1px solid #34332F;border-radius:14px;padding:8px 10px;font-size:13px;color:#A6A39B}
+.pick button{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;outline:1px solid #34332F}
+.pick button.on{border-color:#F4F2EC}
+
+.phones{display:flex;flex-wrap:wrap;gap:44px 36px;align-items:flex-start;margin-top:40px}
+.ph figcaption{font-size:14px;font-weight:600;color:var(--muted);margin-bottom:12px}
+.phone{width:390px;height:844px;border:8px solid #2B2B28;border-radius:44px;overflow:hidden;position:relative;background:var(--bg)}
+.scroll{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.img{display:block;width:100%;height:100%;object-fit:cover;background:var(--surface)}
+.peel{clip-path:polygon(0 0,100% 0,100% 86%,86% 100%,0 100%)}
+
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--display);font-size:26px;line-height:1;letter-spacing:-.01em}
+.brand span{padding-bottom:4px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;transition:transform 120ms var(--ease),filter 120ms var(--ease)}
+.btn:hover{filter:brightness(.95)} .btn:active{transform:scale(.98)}
+.btn.dark{background:var(--on-accent);color:var(--accent)}
+
+/* landing */
+.hero{background:var(--accent);color:var(--on-accent);border-radius:0 0 32px 32px;padding-bottom:32px}
+.l-top{display:flex;justify-content:space-between;align-items:center;padding:26px 24px 0}
+.l-link{font-size:14px;font-weight:600;border-bottom:1px solid currentColor;padding-bottom:1px}
+.l-h1{padding:0 24px;margin-top:60px;font-family:var(--display);font-weight:400;font-size:54px;line-height:1;letter-spacing:-.015em;white-space:nowrap}
+.l-lead{padding:0 24px;margin-top:22px;font-size:17px;line-height:1.5;max-width:350px;opacity:.88}
+.l-cta{padding:0 24px;margin-top:26px}
+.l-cta small{display:block;margin-top:12px;font-size:14px;opacity:.8}
+.strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:30px 24px 0}
+.strip .f{aspect-ratio:3/4.2;overflow:hidden;border-radius:12px;position:relative;cursor:pointer}
+.strip .f:nth-child(2){margin-top:24px}.strip .f:nth-child(3){margin-top:8px}
+.veil img{filter:blur(16px) brightness(.5) saturate(.6);transform:scale(1.15);transition:filter 700ms var(--ease),transform 700ms var(--ease)}
+.veil.on img{filter:none;transform:none}
+.veil::after{content:attr(data-n);position:absolute;left:0;bottom:0;padding:10px;font-size:14px;font-weight:600;transition:opacity 300ms var(--ease)}
+.veil.on::after{opacity:0}
+.hint{margin:22px 24px 0;font-size:14px;color:var(--muted)}
+.steps{margin-top:40px;padding:12px 24px 18px;background:var(--surface)}
+.step{display:grid;grid-template-columns:40px 1fr;gap:4px;padding:20px 0;border-top:1px solid var(--line)}
+.step:first-child{border-top:0}
+.step .n{font-family:var(--display);font-size:22px;color:var(--accent);padding-top:2px}
+.step h3{font-family:var(--display);font-weight:400;font-size:26px;line-height:1.1}
+.step p{grid-column:2;font-size:15px;line-height:1.5;color:var(--muted);margin-top:6px}
+.closing{margin:56px 24px 0}
+.closing h2{font-family:var(--display);font-weight:400;font-size:40px;line-height:1.02;letter-spacing:-.01em}
+.closing h2 span{display:block;color:var(--accent)}
+.closing .btn{margin-top:26px}
+.l-foot{display:flex;justify-content:space-between;align-items:center;padding:56px 24px 28px;color:var(--muted);font-size:14px}
+
+/* câmera */
+.cam-top{position:absolute;top:0;left:0;right:0;padding:24px 22px 0;display:flex;justify-content:space-between;align-items:center;z-index:2}
+.cnt{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.vf{position:absolute;left:14px;right:14px;top:78px;bottom:176px;overflow:hidden;border-radius:24px}
+.crop{position:absolute;width:20px;height:20px;border:0 solid rgba(244,242,236,.9);z-index:2}
+.crop.tl{top:14px;left:14px;border-top-width:1.5px;border-left-width:1.5px}
+.crop.tr{top:14px;right:14px;border-top-width:1.5px;border-right-width:1.5px}
+.crop.bl{bottom:14px;left:14px;border-bottom-width:1.5px;border-left-width:1.5px}
+.crop.br{bottom:14px;right:14px;border-bottom-width:1.5px;border-right-width:1.5px}
+.flash{position:absolute;inset:0;background:#F4F2EC;opacity:0;pointer-events:none;z-index:3}
+.cam-bot{position:absolute;left:0;right:0;bottom:0;height:176px}
+.cam-bot .left{position:absolute;top:20px;left:0;right:0;text-align:center;color:var(--muted);font-size:15px}
+.shutter{position:absolute;left:50%;bottom:34px;width:72px;height:72px;margin-left:-36px;border-radius:50%;border:2px solid var(--text);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.shutter i{display:block;width:56px;height:56px;border-radius:50%;background:var(--text);transition:transform 90ms var(--ease)}
+.shutter:active i{transform:scale(.92)}
+.cam-link{position:absolute;bottom:56px;left:24px;font-size:15px;font-weight:600;background:none;border:0;cursor:pointer}
+
+/* galeria */
+.g-top{position:absolute;top:0;left:0;right:0;height:72px;padding:0 20px;display:flex;justify-content:space-between;align-items:center}
+.g-top b{font-family:var(--display);font-weight:400;font-size:24px}
+.g-top span{color:var(--muted);font-size:15px}
+.g-scroll{position:absolute;top:72px;bottom:84px;left:0;right:0;overflow-y:auto;scrollbar-width:none}
+.g-scroll::-webkit-scrollbar{display:none}
+.g-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:4px 8px 8px}
+.g-grid .f{aspect-ratio:3/4;overflow:hidden;border-radius:14px}
+.g-bar{position:absolute;left:0;right:0;bottom:0;height:84px;padding:16px 20px;background:var(--bg)}
+
+/* revelação */
+.rv-intro{position:absolute;inset:0;padding:24px 24px 32px;display:flex;flex-direction:column;transition:opacity 240ms var(--ease)}
+.rv-intro.hide{opacity:0;pointer-events:none}
+.rv-mid{margin:auto 0}
+.rv-mid .r{color:var(--muted);font-size:15px}
+.rv-mid h2{font-family:var(--display);font-weight:400;font-size:68px;line-height:.98;margin-top:12px;letter-spacing:-.01em}
+.status{display:inline-flex;align-items:center;gap:10px;margin-top:22px;color:var(--muted);font-size:15px}
+.status i{width:9px;height:9px;background:var(--accent);display:block}
+.rv-line{position:absolute;left:0;right:0;top:-3px;height:2px;background:var(--accent);opacity:0;z-index:4}
+.rv-big{position:absolute;inset:0;pointer-events:none}
+.bigf{position:absolute;left:50%;top:50%;width:250px;margin:-190px 0 0 -125px;opacity:0;transition:opacity 300ms var(--ease)}
+.bigf .p{aspect-ratio:3/4;overflow:hidden;border-radius:16px;clip-path:inset(0 0 100% 0)}
+.bigf .l{margin-top:12px;font-size:15px;color:var(--muted)}
+.bigf.show{opacity:1}
+.bigf.show .p{clip-path:inset(0 0 0 0);transition:clip-path 600ms var(--ease)}
+.bigf.gone{opacity:0}
+.rv-done{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity 500ms var(--ease)}
+.rv-done.show{opacity:1;pointer-events:auto}
+.rd-scroll{position:absolute;top:72px;bottom:84px;left:0;right:0;overflow-y:auto;scrollbar-width:none}
+.rd-scroll::-webkit-scrollbar{display:none}
+.rd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 6px 6px}
+.rd-grid .f{aspect-ratio:3/4;overflow:hidden;border-radius:10px;opacity:0;transition:opacity 500ms var(--ease)}
+.rv-done.show .rd-grid .f{opacity:1}
+.replay{margin-top:14px;background:none;border:0;border-bottom:1px solid var(--muted);color:var(--muted);font-size:14px;cursor:pointer;padding:0 0 2px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="sym" viewBox="0 0 40 52"><path fill-rule="evenodd" d="M2 2H38V38L26 50H2Z M5 7h3v4H5z M5 16h3v4H5z M5 25h3v4H5z M5 34h3v4H5z M5 43h3v4H5z M32 7h3v4h-3z M32 16h3v4h-3z M32 25h3v4h-3z M32 34h3v4h-3z M12 7h16v36H12z"/></symbol>
+</svg>
+
+<div class="pick"><span>cor</span>
+  <button data-a="#F4B9AA" data-o="#151513" style="background:#F4B9AA" aria-label="Pêssego"></button>
+  <button data-a="#8FD3B6" data-o="#151513" style="background:#8FD3B6" aria-label="Menta"></button>
+  <button data-a="#7C93FF" data-o="#151513" style="background:#7C93FF" aria-label="Azul-pervinca"></button>
+  <button data-a="#F4F2EC" data-o="#151513" style="background:#F4F2EC" class="on" aria-label="Creme"></button>
+</div>
+
+<div class="wrap">
+<header class="intro">
+  <h1>mango, v7</h1>
+  <p>O jeito acolhedor da v2 (bloco de cor no topo, serifa em frase normal, cantos suaves) com as fotos reais da v5 (tira que se revela ao toque, canto cortado do logo). Base escura. O vermelho saiu: o padrão agora é creme, e as bolinhas no canto superior direito trocam a cor para comparar. Fotos do Pexels, só para o mockup.</p>
+</header>
+
+<div class="phones">
+  <figure class="ph"><figcaption>landing (role)</figcaption>
+    <div class="phone"><div class="scroll">
+      <div class="hero">
+        <div class="l-top"><div class="brand"><svg class="sym" width="20" height="26"><use href="#sym"/></svg><span>mango</span></div><span class="l-link">Como funciona</span></div>
+        <h1 class="l-h1">Todo mundo<br>fotografa.<br>Ninguém vê.</h1>
+        <p class="l-lead">Uma câmera descartável para a sua festa. Cada convidado leva um rolo. As fotos só aparecem quando você revelar.</p>
+        <div class="l-cta"><button class="btn dark">Criar uma câmera</button><small>Sem app. Só um link.</small></div>
+      </div>
+      <div class="strip" id="strip"></div>
+      <p class="hint">Toque nos quadros. É assim que o álbum aparece.</p>
+      <div class="steps">
+        <div class="step"><span class="n">01</span><h3>Crie a câmera</h3><p>Nome, data e quantas fotos cada convidado leva.</p></div>
+        <div class="step"><span class="n">02</span><h3>Compartilhe o link</h3><p>Ninguém instala nada. Abriu, fotografou.</p></div>
+        <div class="step"><span class="n">03</span><h3>Revele</h3><p>Quando você decidir, o rolo vira álbum. Todo mundo vê junto.</p></div>
+      </div>
+      <div class="closing"><h2>A festa acontece.<span>As fotos ficam em segredo.</span></h2><button class="btn">Criar uma câmera</button></div>
+      <div class="l-foot"><div class="brand" style="font-size:18px"><svg class="sym" width="14" height="18"><use href="#sym"/></svg><span>mango</span></div><span>mango.cam</span></div>
+    </div></div>
+  </figure>
+
+  <figure class="ph"><figcaption>câmera (toque no disparo)</figcaption>
+    <div class="phone">
+      <div class="cam-top"><div class="brand" style="font-size:22px"><svg class="sym" width="16" height="21"><use href="#sym"/></svg><span>mango</span></div><span class="cnt" id="cnt">17 / 24</span></div>
+      <div class="vf" id="vf"><i class="crop tl"></i><i class="crop tr"></i><i class="crop bl"></i><i class="crop br"></i><div class="flash" id="flash"></div></div>
+      <div class="cam-bot"><div class="left" id="left">7 fotos restantes</div><button class="cam-link">Galeria</button><button class="shutter" id="shutter" aria-label="Tirar foto"><i></i></button></div>
+    </div>
+  </figure>
+
+  <figure class="ph"><figcaption>galeria (role)</figcaption>
+    <div class="phone">
+      <div class="g-top"><b>Rolo da Camila</b><span>24 fotos</span></div>
+      <div class="g-scroll"><div class="g-grid" id="ggrid"></div></div>
+      <div class="g-bar"><button class="btn">Baixar todas as fotos</button></div>
+    </div>
+  </figure>
+
+  <figure class="ph"><figcaption>revelação (toque em revelar)</figcaption>
+    <div class="phone" id="rv">
+      <div class="rv-intro" id="rvIntro">
+        <div class="brand" style="font-size:22px"><svg class="sym" width="16" height="21"><use href="#sym"/></svg><span>mango</span></div>
+        <div class="rv-mid"><div class="r">Aniversário da Camila</div><h2>24 fotos<br>esperando.</h2><div class="status"><i></i>Ainda em segredo</div></div>
+        <button class="btn" id="reveal">Revelar o rolo</button>
+      </div>
+      <div class="rv-line" id="rvLine"></div>
+      <div class="rv-big" id="rvBig"></div>
+      <div class="rv-done" id="rvDone">
+        <div class="g-top"><b>Rolo da Camila</b><span>Revelado</span></div>
+        <div class="rd-scroll"><div class="rd-grid" id="rdGrid"></div></div>
+        <div class="g-bar"><button class="btn">Baixar todas as fotos</button></div>
+      </div>
+    </div>
+    <button class="replay" id="replay">Reiniciar revelação</button>
+  </figure>
+</div>
+</div>
+
+<script>
+const PH=[6224713,7149169,10578428,17931371,6174129,3171742,8922195,3184193];
+const img=(i,w=600)=>'<img class="img" alt="" src="https://images.pexels.com/photos/'+PH[i%8]+'/pexels-photo-'+PH[i%8]+'.jpeg?auto=compress&cs=tinysrgb&w='+w+'">';
+const frames=(n,off)=>Array.from({length:n},(_,i)=>'<div class="f">'+img(i+off)+'</div>').join('');
+const strip=document.getElementById('strip');
+strip.innerHTML=[0,3,5].map((p,i)=>'<div class="f peel veil" data-n="00'+(i+1)+'">'+img(p,500)+'</div>').join('');
+strip.querySelectorAll('.f').forEach(f=>f.addEventListener('click',()=>f.classList.toggle('on')));
+setTimeout(()=>strip.querySelector('.f').classList.add('on'),1200);
+document.getElementById('vf').insertAdjacentHTML('afterbegin',img(4,900));
+document.getElementById('ggrid').innerHTML=frames(24,3);
+document.getElementById('rdGrid').innerHTML=frames(24,0);
+
+let n=17;const cnt=document.getElementById('cnt'),left=document.getElementById('left'),fl=document.getElementById('flash'),vf=document.getElementById('vf');
+document.getElementById('shutter').addEventListener('click',()=>{
+  if(n>=24){left.textContent='Acabou o filme!';return}
+  n++;cnt.textContent=n+' / 24';left.textContent=n>=24?'Acabou o filme!':(24-n)+' fotos restantes';
+  fl.style.transition='none';fl.style.opacity='.9';requestAnimationFrame(()=>{fl.style.transition='opacity 220ms cubic-bezier(.22,.61,.36,1)';fl.style.opacity='0'});
+  vf.querySelector('img').outerHTML=img(n+3,900);
+});
+
+const intro=document.getElementById('rvIntro'),line=document.getElementById('rvLine'),big=document.getElementById('rvBig'),done=document.getElementById('rvDone');
+big.innerHTML=[0,1,2].map(i=>'<div class="bigf"><div class="p">'+img(i,700)+'</div><div class="l">Foto '+(i+1)+' de 24</div></div>').join('');
+const bigs=[...big.children];let timers=[];const at=(ms,fn)=>timers.push(setTimeout(fn,ms));
+function reset(){timers.forEach(clearTimeout);timers=[];intro.classList.remove('hide');done.classList.remove('show');bigs.forEach(b=>b.className='bigf');line.style.transition='none';line.style.opacity='0';line.style.top='-3px';}
+function play(){reset();void intro.offsetWidth;intro.classList.add('hide');
+  at(1000,()=>{line.style.opacity='1';line.style.transition='top 900ms cubic-bezier(.22,.61,.36,1)';line.style.top='100%'});
+  at(1250,()=>bigs[0].classList.add('show'));at(2050,()=>bigs[1].classList.add('show'));at(2850,()=>bigs[2].classList.add('show'));
+  at(3700,()=>bigs.forEach(b=>b.classList.add('gone')));
+  at(3900,()=>{line.style.opacity='0';document.querySelectorAll('#rdGrid .f').forEach((f,i)=>f.style.transitionDelay=(i*35)+'ms');done.classList.add('show')});}
+document.getElementById('reveal').addEventListener('click',play);
+document.getElementById('replay').addEventListener('click',reset);
+
+document.querySelectorAll('.pick button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.pick button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const r=document.documentElement.style;r.setProperty('--accent',b.dataset.a);r.setProperty('--on-accent',b.dataset.o);
+}));
+</script>
+</body>
+</html>
