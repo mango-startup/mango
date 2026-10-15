@@ -13,6 +13,30 @@ const STEPS = [
   { title: 'Revele', text: 'Quando você decidir, o rolo vira álbum. Todo mundo vê junto.' },
 ]
 
+// Regras do MVP (plano, seção 3); se mudarem, atualizar aqui.
+const PERGUNTAS = [
+  {
+    pergunta: 'Precisa instalar algum app?',
+    resposta: 'Não. O convidado abre o link ou lê o QR na mesa e já fotografa pelo navegador do celular.',
+  },
+  {
+    pergunta: 'Quantas fotos cada convidado tira?',
+    resposta: 'Você escolhe ao criar a câmera: 12, 24 ou 36 poses, como um rolo de verdade. Não dá para apagar e tirar de novo.',
+  },
+  {
+    pergunta: 'Quando as fotos aparecem?',
+    resposta: 'Na revelação, no horário que você escolher (o padrão é a manhã seguinte) ou quando você decidir. Até lá, os convidados não veem nada.',
+  },
+  {
+    pergunta: 'Por quanto tempo o álbum fica no ar?',
+    resposta: 'Por 12 meses depois da revelação nos pacotes pagos e 30 dias no teste grátis. Você pode baixar todas as fotos antes disso.',
+  },
+  {
+    pergunta: 'Quem consegue ver o álbum?',
+    resposta: 'Quem tem o link do evento. Você pode deixar o álbum visível só para você ou trocar o link se ele circular demais.',
+  },
+]
+
 // Marca o elemento com .in quando ele entra na tela (revelação ao rolar)
 function useReveal<T extends HTMLElement>() {
   const ref = useRef<T>(null)
@@ -62,9 +86,14 @@ export function LandingPage() {
               <MangoLogo className="h-[26px] w-5" />
               <span className="pb-1">mango</span>
             </span>
-            <a href="#como-funciona" className="border-b border-current pb-px text-sm font-semibold">
-              Como funciona
-            </a>
+            <nav className="flex items-center gap-5 text-sm font-semibold">
+              <a href="#como-funciona" className="flex min-h-11 items-center">
+                <span className="border-b border-current pb-px">Como funciona</span>
+              </a>
+              <Link to="/precos" className="flex min-h-11 items-center">
+                <span className="border-b border-current pb-px">Preços</span>
+              </Link>
+            </nav>
           </header>
 
           <h1 style={{ '--d': '120ms' } as React.CSSProperties} className="anim-up mt-14 px-6 font-display text-[48px] leading-none sm:text-[54px] lg:mt-auto lg:px-14 lg:text-[88px]">
@@ -80,7 +109,7 @@ export function LandingPage() {
           </p>
           <div style={{ '--d': '440ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
             <Link
-              to="/camera"
+              to="/criar"
               className="btn-shimmer flex h-[52px] items-center justify-center rounded-[14px] bg-base text-base font-semibold text-paper transition hover:bg-surface active:scale-[0.98] lg:inline-flex lg:h-16 lg:px-12 lg:text-lg"
             >
               Criar uma câmera
@@ -110,6 +139,21 @@ export function LandingPage() {
           ))}
         </section>
 
+        <section id="perguntas" className="mt-14 px-6 lg:mx-auto lg:mt-32 lg:max-w-[760px] lg:px-0">
+          <h2 className="font-display text-[32px] leading-none lg:text-[48px]">Perguntas</h2>
+          <div className="mt-6 border-t border-line">
+            {PERGUNTAS.map((item) => (
+              <details key={item.pergunta} className="group border-b border-line">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
+                  {item.pergunta}
+                  <span aria-hidden="true" className="text-muted transition-transform duration-200 group-open:rotate-45">+</span>
+                </summary>
+                <p className="pb-5 text-[15px] leading-normal text-muted">{item.resposta}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         <section className="mt-14 px-6 lg:mt-48 lg:text-center">
           <Reveal>
           <h2 className="font-display text-[40px] leading-[1.02] lg:text-[96px]">
@@ -119,7 +163,7 @@ export function LandingPage() {
           </Reveal>
           <Reveal delay={200}>
           <Link
-            to="/camera"
+            to="/criar"
             className="mt-6 btn-shimmer btn-shimmer-dark flex h-[52px] items-center justify-center rounded-[14px] bg-paper text-base font-semibold text-base transition hover:bg-white active:scale-[0.98] lg:mx-auto lg:mt-12 lg:h-16 lg:w-[320px] lg:text-lg"
           >
             Criar uma câmera
@@ -132,7 +176,11 @@ export function LandingPage() {
             <MangoLogo className="h-[18px] w-3.5" />
             mango
           </span>
-          <span>mango.cam</span>
+          <nav aria-label="Rodapé" className="flex gap-4">
+            <Link to="/termos" className="flex min-h-11 items-center hover:text-paper">Termos</Link>
+            <Link to="/privacidade" className="flex min-h-11 items-center hover:text-paper">Privacidade</Link>
+            <Link to="/ajuda" className="flex min-h-11 items-center hover:text-paper">Ajuda</Link>
+          </nav>
         </footer>
       </div>
     </div>

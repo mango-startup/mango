@@ -1,9 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { RequireHost } from './components/RequireHost'
-import { CameraPage } from './pages/Camera'
 import { CreateEventPage } from './pages/CreateEvent'
 import { EventDashboardPage } from './pages/EventDashboard'
-import { GalleryPage } from './pages/Gallery'
 import { HostLinkPage, HostSignInPage } from './pages/HostAccess'
 import { InvitePage } from './pages/Invite'
 import { LandingPage } from './pages/Landing'
@@ -38,10 +36,6 @@ export default function App() {
         {/* Convidado: um link por evento */}
         <Route path="/c/:codigo" element={<InvitePage />} />
         <Route path="/c/:codigo/f/:foto" element={<PhotoViewPage />} />
-
-        {/* Protótipo antigo: sai quando o convite (#18, #19) e o álbum (#22) estiverem prontos */}
-        <Route path="/camera" element={<CameraPage />} />
-        <Route path="/galeria" element={<GalleryPage />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
