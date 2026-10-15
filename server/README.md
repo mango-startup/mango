@@ -49,6 +49,18 @@ Anfitrião sem login no piloto: ao criar o evento ele recebe um **token secreto*
 
 Erros vêm como `{ "erro": "codigo", "mensagem": "..." }`. O relógio (início, fim, revelação, expiração) roda a cada minuto e também antes de responder as rotas de evento (`src/agendador.ts`, idempotente).
 
+## Envio de fotos (A5 do plano)
+
+O convidado manda `X-Convidado-Token`. O **id da foto é um UUID gerado no aparelho**, então repetir o envio é seguro (idempotente): a fila de envio pode reenviar à vontade.
+
+| Rota | O que faz |
+|---|---|
+| `PUT /api/eventos/:codigo/fotos/:fotoId` | corpo = JPEG (máx. 2 MB). Headers opcionais `X-Largura`, `X-Altura`, `X-Tirada-Em`. `201` nova, `200` repetida |
+| `PUT /api/eventos/:codigo/fotos/:fotoId/miniatura` | corpo = JPEG (máx. 512 KB), só do dono da foto |
+| `GET /api/eventos/:codigo/eu` | poses restantes e ids das fotos que o servidor já tem (para a fila do aparelho sincronizar) |
+
+Regras impostas no servidor: câmera aberta (ou até 24 h depois do fim, para envios atrasados), poses por convidado, teto de fotos do evento, só JPEG de verdade (confere os bytes), tamanho máximo. A reserva da pose acontece numa transação que trava o evento, então envios em paralelo não furam o limite. Se gravar o arquivo falhar, a reserva é desfeita. Ainda não existe leitura de fotos: o álbum (A8) vem depois, e antes da revelação ninguém vê foto.
+
 ## Variáveis
 
 `DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`). Nenhum segredo no repo.
