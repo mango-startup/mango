@@ -13,6 +13,8 @@ import {
 import type { Persistencia } from './persistencia.ts'
 import {
   ENVIO_ATRASADO_MS,
+  ESTADOS_EDITAVEIS,
+  MOTIVO_MAX,
   FOTO_MAX_BYTES,
   MINIATURA_MAX_BYTES,
   PACOTES,
@@ -223,6 +225,15 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
     if (e.estado === 'expirado') falhar(410, 'expirado', 'Este álbum expirou.', { expira_em: e.expira_em })
   }
 
+  /** Acesso público ao álbum (convidado ou quem tem o link): só revelado, não privado, não expirado. */
+  function barrarAcessoAoAlbum(e: EventoInterno) {
+    barrarExpirado(e)
+    if (e.estado !== 'revelado') {
+      falhar(409, 'nao_revelado', 'As fotos só aparecem na revelação.', { estado: e.estado, revelacao_em: e.revelacao_em })
+    }
+    if (e.album_privado) falhar(403, 'album_privado', 'O anfitrião deixou este álbum privado.')
+  }
+
   async function validarArquivo(arquivo: Blob, maximo: number, nome: 'foto' | 'miniatura') {
     if (!arquivo.type.startsWith('image/jpeg')) falhar(415, 'tipo_invalido', `Envie a ${nome} como image/jpeg.`)
     if (arquivo.size > maximo) {
@@ -323,18 +334,50 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
     async cancelar(eventoId) {
       const banco = await abrir()
       const e = doAnfitriao(banco, eventoId)
-      if (ativas(banco, e.id).length > 0) {
-        falhar(409, 'ja_tem_fotos', 'O evento já tem fotos e não pode mais ser cancelado.')
+      if (!podeTransicionar(e.estado, 'cancelado')) {
+        falhar(409, 'transicao_invalida', `Não dá para cancelar um evento em ${e.estado}.`, { estado: e.estado })
       }
-      return transicionar(eventoId, e.estado, 'cancelado')
+      if (banco.fotos.some((f) => f.evento_id === e.id)) {
+        falhar(409, 'tem_fotos', 'O evento já tem fotos e não pode mais ser cancelado.')
+      }
+      e.estado = 'cancelado'
+      await salvar(banco)
+      return semInternos(e)
     },
 
-    async definirAlbumPrivado(eventoId, privado) {
+    async editarEvento(eventoId, edicao) {
       const banco = await abrir()
       const e = doAnfitriao(banco, eventoId)
-      e.album_privado = privado
+      const chaves = Object.keys(edicao) as (keyof typeof edicao)[]
+      if (chaves.length === 0) falhar(400, 'corpo_invalido', 'Nada para alterar.')
+      if (edicao.album_privado !== undefined && typeof edicao.album_privado !== 'boolean') {
+        falhar(400, 'album_privado_invalido', 'album_privado precisa ser true ou false.')
+      }
+      const mexeConfig = chaves.some((k) => k !== 'album_privado' && edicao[k] !== undefined)
+      if (mexeConfig) {
+        if (!ESTADOS_EDITAVEIS.includes(e.estado)) {
+          falhar(409, 'evento_em_andamento', 'Depois que a câmera abre, só o álbum privado pode mudar.', { estado: e.estado })
+        }
+        const mudouHorario = edicao.captura_inicio !== undefined || edicao.captura_fim !== undefined
+        const campos = validarNovoEvento(
+          {
+            nome: edicao.nome ?? e.nome,
+            pacote: e.pacote,
+            poses_por_convidado: edicao.poses_por_convidado ?? e.poses_por_convidado,
+            captura_inicio: edicao.captura_inicio ?? e.captura_inicio ?? '',
+            captura_fim: edicao.captura_fim ?? e.captura_fim ?? '',
+            revelacao_manual: edicao.revelacao_manual ?? e.revelacao_manual,
+            // Mudou o horário sem informar a revelação: volta ao padrão, como o servidor.
+            revelacao_em: edicao.revelacao_em ?? (mudouHorario ? undefined : (e.revelacao_em ?? undefined)),
+          },
+          agora(),
+        )
+        if ('erro' in campos) falhar(400, campos.erro, campos.mensagem)
+        Object.assign(e, campos, { limite_fotos: e.limite_convidados * campos.poses_por_convidado })
+      }
+      if (typeof edicao.album_privado === 'boolean') e.album_privado = edicao.album_privado
       await salvar(banco)
-      return { album_privado: privado }
+      return { evento: semInternos(e), album_privado: e.album_privado }
     },
 
     async trocarCodigo(eventoId) {
@@ -371,13 +414,27 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
       const foto = banco.fotos.find((f) => f.id === fotoId && f.evento_id === e.id && !f.removida_em)
       if (!foto) falhar(404, 'nao_encontrada', 'Foto não encontrada.')
       foto.removida_em = agora().toISOString()
+      for (const p of banco.pedidos) if (p.foto_id === foto.id && !p.resolucao) p.resolucao = 'removida'
       await salvar(banco)
     },
 
     async pedidosDeRemocao(eventoId) {
       const banco = await abrir()
       const e = doAnfitriao(banco, eventoId)
-      return banco.pedidos.filter((p) => p.evento_id === e.id).map(({ evento_id: _e, ...pedido }) => pedido)
+      const numeros = new Map(ativas(banco, e.id).map((f, i) => [f.id, i + 1]))
+      return banco.pedidos
+        .filter((p) => p.evento_id === e.id && !p.resolucao && numeros.has(p.foto_id))
+        .sort((a, b) => a.criado_em.localeCompare(b.criado_em))
+        .map((p) => ({ id: p.id, foto_id: p.foto_id, numero: numeros.get(p.foto_id)!, motivo: p.motivo, criado_em: p.criado_em }))
+    },
+
+    async manterFoto(eventoId, pedidoId) {
+      const banco = await abrir()
+      const e = doAnfitriao(banco, eventoId)
+      const pedido = banco.pedidos.find((p) => p.id === pedidoId && p.evento_id === e.id && !p.resolucao)
+      if (!pedido) falhar(404, 'nao_encontrado', 'Pedido não encontrado.')
+      pedido.resolucao = 'mantida'
+      await salvar(banco)
     },
 
     async iniciarPagamento(eventoId) {
@@ -522,11 +579,7 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
     async album(codigo, opcoesAlbum = {}) {
       const banco = await abrir()
       const e = porCodigo(banco, codigo)
-      barrarExpirado(e)
-      if (e.estado !== 'revelado') {
-        falhar(409, 'nao_revelado', 'As fotos só aparecem na revelação.', { estado: e.estado, revelacao_em: e.revelacao_em })
-      }
-      if (e.album_privado) falhar(403, 'album_privado', 'O anfitrião deixou este álbum privado.')
+      barrarAcessoAoAlbum(e)
       if (!opcoesAlbum.minhas) return paginaDoAlbum(banco, e, opcoesAlbum, null)
       return paginaDoAlbum(banco, e, opcoesAlbum, doAparelho(banco, codigo).convidado.id)
     },
@@ -534,17 +587,27 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
     async pedirRemocao(codigo, fotoId, motivo) {
       const banco = await abrir()
       const e = porCodigo(banco, codigo)
+      barrarAcessoAoAlbum(e)
       if (!banco.fotos.some((f) => f.id === fotoId && f.evento_id === e.id && !f.removida_em)) {
         falhar(404, 'nao_encontrada', 'Foto não encontrada.')
       }
+      // Um pedido por pessoa e foto: convidado pelo aparelho; quem só abriu o link conta como um visitante.
+      const token = sessao.tokenDoConvidado(codigo)
+      const convidado = banco.convidados.find((c) => c.evento_id === e.id && c.token === token)
+      const solicitante = convidado ? `c:${convidado.id}` : 'anonimo'
+      if (banco.pedidos.some((p) => p.foto_id === fotoId && p.solicitante === solicitante)) return { repetido: true }
+      const id = crypto.randomUUID()
       banco.pedidos.push({
-        id: crypto.randomUUID(),
+        id,
         evento_id: e.id,
         foto_id: fotoId,
-        motivo: motivo?.trim() || null,
+        solicitante,
+        motivo: motivo?.trim().slice(0, MOTIVO_MAX) || null,
         criado_em: agora().toISOString(),
+        resolucao: null,
       })
       await salvar(banco)
+      return { pedido_id: id, repetido: false }
     },
   }
 
