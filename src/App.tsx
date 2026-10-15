@@ -1,5 +1,12 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { RequireHost } from './components/RequireHost'
+import { Administradores } from './pages/admin/Administradores'
+import { AdminLayout } from './pages/admin/AdminLayout'
+import { Auditoria } from './pages/admin/Auditoria'
+import { Configuracoes } from './pages/admin/Configuracoes'
+import { Pacotes } from './pages/admin/Pacotes'
+import { Resumo } from './pages/admin/Resumo'
+import { TrocarSenha } from './pages/admin/TrocarSenha'
 import { CreateEventPage } from './pages/CreateEvent'
 import { EventDashboardPage } from './pages/EventDashboard'
 import { HostLinkPage, HostSignInPage } from './pages/HostAccess'
@@ -36,6 +43,16 @@ export default function App() {
         {/* Convidado: um link por evento */}
         <Route path="/c/:codigo" element={<InvitePage />} />
         <Route path="/c/:codigo/f/:foto" element={<PhotoViewPage />} />
+
+        {/* Admin dos donos do Mango: fora da navegação do site e dos buscadores */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Resumo />} />
+          <Route path="pacotes" element={<Pacotes />} />
+          <Route path="configuracoes" element={<Configuracoes />} />
+          <Route path="auditoria" element={<Auditoria />} />
+          <Route path="administradores" element={<Administradores />} />
+          <Route path="senha" element={<TrocarSenha />} />
+        </Route>
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
