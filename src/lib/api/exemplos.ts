@@ -35,11 +35,18 @@ export interface Banco {
   eventos: EventoInterno[]
   convidados: ConvidadoInterno[]
   fotos: FotoInterna[]
-  pedidos: (PedidoRemocao & { evento_id: string })[]
+  pedidos: PedidoInterno[]
   pagamentos: Record<string, StatusPagamento>
 }
 
-export const VERSAO_BANCO = 1
+export interface PedidoInterno extends Omit<PedidoRemocao, 'numero'> {
+  evento_id: string
+  /** Quem pediu: convidado (`c:<id>`) ou visitante sem token (`anonimo`). */
+  solicitante: string
+  resolucao: 'removida' | 'mantida' | null
+}
+
+export const VERSAO_BANCO = 2
 
 type Horarios = Pick<Evento, 'captura_inicio' | 'captura_fim' | 'revelacao_em' | 'revelado_em' | 'expira_em'>
 

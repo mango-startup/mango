@@ -16,11 +16,15 @@ export const POSES_VALIDAS = [12, 24, 36]
 
 // Preços: hipótese do plano do MVP (seção 3.2), ainda sem validação.
 export const PACOTES: Record<Pacote, DefinicaoPacote> = {
-  teste: { id: 'teste', nome: 'Teste', convidados: 10, gratis: true, retencao_dias: 30, poses_max: 12, preco_centavos: 0 },
-  festa: { id: 'festa', nome: 'Festa', convidados: 30, gratis: false, retencao_dias: 365, poses_max: 36, preco_centavos: 4900 },
-  celebracao: { id: 'celebracao', nome: 'Celebração', convidados: 80, gratis: false, retencao_dias: 365, poses_max: 36, preco_centavos: 9900 },
-  casamento: { id: 'casamento', nome: 'Casamento', convidados: 200, gratis: false, retencao_dias: 365, poses_max: 36, preco_centavos: 19900 },
+  teste: { id: 'teste', nome: 'Teste', convidados: 10, gratis: true, retencao_dias: 30, poses_max: 12, poses_opcoes: [12], preco_centavos: 0 },
+  festa: { id: 'festa', nome: 'Festa', convidados: 30, gratis: false, retencao_dias: 365, poses_max: 36, poses_opcoes: [12, 24, 36], preco_centavos: 4900 },
+  celebracao: { id: 'celebracao', nome: 'Celebração', convidados: 80, gratis: false, retencao_dias: 365, poses_max: 36, poses_opcoes: [12, 24, 36], preco_centavos: 9900 },
+  casamento: { id: 'casamento', nome: 'Casamento', convidados: 200, gratis: false, retencao_dias: 365, poses_max: 36, poses_opcoes: [12, 24, 36], preco_centavos: 19900 },
 }
+
+/** Estados em que nome, poses e horários ainda podem mudar. */
+export const ESTADOS_EDITAVEIS: Estado[] = ['rascunho', 'aguardando_pagamento', 'pronto']
+export const MOTIVO_MAX = 300
 
 const TRANSICOES: Record<Estado, Estado[]> = {
   rascunho: ['aguardando_pagamento', 'pronto'],

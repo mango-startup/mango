@@ -1,6 +1,6 @@
-// Contrato da API usado pelas telas. Os formatos seguem o JSON do servidor (server/README.md),
+// Contrato da API usado pelas telas. Os formatos seguem o contrato do servidor (server/openapi.json),
 // para trocar a implementação simulada pela real sem mexer nas telas.
-// O que ainda não existe no servidor está marcado com "só na simulada".
+// O que ainda não existe no servidor está marcado com "só na simulada"; o que é só do aparelho, com "local".
 
 export type Estado =
   | 'rascunho'
@@ -22,7 +22,8 @@ export interface DefinicaoPacote {
   /** Dias de álbum depois da revelação. */
   retencao_dias: number
   poses_max: number
-  /** Hipótese de preço do plano; só na simulada (o servidor ainda não tem preço). */
+  poses_opcoes: number[]
+  /** Hipótese de preço do plano (seção 3.2), a validar nas entrevistas. */
   preco_centavos: number
 }
 
@@ -71,6 +72,18 @@ export interface NovoEvento {
   /** Sem valor e sem revelacao_manual: 12 h depois do fim. */
   revelacao_em?: string
   revelacao_manual?: boolean
+}
+
+/** PATCH /api/anfitriao/evento. Nome, poses e horários só antes de a câmera abrir; álbum privado a qualquer momento. */
+export interface EdicaoEvento {
+  nome?: string
+  poses_por_convidado?: number
+  captura_inicio?: string
+  captura_fim?: string
+  /** Mudou os horários sem informar a revelação: volta ao padrão (12 h depois do fim). */
+  revelacao_em?: string
+  revelacao_manual?: boolean
+  album_privado?: boolean
 }
 
 export interface PainelEvento {
@@ -137,12 +150,19 @@ export interface OpcoesAlbum {
   limite?: number
 }
 
-/** Só na simulada. */
 export interface PedidoRemocao {
   id: string
   foto_id: string
+  /** Número do quadro no álbum. */
+  numero: number
   motivo: string | null
   criado_em: string
+}
+
+export interface ResultadoPedido {
+  pedido_id?: string
+  /** A mesma pessoa já tinha pedido a remoção desta foto. */
+  repetido: boolean
 }
 
 /** Só na simulada: o pagamento (AbacatePay) entra por último. */
@@ -169,28 +189,33 @@ export interface MangoApi {
   // Anfitrião. No piloto não há login: criar o evento devolve um token secreto,
   // que a api guarda neste aparelho. As telas só usam o id do evento.
   criarEvento(dados: NovoEvento): Promise<Evento>
-  /** Se este aparelho guarda acesso de anfitrião a algum evento (sem ir ao servidor). */
+  /** Local: se este aparelho guarda acesso de anfitrião a algum evento (sem ir ao servidor). */
   anfitriaoNesteAparelho(): boolean
   meusEventos(): Promise<PainelEvento[]>
   painel(eventoId: string): Promise<PainelEvento>
-  /** Link secreto que dá acesso de anfitrião em outro aparelho. */
+  /** Local: link secreto que dá acesso de anfitrião em outro aparelho. */
   linkDoAnfitriao(eventoId: string): Promise<string>
-  /** Guarda neste aparelho o acesso de anfitrião vindo do link secreto. */
+  /** Local + GET /api/anfitriao/evento: guarda neste aparelho o acesso vindo do link secreto. */
   entrarComoAnfitriao(token: string): Promise<Evento>
+  editarEvento(eventoId: string, edicao: EdicaoEvento): Promise<{ evento: Evento; album_privado: boolean }>
   encerrar(eventoId: string): Promise<Evento>
   revelar(eventoId: string): Promise<Evento>
   excluir(eventoId: string): Promise<void>
-  definirAlbumPrivado(eventoId: string, privado: boolean): Promise<{ album_privado: boolean }>
+  /** Só antes da primeira foto. */
+  cancelar(eventoId: string): Promise<Evento>
   /** O link e o QR antigos param de funcionar. */
   trocarCodigo(eventoId: string): Promise<{ codigo: string }>
   /** O anfitrião vê o álbum em qualquer estado (para moderar), menos expirado. */
   albumDoAnfitriao(eventoId: string, opcoes?: Omit<OpcoesAlbum, 'minhas'>): Promise<PaginaAlbum>
   /** ZIP com todas as fotos, só depois de revelado. */
   baixarAlbum(eventoId: string): Promise<Blob>
-  // Só na simulada:
-  cancelar(eventoId: string): Promise<Evento>
+  /** A foto some do álbum na hora; pedidos de remoção dela ficam resolvidos. */
   apagarFoto(eventoId: string, fotoId: string): Promise<void>
+  /** Só os pendentes. */
   pedidosDeRemocao(eventoId: string): Promise<PedidoRemocao[]>
+  /** O anfitrião decide manter a foto: o pedido sai da fila. */
+  manterFoto(eventoId: string, pedidoId: string): Promise<void>
+  // Só na simulada (pagamento com AbacatePay, #37):
   iniciarPagamento(eventoId: string): Promise<StatusPagamento>
   statusPagamento(eventoId: string): Promise<StatusPagamento | null>
 
@@ -202,6 +227,6 @@ export interface MangoApi {
   enviarMiniatura(codigo: string, fotoId: string, miniatura: Blob): Promise<void>
   /** Só depois de revelado e se o álbum não for privado. */
   album(codigo: string, opcoes?: OpcoesAlbum): Promise<PaginaAlbum>
-  // Só na simulada:
-  pedirRemocao(codigo: string, fotoId: string, motivo?: string): Promise<void>
+  /** Mesmo acesso do álbum. Um pedido por pessoa e foto (repetir não duplica). */
+  pedirRemocao(codigo: string, fotoId: string, motivo?: string): Promise<ResultadoPedido>
 }
