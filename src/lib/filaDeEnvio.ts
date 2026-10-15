@@ -28,6 +28,8 @@ export interface ResultadoEnvio {
   pendentes: number
   /** Fotos descartadas porque o servidor recusou de vez. */
   recusadas: Recusa[]
+  /** O aparelho perdeu o acesso ao evento e não conseguiu entrar de novo: as fotos ficam guardadas. */
+  semAcesso: boolean
 }
 
 async function itensDo(codigo: string): Promise<ItemFila[]> {
@@ -82,13 +84,22 @@ async function processar(codigo: string): Promise<ResultadoEnvio> {
   let pendentes = 0
   // O servidor diz quais fotos já tem: um envio pode ter chegado sem a resposta voltar.
   const noServidor = new Set<string>()
+  const itens = await itensDo(codigo)
   try {
     for (const id of (await api.eu(codigo)).fotos) noServidor.add(id)
-  } catch {
+  } catch (e) {
+    if (e instanceof ErroApi && e.status === 401 && itens.length > 0) {
+      // O token do aparelho sumiu (dados do navegador limpos): entra de novo no evento e envia com o rolo novo.
+      // As fotos são só deste aparelho, então ficam na fila até dar certo; nada é descartado.
+      try {
+        await api.entrar(codigo)
+      } catch (e2) {
+        if (e2 instanceof ErroApi) return { pendentes: itens.length, recusadas, semAcesso: true }
+      }
+    }
     // sem conexão: tenta assim mesmo, o envio é idempotente
   }
 
-  const itens = await itensDo(codigo)
   for (const [i, item] of itens.entries()) {
     try {
       if (!item.fotoEnviada && !noServidor.has(item.id)) {
@@ -106,6 +117,7 @@ async function processar(codigo: string): Promise<ResultadoEnvio> {
       }
       await del(item.id, store)
     } catch (e) {
+      if (e instanceof ErroApi && e.status === 401) return { pendentes: itens.length - i, recusadas, semAcesso: true }
       if (e instanceof ErroApi && ERROS_DEFINITIVOS.has(e.erro)) {
         if (!item.fotoEnviada) recusadas.push(recusa(e.erro))
         await del(item.id, store)
@@ -116,5 +128,5 @@ async function processar(codigo: string): Promise<ResultadoEnvio> {
       }
     }
   }
-  return { pendentes, recusadas }
+  return { pendentes, recusadas, semAcesso: false }
 }

@@ -12,12 +12,14 @@ const NOVA_TENTATIVA_MS = 15_000
 export function useEnvioPendente(codigo: string, posesIniciais: number | null) {
   const [aguardando, setAguardando] = useState(0)
   const [recusa, setRecusa] = useState<Recusa | null>(null)
+  const [semAcesso, setSemAcesso] = useState(false)
   const [posesNoServidor, setPosesNoServidor] = useState(posesIniciais)
 
   const sincronizar = useCallback(async () => {
     const resultado = await enviarPendentes(codigo)
     setAguardando(await naoEnviadas(codigo))
     if (resultado.recusadas.length > 0) setRecusa(resultado.recusadas[0])
+    setSemAcesso(resultado.semAcesso)
     try {
       setPosesNoServidor((await api.eu(codigo)).poses_restantes)
     } catch {
@@ -52,5 +54,5 @@ export function useEnvioPendente(codigo: string, posesIniciais: number | null) {
     void sincronizar()
   }, [sincronizar])
 
-  return { aguardando, recusa, posesNoServidor, adicionou }
+  return { aguardando, recusa, semAcesso, posesNoServidor, adicionou }
 }
