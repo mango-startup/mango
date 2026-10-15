@@ -36,13 +36,13 @@ export function CameraPage() {
   }
 
   return (
-    <div className="flex h-svh flex-col bg-base text-paper">
+    <div className="flex h-dvh flex-col bg-base pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-paper">
       <header className="flex items-center justify-between px-5 pb-3 pt-5">
         <Link to="/" className="flex items-center gap-2 font-display text-[22px] leading-none">
           <MangoLogo className="h-[21px] w-4" />
           <span className="pb-0.5">mango</span>
         </Link>
-        <span className="text-base font-bold tabular-nums">
+        <span className="text-[16px] font-bold tabular-nums">
           {photosTaken} / {MAX_PHOTOS}
         </span>
       </header>

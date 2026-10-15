@@ -32,7 +32,7 @@ export function GalleryPage() {
   }
 
   return (
-    <div className="min-h-svh bg-base text-paper">
+    <div className="min-h-svh bg-base pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-paper">
       <header className="flex items-center justify-between px-5 py-5">
         <Link to="/camera" className="text-[15px] font-semibold text-muted transition hover:text-paper">
           Câmera
