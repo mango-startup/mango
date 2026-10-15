@@ -233,10 +233,12 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
     c.json({
       pacotes: Object.entries(PACOTES).map(([id, p]) => ({
         id,
+        nome: p.nome,
         convidados: p.convidados,
         gratis: p.gratis,
         preco_centavos: p.precoCentavos,
         retencao_dias: p.retencaoDias,
+        poses_max: p.posesMax,
         poses_opcoes: POSES_VALIDAS.filter((n) => n <= p.posesMax),
       })),
     }),

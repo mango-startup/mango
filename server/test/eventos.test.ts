@@ -179,6 +179,8 @@ test('GET /api/pacotes devolve limites e preço do servidor', opcoes, async () =
   const ids = r.json.pacotes.map((p: { id: string }) => p.id)
   assert.deepEqual(ids, ['teste', 'festa', 'celebracao', 'casamento'])
   const teste = r.json.pacotes[0]
+  assert.equal(teste.nome, 'Teste')
+  assert.equal(teste.poses_max, 12)
   assert.equal(teste.gratis, true)
   assert.equal(teste.preco_centavos, 0)
   assert.deepEqual(teste.poses_opcoes, [12])
