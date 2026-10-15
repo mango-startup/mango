@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { BlocoEstado } from '../../components/BlocoEstado'
 import { Botao } from '../../components/Botao'
@@ -27,12 +27,31 @@ interface Lista {
 }
 
 const POR_PAGINA = 60
+/** A revelação inteira cabe nisso, não importa quantas fotos a primeira página tenha. */
+const REVELACAO_TOTAL_MS = 1800
+const ATRASO_MAX_MS = 45
+
+const chaveRevelacao = (codigo: string) => `mango.revelacao-vista.${codigo.toUpperCase()}`
+
+/** Revela com animação só na primeira visita, sem movimento reduzido e fora de aparelho fraco. */
+function deveRevelar(codigo: string): boolean {
+  try {
+    if (localStorage.getItem(chaveRevelacao(codigo))) return false
+    localStorage.setItem(chaveRevelacao(codigo), '1')
+  } catch {
+    return false
+  }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
+  const memoria = (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+  return !((memoria !== undefined && memoria <= 2) || navigator.hardwareConcurrency <= 2)
+}
 const LISTA_VAZIA: Lista = { fotos: [], total: 0, pagina: 0, carregando: true, erro: false }
 
 // Folha de contato: grade regular, número do quadro e quem fotografou, carregando por páginas.
 export function Album({ codigo, evento, eu, onMudou }: AlbumProps) {
   const [filtro, setFiltro] = useState<Filtro>('todas')
   const [lista, setLista] = useState<Lista>(LISTA_VAZIA)
+  const [revelando, setRevelando] = useState(() => deveRevelar(codigo))
   const fim = useRef<HTMLDivElement>(null)
 
   const buscar = useCallback(
@@ -82,6 +101,16 @@ export function Album({ codigo, evento, eu, onMudou }: AlbumProps) {
     return () => observador.disconnect()
   }, [proxima, temMais])
 
+  const primeiraPagina = lista.pagina >= 1
+  useEffect(() => {
+    if (!revelando || !primeiraPagina) return
+    const timer = setTimeout(() => setRevelando(false), REVELACAO_TOTAL_MS + 500)
+    return () => clearTimeout(timer)
+  }, [revelando, primeiraPagina])
+
+  const quantosRevelam = Math.min(lista.fotos.length, POR_PAGINA)
+  const atraso = quantosRevelam > 0 ? Math.min(ATRASO_MAX_MS, REVELACAO_TOTAL_MS / quantosRevelam) : 0
+
   const vazio = !lista.carregando && !lista.erro && lista.total === 0
 
   return (
@@ -127,8 +156,12 @@ export function Album({ codigo, evento, eu, onMudou }: AlbumProps) {
 
         {lista.fotos.length > 0 && (
           <ul className="mt-6 grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-6">
-            {lista.fotos.map((foto) => (
-              <li key={foto.id}>
+            {lista.fotos.map((foto, i) => (
+              <li
+                key={foto.id}
+                className={revelando && i < quantosRevelam ? 'revelar' : undefined}
+                style={revelando && i < quantosRevelam ? ({ '--atraso': `${Math.round(i * atraso)}ms` } as CSSProperties) : undefined}
+              >
                 <Quadro src={foto.miniatura_url} numero={foto.numero} apelido={foto.apelido} para={`/c/${codigo}/f/${foto.id}`} />
               </li>
             ))}
@@ -146,6 +179,14 @@ export function Album({ codigo, evento, eu, onMudou }: AlbumProps) {
             <p className="text-sm text-danger-ink">Não foi possível carregar as fotos.</p>
             <Botao variante="secundario" onClick={() => carregarPagina(lista.pagina + 1)}>
               Tentar de novo
+            </Botao>
+          </div>
+        )}
+
+        {revelando && lista.fotos.length > 0 && (
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center pb-[calc(env(safe-area-inset-bottom)+20px)]">
+            <Botao variante="secundario" className="pointer-events-auto bg-base/90 backdrop-blur-sm" onClick={() => setRevelando(false)}>
+              Pular
             </Botao>
           </div>
         )}
