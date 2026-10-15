@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { Pool } from 'pg'
+import { rotasAlbum } from './rotas/album.ts'
 import { rotasEventos } from './rotas/eventos.ts'
 import { rotasFotos } from './rotas/fotos.ts'
 import type { Storage } from './storage/storage.ts'
@@ -18,6 +19,7 @@ export function criarApp(pool: Pool, storage: Storage, agora: () => Date = () =>
 
   app.route('/', rotasEventos(pool, agora))
   app.route('/', rotasFotos(pool, storage, agora))
+  app.route('/', rotasAlbum(pool, storage, agora))
 
   return app
 }

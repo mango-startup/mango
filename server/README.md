@@ -28,6 +28,7 @@ Os testes de migração e de eventos precisam de um banco descartável (**apaga 
 
 ## Estrutura
 
+- `src/rotas/fotos.ts` envio · `src/rotas/album.ts` leitura, ZIP e privacidade · `src/zip.ts` escritor de ZIP
 - `src/app.ts` monta as rotas (`GET /api/saude` checa o banco) · `src/rotas/eventos.ts` eventos, convidado e anfitrião · `src/estados.ts` · `src/pacotes.ts` · `src/tokens.ts` · `src/config.ts` variáveis de ambiente
 - `src/migracoes.ts` runner: aplica `migrations/*.sql` em ordem, uma transação por arquivo, registro na tabela `migracoes`
 - `src/storage/` interface `Storage` (`salvar`, `ler`, `apagar`) e implementação em disco; trocar por R2 = nova classe
@@ -60,6 +61,21 @@ O convidado manda `X-Convidado-Token`. O **id da foto é um UUID gerado no apare
 | `GET /api/eventos/:codigo/eu` | poses restantes e ids das fotos que o servidor já tem (para a fila do aparelho sincronizar) |
 
 Regras impostas no servidor: câmera aberta (ou até 24 h depois do fim, para envios atrasados), poses por convidado, teto de fotos do evento, só JPEG de verdade (confere os bytes), tamanho máximo. A reserva da pose acontece numa transação que trava o evento, então envios em paralelo não furam o limite. Se gravar o arquivo falhar, a reserva é desfeita. Ainda não existe leitura de fotos: o álbum (A8) vem depois, e antes da revelação ninguém vê foto.
+
+## Álbum e revelação (A7 e A8 do plano)
+
+Quem vê as fotos: **o anfitrião (token) sempre**, para moderar antes da revelação e baixar depois; **qualquer pessoa com o código só depois de revelado** e se o álbum não for privado. Evento expirado responde `410` para todos.
+
+| Rota | O que faz |
+|---|---|
+| `GET /api/eventos/:codigo/album?limite=&pagina=&minhas=1` | folha de contato paginada (padrão 60, máx. 200). `numero` é a posição no álbum inteiro, mesmo com `minhas=1` (que usa `X-Convidado-Token`) |
+| `GET /api/eventos/:codigo/fotos/:fotoId/arquivo` | JPEG original (`?baixar=1` força download) |
+| `GET /api/eventos/:codigo/fotos/:fotoId/miniatura` | miniatura; sem ela cai para a original |
+| `GET /api/anfitriao/album.zip` | ZIP em streaming (sem compressão, uma foto na memória por vez), só depois de revelado. Nomes `0001-apelido.jpg`. Acima de 4 GB ou 65 mil arquivos responde `413` (sem ZIP64) |
+| `PATCH /api/anfitriao/evento` | `{ "album_privado": true }` = "só eu vejo" |
+| `POST /api/anfitriao/evento/novo-codigo` | troca o código; link e QR antigos param de funcionar |
+
+Estado de erro do acesso: `409 nao_revelado` (com `revelacao_em`), `403 album_privado`, `410 expirado`. Fotos usam `cache-control: private`.
 
 ## Variáveis
 

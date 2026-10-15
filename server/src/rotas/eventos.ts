@@ -129,6 +129,7 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
       revelacao_manual: e.revelacao_manual,
       revelado_em: e.revelado_em,
       expira_em: e.expira_em,
+      album_privado: e.album_privado,
       lotado: Number(e.convidados) >= e.limite_convidados,
     })
   })
