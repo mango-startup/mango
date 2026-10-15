@@ -17,7 +17,7 @@ const agendador = setInterval(() => {
   avancarEstados(pool).catch((erro) => console.error('Falha no agendador:', erro))
 }, 60_000)
 
-const servidor = serve({ fetch: criarApp(pool, new StorageDisco(config.storageDir)).fetch, port: config.porta }, (info) => {
+const servidor = serve({ fetch: criarApp(pool, new StorageDisco(config.storageDir), () => new Date(), process.env.RATE_LIMIT === 'off' ? null : undefined).fetch, port: config.porta }, (info) => {
   console.log(`Mango API ouvindo na porta ${info.port}`)
 })
 
