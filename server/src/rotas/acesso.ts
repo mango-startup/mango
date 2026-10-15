@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 import type { Pool } from 'pg'
-import { avancarEstados } from '../agendador.ts'
+import type { Servicos } from '../servicos.ts'
 import { hashToken } from '../tokens.ts'
 import { erro } from './util.ts'
 
@@ -22,7 +22,7 @@ export function bearer(c: Context): string | null {
 }
 
 /** Quem pode ver as fotos de um evento e quem é o anfitrião. Compartilhado entre álbum e moderação. */
-export function criarAcesso(pool: Pool, agora: () => Date) {
+export function criarAcesso(pool: Pool, servicos: Servicos) {
   /**
    * Quem pode ver as fotos de um evento:
    * - anfitrião (token): sempre, para moderar antes da revelação e baixar depois;
@@ -30,7 +30,7 @@ export function criarAcesso(pool: Pool, agora: () => Date) {
    * Devolve a resposta de erro pronta quando o acesso é negado.
    */
   async function acesso(c: Context): Promise<{ evento: EventoAcesso; papel: Papel } | Response> {
-    await avancarEstados(pool, agora())
+    await servicos.avancar()
     const r = await pool.query<EventoAcesso>(
       `select id, codigo, nome, estado, album_privado, revelacao_em, expira_em
        from eventos where codigo = $1 and excluido_em is null`,
@@ -55,7 +55,7 @@ export function criarAcesso(pool: Pool, agora: () => Date) {
   async function anfitriao(c: Context): Promise<EventoAcesso | null> {
     const token = bearer(c)
     if (!token) return null
-    await avancarEstados(pool, agora())
+    await servicos.avancar()
     const r = await pool.query<EventoAcesso>(
       `select id, codigo, nome, estado, album_privado, revelacao_em, expira_em
        from eventos where anfitriao_token_hash = $1 and excluido_em is null`,

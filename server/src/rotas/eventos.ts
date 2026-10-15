@@ -1,9 +1,8 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import type { Pool } from 'pg'
-import { avancarEstados } from '../agendador.ts'
 import { podeTransicionar } from '../estados.ts'
-import { PACOTES, POSES_VALIDAS, ehPacote } from '../pacotes.ts'
+import type { Servicos } from '../servicos.ts'
 import { gerarCodigo, gerarToken, hashToken } from '../tokens.ts'
 import { validarConfig } from '../validacao.ts'
 import { erro } from './util.ts'
@@ -43,7 +42,7 @@ function bearer(c: Context): string | null {
   return m ? m[1] : null
 }
 
-export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): Hono {
+export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), servicos: Servicos): Hono {
   const app = new Hono()
 
   // Cria o evento. O token do anfitrião só aparece nesta resposta.
@@ -51,11 +50,18 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
     const corpo = await lerCorpo(c)
     if (!corpo) return erro(c, 400, 'corpo_invalido', 'Envie um JSON válido.')
 
-    const pacoteNome = corpo.pacote ?? 'teste'
-    if (!ehPacote(pacoteNome)) return erro(c, 400, 'pacote_invalido', 'Pacote desconhecido.')
-    const pacote = PACOTES[pacoteNome]
+    const cfg = await servicos.config.valores()
+    if (!cfg.criacao_aberta) return erro(c, 503, 'criacao_pausada', 'A criação de eventos está pausada por um instante. Tente de novo em breve.')
 
-    const validado = validarConfig(corpo, pacote, agora())
+    const pacoteNome = corpo.pacote ?? 'teste'
+    const pacote = typeof pacoteNome === 'string' ? await servicos.pacotes.obter(pacoteNome) : null
+    if (!pacote) return erro(c, 400, 'pacote_invalido', 'Pacote desconhecido.')
+    if (!pacote.ativo) return erro(c, 409, 'pacote_indisponivel', 'Este pacote não está disponível no momento.')
+    if (!pacote.gratis && !cfg.pacotes_pagos_disponiveis) {
+      return erro(c, 409, 'pagamento_indisponivel', 'Os pacotes pagos ainda não estão disponíveis. Use o teste grátis por enquanto.')
+    }
+
+    const validado = validarConfig(corpo, pacote, agora(), cfg)
     if (!validado.ok) return erro(c, 400, validado.erro, validado.mensagem)
     const { nome, poses, inicio, fim, manual, revelacao } = validado.config
 
@@ -67,10 +73,10 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
       const codigo = gerarCodigo()
       try {
         const r = await pool.query<EventoLinha>(
-          `insert into eventos (codigo, anfitriao_token_hash, nome, estado, pacote, limite_convidados,
+          `insert into eventos (codigo, anfitriao_token_hash, nome, estado, pacote, limite_convidados, retencao_dias,
              poses_por_convidado, limite_fotos, captura_inicio, captura_fim, revelacao_em, revelacao_manual)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning ${COLUNAS}`,
-          [codigo, hashToken(token), nome, estado, pacoteNome, pacote.convidados, poses, pacote.convidados * poses, inicio, fim, revelacao, manual],
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning ${COLUNAS}`,
+          [codigo, hashToken(token), nome, estado, pacote.id, pacote.convidados, pacote.retencao_dias, poses, pacote.convidados * poses, inicio, fim, revelacao, manual],
         )
         return c.json({ evento: r.rows[0], anfitriao_token: token }, 201)
       } catch (e) {
@@ -82,7 +88,7 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
 
   // Estado público do evento (o que o convidado vê no link /c/:codigo).
   app.get('/api/eventos/:codigo', async (c) => {
-    await avancarEstados(pool, agora())
+    await servicos.avancar()
     const r = await pool.query<EventoLinha & { convidados: string; fotos: string }>(
       `select ${COLUNAS}, (select count(*) from convidados where evento_id = eventos.id) as convidados,
               (select count(*) from fotos where evento_id = eventos.id and removida_em is null) as fotos
@@ -110,9 +116,10 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
 
   // Convidado entra: token novo, ou o mesmo se o aparelho já entrou (header X-Convidado-Token).
   app.post('/api/eventos/:codigo/entrar', async (c) => {
-    await avancarEstados(pool, agora())
+    await servicos.avancar()
     const corpo = (await lerCorpo(c)) ?? {}
-    const apelido = typeof corpo.apelido === 'string' ? corpo.apelido.trim().slice(0, 40) || null : null
+    const apelidoMax = (await servicos.config.valores()).apelido_max
+    const apelido = typeof corpo.apelido === 'string' ? corpo.apelido.trim().slice(0, apelidoMax) || null : null
     const tokenExistente = c.req.header('x-convidado-token')
 
     const cliente = await pool.connect()
@@ -180,7 +187,7 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
   async function eventoDoAnfitriao(c: Context): Promise<EventoLinha | null> {
     const token = bearer(c)
     if (!token) return null
-    await avancarEstados(pool, agora())
+    await servicos.avancar()
     const r = await pool.query<EventoLinha>(
       `select ${COLUNAS} from eventos where anfitriao_token_hash = $1 and excluido_em is null`,
       [hashToken(token)],
@@ -209,7 +216,7 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
     const r = await pool.query<EventoLinha>(
       para === 'revelado'
         ? `update eventos set estado = 'revelado', revelado_em = $2::timestamptz, atualizado_em = $2::timestamptz,
-             expira_em = $2::timestamptz + (case when pacote = 'teste' then interval '30 days' else interval '365 days' end)
+             expira_em = $2::timestamptz + retencao_dias * interval '1 day'
            where id = $1 and estado = $3::text returning ${COLUNAS}`
         : `update eventos set estado = 'captura_encerrada', captura_fim = least(captura_fim, $2::timestamptz), atualizado_em = $2::timestamptz
            where id = $1 and estado = $3::text returning ${COLUNAS}`,
@@ -231,21 +238,27 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
     return c.body(null, 204)
   })
 
-  // Pacotes vindos do servidor (limites e preço não ficam no front).
-  app.get('/api/pacotes', (c) =>
-    c.json({
-      pacotes: Object.entries(PACOTES).map(([id, p]) => ({
-        id,
-        nome: p.nome,
-        convidados: p.convidados,
-        gratis: p.gratis,
-        preco_centavos: p.precoCentavos,
-        retencao_dias: p.retencaoDias,
-        poses_max: p.posesMax,
-        poses_opcoes: POSES_VALIDAS.filter((n) => n <= p.posesMax),
-      })),
-    }),
-  )
+  // Pacotes vindos do servidor (limites e preço não ficam no front). Só os ativos.
+  app.get('/api/pacotes', async (c) => {
+    const [lista, cfg] = await Promise.all([servicos.pacotes.listar(), servicos.config.valores()])
+    return c.json({
+      pacotes: lista
+        .filter((p) => p.ativo)
+        .map((p) => ({
+          id: p.id,
+          nome: p.nome,
+          convidados: p.convidados,
+          gratis: p.gratis,
+          preco_centavos: p.preco_centavos,
+          retencao_dias: p.retencao_dias,
+          poses_max: p.poses_max,
+          poses_opcoes: cfg.poses_validas.filter((n) => n <= p.poses_max),
+        })),
+    })
+  })
+
+  // Configuração que o front pode ver (prazos, tamanhos, poses, se o pagamento está ligado).
+  app.get('/api/config', async (c) => c.json(await servicos.config.publicas()))
 
   const CAMPOS_CONFIG = ['nome', 'poses_por_convidado', 'captura_inicio', 'captura_fim', 'revelacao_em', 'revelacao_manual']
   const ESTADOS_EDITAVEIS = ['rascunho', 'aguardando_pagamento', 'pronto']
@@ -280,7 +293,9 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date()): 
         // Mudou o horário sem informar a revelação: volta ao padrão (fim + 12 h) em vez de manter uma data que pode ficar inválida.
         revelacao_em: corpo.revelacao_em ?? (mudouHorario ? undefined : e.revelacao_em?.toISOString()),
       }
-      const validado = validarConfig(entrada, PACOTES[e.pacote as keyof typeof PACOTES], agora())
+      const pacoteDoEvento = await servicos.pacotes.obter(e.pacote)
+      if (!pacoteDoEvento) return erro(c, 409, 'pacote_indisponivel', 'O pacote deste evento não existe mais.')
+      const validado = validarConfig(entrada, pacoteDoEvento, agora(), await servicos.config.valores())
       if (!validado.ok) return erro(c, 400, validado.erro, validado.mensagem)
       const { nome, poses, inicio, fim, manual, revelacao } = validado.config
       const r = await pool.query<EventoLinha>(

@@ -37,17 +37,17 @@ export class Limitador {
   }
 
   /** Conta uma tentativa. `permitido: false` quando a janela já está cheia (e não conta a recusada). */
-  consumir(chave: string, agora: number): { permitido: boolean; retryEmSegundos: number } {
+  consumir(chave: string, agora: number, max: number = this.max): { permitido: boolean; retryEmSegundos: number } {
     const j = this.janela(chave, agora)
-    if (j.n >= this.max) return { permitido: false, retryEmSegundos: Math.max(1, Math.ceil((j.fim - agora) / 1000)) }
+    if (j.n >= max) return { permitido: false, retryEmSegundos: Math.max(1, Math.ceil((j.fim - agora) / 1000)) }
     j.n++
     return { permitido: true, retryEmSegundos: 0 }
   }
 
   /** Só consulta, sem contar. */
-  espera(chave: string, agora: number): number {
+  espera(chave: string, agora: number, max: number = this.max): number {
     const j = this.janelas.get(chave)
-    if (!j || j.fim <= agora || j.n < this.max) return 0
+    if (!j || j.fim <= agora || j.n < max) return 0
     return Math.max(1, Math.ceil((j.fim - agora) / 1000))
   }
 

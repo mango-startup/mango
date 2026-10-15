@@ -1,10 +1,11 @@
 import { serve } from '@hono/node-server'
-import { avancarEstados } from './agendador.ts'
 import { criarApp } from './app.ts'
 import { limparArquivos } from './limpeza.ts'
 import { lerConfig } from './config.ts'
+import { ServicoAdmin } from './admin/autenticacao.ts'
 import { criarPool } from './db.ts'
 import { migrar } from './migracoes.ts'
+import { criarServicos } from './servicos.ts'
 import { StorageDisco } from './storage/disco.ts'
 
 const config = lerConfig()
@@ -14,14 +15,25 @@ const storage = new StorageDisco(config.storageDir)
 const aplicadas = await migrar(pool)
 if (aplicadas.length) console.log(`Migrações aplicadas: ${aplicadas.join(', ')}`)
 
+const servicos = criarServicos(pool)
+
+// Admins iniciais: criados uma vez, com a senha inicial do ambiente e troca obrigatória no primeiro login.
+if (config.adminSenhaInicial) {
+  const criados = await new ServicoAdmin(pool).garantirAdmins(config.adminUsuarios, config.adminSenhaInicial)
+  if (criados.length) console.log(`Admins criados (trocar a senha no primeiro login): ${criados.join(', ')}`)
+} else if ((await pool.query('select 1 from admins limit 1')).rowCount === 0) {
+  console.warn('Nenhum admin existe e ADMIN_SENHA_INICIAL não está definida: a área de admin não terá com quem entrar.')
+}
+
 // Relógio dos eventos: início, fim, revelação, expiração e limpeza de arquivos vencidos (a cada minuto).
 const agendador = setInterval(() => {
-  avancarEstados(pool)
-    .then(() => limparArquivos(pool, storage))
+  servicos
+    .avancar()
+    .then(async () => limparArquivos(pool, storage, new Date(), 200, (await servicos.config.valores()).remocao_arquivo_dias))
     .catch((erro) => console.error('Falha no agendador:', erro))
 }, 60_000)
 
-const servidor = serve({ fetch: criarApp(pool, storage, () => new Date(), process.env.RATE_LIMIT === 'off' ? null : undefined).fetch, port: config.porta }, (info) => {
+const servidor = serve({ fetch: criarApp(pool, storage, () => new Date(), process.env.RATE_LIMIT === 'off' ? null : undefined, servicos).fetch, port: config.porta }, (info) => {
   console.log(`Mango API ouvindo na porta ${info.port}`)
 })
 

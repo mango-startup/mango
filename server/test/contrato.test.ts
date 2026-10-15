@@ -54,8 +54,13 @@ test('openapi.json é consistente: refs existem, parâmetros de caminho declarad
   for (const esquema of Object.values<{ in?: string }>(spec.components.securitySchemes)) assert.ok(esquema)
 })
 
-test('os estados e pacotes do contrato são os do código', async () => {
-  const { PACOTES } = await import('../src/pacotes.ts')
-  assert.deepEqual(spec.components.schemas.Pacote.enum, Object.keys(PACOTES))
+test('os estados do contrato são os do código', () => {
   assert.equal(spec.components.schemas.Estado.enum.length, 8)
+})
+
+test('toda configuração editável está documentada em docs/CONFIGURACOES.md', async () => {
+  const { DEFINICOES } = await import('../src/configuracao.ts')
+  const doc = readFileSync(path.resolve(import.meta.dirname, '../../docs/CONFIGURACOES.md'), 'utf8')
+  const faltando = DEFINICOES.filter((d) => !doc.includes(`\`${d.chave}\``)).map((d) => d.chave)
+  assert.deepEqual(faltando, [], 'configurações sem documentação em docs/CONFIGURACOES.md')
 })

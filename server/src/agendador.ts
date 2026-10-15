@@ -5,7 +5,13 @@ import type { Pool } from 'pg'
  * Idempotente: cada UPDATE só pega quem ainda está no estado de origem, então rodar
  * duas vezes (ou em duas instâncias) não causa efeito duplo.
  */
-export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date()): Promise<void> {
+export interface OpcoesAgendador {
+  /** Dias até excluir rascunho ou pagamento não concluído (configuração `rascunho_validade_dias`). */
+  rascunhoDias?: number
+}
+
+export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date(), opcoes: OpcoesAgendador = {}): Promise<void> {
+  const rascunhoDias = opcoes.rascunhoDias ?? 7
   await pool.query(
     `update eventos set estado = 'captura_aberta', atualizado_em = $1
      where estado = 'pronto' and excluido_em is null and captura_inicio <= $1 and captura_fim > $1`,
@@ -19,7 +25,7 @@ export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date
   )
   await pool.query(
     `update eventos set estado = 'revelado', revelado_em = $1, atualizado_em = $1,
-       expira_em = $1 + (case when pacote = 'teste' then interval '30 days' else interval '365 days' end)
+       expira_em = $1::timestamptz + retencao_dias * interval '1 day'
      where estado = 'captura_encerrada' and excluido_em is null
        and revelacao_manual = false and revelacao_em <= $1`,
     [agora],
@@ -28,8 +34,8 @@ export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date
   await pool.query(
     `update eventos set excluido_em = $1::timestamptz, atualizado_em = $1::timestamptz
      where estado in ('rascunho', 'aguardando_pagamento') and excluido_em is null
-       and criado_em <= $1::timestamptz - interval '7 days'`,
-    [agora],
+       and criado_em <= $1::timestamptz - $2::int * interval '1 day'`,
+    [agora, rascunhoDias],
   )
   await pool.query(
     `update eventos set estado = 'expirado', atualizado_em = $1

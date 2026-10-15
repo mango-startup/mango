@@ -3,7 +3,7 @@
   "info": {
     "title": "Mango API",
     "version": "0.1.0",
-    "description": "Contrato da API do Mango (`server/`). Mantido à mão e conferido por um teste que compara com as rotas reais.\n\n**Autenticação sem login (piloto):** ao criar o evento o anfitrião recebe um token secreto e o manda em `Authorization: Bearer <token>`. O convidado recebe um token de aparelho em `/entrar` e o manda em `X-Convidado-Token`.\n\n**Erros:** `{ \"erro\": \"codigo\", \"mensagem\": \"...\" }` (`429` também traz `retry_em_segundos` e o header `Retry-After`).\n\n**Limites de requisição:** criar evento 30 por hora por IP; upload 300 por minuto por convidado; 600 falhas (401/404) por minuto por IP; 30 pedidos de remoção por hora por IP."
+    "description": "Contrato da API do Mango (`server/`). Mantido à mão e conferido por um teste que compara com as rotas reais.\n\n**Autenticação sem login (piloto):** ao criar o evento o anfitrião recebe um token secreto e o manda em `Authorization: Bearer <token>`. O convidado recebe um token de aparelho em `/entrar` e o manda em `X-Convidado-Token`.\n\n**Erros:** `{ \"erro\": \"codigo\", \"mensagem\": \"...\" }` (`429` também traz `retry_em_segundos` e o header `Retry-After`).\n\n**Limites de requisição:** criar evento 30 por hora por IP; upload 300 por minuto por convidado; 600 falhas (401/404) por minuto por IP; 30 pedidos de remoção por hora por IP.\n\n**Admin:** `POST /api/admin/entrar` abre uma sessão por cookie (`mango_admin`, HttpOnly). A senha inicial obriga a troca no primeiro login. Pacotes, limites e demais configurações de negócio são editados em `/admin` e valem na hora; o que cada chave faz está em `docs/CONFIGURACOES.md`."
   },
   "servers": [
     {
@@ -27,6 +27,10 @@
     },
     {
       "name": "Álbum"
+    },
+    {
+      "name": "Admin",
+      "description": "Área de gestão dos donos (Raziel e Lucas): login, pacotes, configurações e auditoria. Fora da navegação do site."
     }
   ],
   "paths": {
@@ -106,7 +110,7 @@
           "Anfitrião"
         ],
         "summary": "Criar evento",
-        "description": "Cria o evento e devolve o token secreto do anfitrião (só desta vez). Limite: 30 por hora por IP.",
+        "description": "Cria o evento e devolve o token secreto do anfitrião (só desta vez). Limite padrão: 30 por hora por IP (configurável).",
         "responses": {
           "201": {
             "description": "Evento criado.",
@@ -142,6 +146,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErroLimite"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Pacote indisponível. Códigos: `pacote_indisponivel` (desativado pelo admin), `pagamento_indisponivel` (pacote pago com o pagamento desligado).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Criação pausada pelo admin. Códigos: `criacao_pausada`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
                 }
               }
             }
@@ -1734,6 +1758,987 @@
           }
         ]
       }
+    },
+    "/api/config": {
+      "get": {
+        "tags": [
+          "Geral"
+        ],
+        "summary": "Configuração pública",
+        "description": "Prazos, tamanhos, opções de poses, se o pagamento está ligado e o contato. O front usa isto em vez de constantes; os valores são editados no admin.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Configuração.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/entrar": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Entrar",
+        "description": "Usuário e senha. Erro genérico para usuário inexistente e senha errada. Depois de 5 erros a conta fica bloqueada por 15 minutos. Na primeira vez a senha é a inicial e `trocar_senha` vem `true`.",
+        "responses": {
+          "200": {
+            "description": "Sessão aberta (cookie `mango_admin`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEu"
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "mango_admin=...; HttpOnly; SameSite=Strict; Path=/api/admin"
+              }
+            }
+          },
+          "400": {
+            "description": "Corpo inválido. Códigos: `corpo_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Usuário ou senha incorretos. Códigos: `credenciais_invalidas`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Falta o header anti-CSRF. Códigos: `requisicao_invalida`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Conta bloqueada (traz `Retry-After`). Códigos: `conta_bloqueada`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Obrigatório em tudo que muda estado (anti-CSRF). Leitura (GET) não precisa."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "usuario",
+                  "senha"
+                ],
+                "properties": {
+                  "usuario": {
+                    "type": "string"
+                  },
+                  "senha": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/sair": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Sair",
+        "description": "Encerra a sessão.",
+        "responses": {
+          "204": {
+            "description": "Sessão encerrada."
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Obrigatório em tudo que muda estado (anti-CSRF). Leitura (GET) não precisa."
+          }
+        ]
+      }
+    },
+    "/api/admin/eu": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Quem sou eu",
+        "description": "Funciona mesmo com a senha inicial pendente.",
+        "responses": {
+          "200": {
+            "description": "Admin logado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminEu"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/trocar-senha": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Trocar a própria senha",
+        "description": "Obrigatória no primeiro login. Mínimo de 10 caracteres com letras e números, diferente da atual e sem o usuário. Encerra as outras sessões.",
+        "responses": {
+          "200": {
+            "description": "Senha trocada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Não aceita. Códigos: `senha_atual_incorreta`, `senha_fraca`, `corpo_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Obrigatório em tudo que muda estado (anti-CSRF). Leitura (GET) não precisa."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "senha_atual",
+                  "nova_senha"
+                ],
+                "properties": {
+                  "senha_atual": {
+                    "type": "string"
+                  },
+                  "nova_senha": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/resumo": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Resumo",
+        "description": "Contagens para o painel.",
+        "responses": {
+          "200": {
+            "description": "Resumo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resumo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/pacotes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Listar pacotes",
+        "description": "Todos, inclusive os desativados, com quantos eventos usam cada um.",
+        "responses": {
+          "200": {
+            "description": "Pacotes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pacotes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PacoteAdmin"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Criar pacote",
+        "description": "Aparece para o público assim que criado e ativo.",
+        "responses": {
+          "201": {
+            "description": "Criado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pacote": {
+                      "$ref": "#/components/schemas/PacoteAdmin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Id já existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Obrigatório em tudo que muda estado (anti-CSRF). Leitura (GET) não precisa."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NovoPacote"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/pacotes/{id}": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Editar pacote",
+        "description": "Eventos já criados não mudam.",
+        "responses": {
+          "200": {
+            "description": "Atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pacote": {
+                      "$ref": "#/components/schemas/PacoteAdmin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pacote não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pacote"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Obrigatório em tudo que muda estado (anti-CSRF). Leitura (GET) não precisa."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EdicaoPacote"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/configuracoes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Listar configurações",
+        "description": "Agrupadas, com valor atual, padrão, faixa e se foram alteradas.",
+        "responses": {
+          "200": {
+            "description": "Grupos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "grupos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GrupoConfiguracao"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Alterar configurações",
+        "description": "Tudo ou nada: se uma chave não passar na validação, nenhuma é aplicada. `null` volta a chave ao padrão. Vale na hora e fica na auditoria.",
+        "responses": {
+          "200": {
+            "description": "Aplicado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validação (`erros` por chave).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Obrigatório em tudo que muda estado (anti-CSRF). Leitura (GET) não precisa."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "{ chave: valor }. Chaves em `GET /api/admin/configuracoes`."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/auditoria": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Auditoria",
+        "description": "Quem mudou o quê, com o valor antes e depois. Mais recente primeiro.",
+        "responses": {
+          "200": {
+            "description": "Página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "limite": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "registros": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RegistroAuditoria"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/admin/administradores": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Listar administradores",
+        "description": "Nunca devolve o hash da senha.",
+        "responses": {
+          "200": {
+            "description": "Administradores.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "administradores": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Administrador"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/administradores/{id}/redefinir-senha": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Redefinir a senha de outro admin",
+        "description": "Gera uma senha temporária (mostrada só nesta resposta), derruba as sessões dele e obriga a trocar no próximo login. Não vale para a própria conta.",
+        "responses": {
+          "200": {
+            "description": "Senha temporária.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "usuario": {
+                      "type": "string"
+                    },
+                    "senha_temporaria": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido ou a própria conta. Códigos: `id_invalido`, `redefinir_a_si_mesmo`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Obrigatório em tudo que muda estado (anti-CSRF). Leitura (GET) não precisa."
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1786,12 +2791,8 @@
       },
       "Pacote": {
         "type": "string",
-        "enum": [
-          "teste",
-          "festa",
-          "celebracao",
-          "casamento"
-        ]
+        "pattern": "^[a-z][a-z0-9_]{1,29}$",
+        "description": "Id do pacote. Os pacotes são editáveis pelo admin (tabela `pacotes`); o de teste (`teste`) é fixo e grátis."
       },
       "DefinicaoPacote": {
         "type": "object",
@@ -2347,6 +3348,389 @@
             "format": "date-time"
           }
         }
+      },
+      "Config": {
+        "type": "object",
+        "description": "Configuração pública (o que o front pode usar). Os valores são editados em /admin.",
+        "properties": {
+          "criacao_aberta": {
+            "type": "boolean"
+          },
+          "pacotes_pagos_disponiveis": {
+            "type": "boolean"
+          },
+          "contato_suporte": {
+            "type": "string"
+          },
+          "captura_max_horas": {
+            "type": "integer"
+          },
+          "revelacao_max_dias": {
+            "type": "integer"
+          },
+          "revelacao_padrao_horas": {
+            "type": "integer"
+          },
+          "poses_validas": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "poses_padrao": {
+            "type": "integer"
+          },
+          "nome_evento_max": {
+            "type": "integer"
+          },
+          "apelido_max": {
+            "type": "integer"
+          },
+          "foto_max_kb": {
+            "type": "integer"
+          },
+          "miniatura_max_kb": {
+            "type": "integer"
+          },
+          "foto_dimensao_max_px": {
+            "type": "integer"
+          },
+          "foto_qualidade_jpeg": {
+            "type": "number"
+          },
+          "envio_atrasado_horas": {
+            "type": "integer"
+          },
+          "pedido_remocao_motivo_max": {
+            "type": "integer"
+          }
+        }
+      },
+      "AdminEu": {
+        "type": "object",
+        "required": [
+          "admin"
+        ],
+        "properties": {
+          "admin": {
+            "type": "object",
+            "required": [
+              "usuario",
+              "nome",
+              "trocar_senha"
+            ],
+            "properties": {
+              "usuario": {
+                "type": "string"
+              },
+              "nome": {
+                "type": "string"
+              },
+              "trocar_senha": {
+                "type": "boolean",
+                "description": "`true` enquanto a senha for a inicial/temporária: só `eu`, `sair` e `trocar-senha` funcionam."
+              }
+            }
+          }
+        }
+      },
+      "Resumo": {
+        "type": "object",
+        "properties": {
+          "eventos_por_estado": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "eventos_ultimos_7_dias": {
+            "type": "integer"
+          },
+          "convidados": {
+            "type": "integer"
+          },
+          "fotos": {
+            "type": "integer"
+          },
+          "fotos_ultimas_24_horas": {
+            "type": "integer"
+          },
+          "armazenamento_bytes": {
+            "type": "integer"
+          },
+          "pedidos_de_remocao_pendentes": {
+            "type": "integer"
+          }
+        }
+      },
+      "PacoteAdmin": {
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "convidados",
+          "preco_centavos",
+          "retencao_dias",
+          "poses_max",
+          "ativo",
+          "ordem",
+          "gratis"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Pacote"
+          },
+          "nome": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "convidados": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "preco_centavos": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "retencao_dias": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3650
+          },
+          "poses_max": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ativo": {
+            "type": "boolean"
+          },
+          "ordem": {
+            "type": "integer"
+          },
+          "gratis": {
+            "type": "boolean",
+            "description": "Derivado: preço zero."
+          },
+          "eventos": {
+            "type": "integer",
+            "description": "Só na listagem: quantos eventos usam o pacote."
+          }
+        }
+      },
+      "NovoPacote": {
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "convidados",
+          "preco_centavos",
+          "retencao_dias",
+          "poses_max"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Pacote"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "convidados": {
+            "type": "integer"
+          },
+          "preco_centavos": {
+            "type": "integer"
+          },
+          "retencao_dias": {
+            "type": "integer"
+          },
+          "poses_max": {
+            "type": "integer",
+            "description": "Não passa da maior opção de poses configurada."
+          },
+          "ativo": {
+            "type": "boolean",
+            "default": true
+          },
+          "ordem": {
+            "type": "integer",
+            "description": "Padrão: depois do último."
+          }
+        }
+      },
+      "EdicaoPacote": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": false,
+        "description": "Só o que mudar. Eventos já criados não mudam: convidados e retenção ficam gravados no evento. O pacote `teste` não pode ser desativado nem cobrado.",
+        "properties": {
+          "nome": {
+            "type": "string"
+          },
+          "convidados": {
+            "type": "integer"
+          },
+          "preco_centavos": {
+            "type": "integer"
+          },
+          "retencao_dias": {
+            "type": "integer"
+          },
+          "poses_max": {
+            "type": "integer"
+          },
+          "ativo": {
+            "type": "boolean"
+          },
+          "ordem": {
+            "type": "integer"
+          }
+        }
+      },
+      "ErroValidacao": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Erro"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "erros": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Mensagem por campo ou chave."
+              }
+            }
+          }
+        ]
+      },
+      "ItemConfiguracao": {
+        "type": "object",
+        "properties": {
+          "chave": {
+            "type": "string"
+          },
+          "rotulo": {
+            "type": "string"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "inteiro",
+              "decimal",
+              "booleano",
+              "texto",
+              "lista_inteiros"
+            ]
+          },
+          "unidade": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "min": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "max": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "valor": {},
+          "padrao": {},
+          "personalizado": {
+            "type": "boolean",
+            "description": "`true` se o admin alterou (senão vale o padrão do código)."
+          },
+          "atualizado_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "publica": {
+            "type": "boolean",
+            "description": "Aparece em `GET /api/config`."
+          }
+        }
+      },
+      "GrupoConfiguracao": {
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string"
+          },
+          "itens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemConfiguracao"
+            }
+          }
+        }
+      },
+      "RegistroAuditoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "usuario": {
+            "type": "string"
+          },
+          "acao": {
+            "type": "string",
+            "description": "`config.alterar`, `config.restaurar`, `pacote.criar`, `pacote.alterar`, `admin.entrar`, `admin.trocar_senha`, `admin.redefinir_senha`, `admin.conta_bloqueada`."
+          },
+          "alvo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "antes": {},
+          "depois": {},
+          "criado_em": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Administrador": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usuario": {
+            "type": "string"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "trocar_senha": {
+            "type": "boolean"
+          },
+          "ultimo_login_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -2360,6 +3744,12 @@
         "in": "header",
         "name": "X-Convidado-Token",
         "description": "Token do aparelho devolvido em `/entrar`."
+      },
+      "admin": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "mango_admin",
+        "description": "Cookie HttpOnly, SameSite=Strict, `Path=/api/admin`, válido por 8 h, devolvido em `POST /api/admin/entrar`. Mudanças exigem também o header `X-Mango-Admin: 1`."
       }
     }
   }
