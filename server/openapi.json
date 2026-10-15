@@ -1935,7 +1935,8 @@
           "poses_por_convidado",
           "revelacao_manual",
           "album_privado",
-          "lotado"
+          "lotado",
+          "fotos"
         ],
         "properties": {
           "nome": {
@@ -1990,6 +1991,10 @@
           },
           "lotado": {
             "type": "boolean"
+          },
+          "fotos": {
+            "type": "integer",
+            "description": "Total de fotos não removidas no rolo (não revela nenhuma foto). A tela de espera mostra \"N fotos no rolo\"."
           }
         }
       },

@@ -83,6 +83,7 @@ test('estado público não vaza dados do anfitrião e 404 para código desconhec
   assert.equal(r.status, 200)
   assert.equal(r.json.nome, 'Festa da Ana')
   assert.equal(r.json.lotado, false)
+  assert.equal(r.json.fotos, 0)
   assert.equal(r.json.anfitriao_token_hash, undefined)
   assert.equal(r.json.codigo, undefined)
   assert.equal((await chamar('GET', '/api/eventos/ZZZZZZZZ')).status, 404)

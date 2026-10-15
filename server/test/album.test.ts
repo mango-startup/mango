@@ -91,6 +91,8 @@ test('antes da revelação só o anfitrião vê as fotos (moderação)', opcoes,
   assert.equal(publico.status, 409)
   assert.equal(publico.json.erro, 'nao_revelado')
   assert.ok(publico.json.revelacao_em)
+  // O total de fotos já aparece no estado público (a tela de espera), sem revelar nenhuma foto.
+  assert.equal((await chamar('GET', `/api/eventos/${codigo}`)).json.fotos, 5)
   assert.equal((await chamar('GET', `/api/eventos/${codigo}/fotos/${ids[0]}/arquivo`)).status, 409)
 
   const moderacao = await chamar('GET', `/api/eventos/${codigo}/album`, { cab: host })

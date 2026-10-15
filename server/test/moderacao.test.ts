@@ -91,6 +91,7 @@ test('anfitrião apaga a foto: some do álbum na hora, antes e depois da revela�
   assert.equal(await total(codigo, host), 4)
   assert.equal((await chamar('DELETE', `/api/anfitriao/fotos/${ids[0]}`, { cab: host })).status, 204)
   assert.equal(await total(codigo, host), 3)
+  assert.equal((await chamar('GET', `/api/eventos/${codigo}`)).json.fotos, 3) // foto apagada sai da contagem
   assert.equal((await chamar('DELETE', `/api/anfitriao/fotos/${ids[0]}`, { cab: host })).status, 404) // já apagada
 
   revelar()
