@@ -11,7 +11,7 @@ const opcoes = { skip: url ? false : 'defina TEST_DATABASE_URL para testar event
 const pool = url ? criarPool(url) : undefined
 
 let agora = new Date('2026-11-14T18:00:00Z')
-const app = pool ? criarApp(pool, () => agora) : undefined
+const app = pool ? criarApp(pool, {} as never, () => agora) : undefined
 const h = (horas: number) => new Date(agora.getTime() + horas * 3600_000).toISOString()
 
 before(async () => {

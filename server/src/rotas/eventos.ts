@@ -5,6 +5,7 @@ import { avancarEstados } from '../agendador.ts'
 import { CAPTURA_MAX_MS, REVELACAO_MAX_MS, podeTransicionar } from '../estados.ts'
 import { PACOTES, POSES_VALIDAS, ehPacote } from '../pacotes.ts'
 import { gerarCodigo, gerarToken, hashToken } from '../tokens.ts'
+import { erro } from './util.ts'
 
 interface EventoLinha {
   id: string
@@ -26,10 +27,6 @@ interface EventoLinha {
 
 const COLUNAS = `id, codigo, nome, estado, pacote, limite_convidados, poses_por_convidado, limite_fotos,
   captura_inicio, captura_fim, revelacao_em, revelacao_manual, album_privado, revelado_em, expira_em`
-
-function erro(c: Context, status: 400 | 401 | 404 | 409, codigo: string, mensagem: string, extra = {}) {
-  return c.json({ erro: codigo, mensagem, ...extra }, status)
-}
 
 async function lerCorpo(c: Context): Promise<Record<string, unknown> | null> {
   try {

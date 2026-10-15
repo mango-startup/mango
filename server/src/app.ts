@@ -1,8 +1,10 @@
 import { Hono } from 'hono'
 import type { Pool } from 'pg'
 import { rotasEventos } from './rotas/eventos.ts'
+import { rotasFotos } from './rotas/fotos.ts'
+import type { Storage } from './storage/storage.ts'
 
-export function criarApp(pool: Pool, agora: () => Date = () => new Date()): Hono {
+export function criarApp(pool: Pool, storage: Storage, agora: () => Date = () => new Date()): Hono {
   const app = new Hono()
 
   app.get('/api/saude', async (c) => {
@@ -15,6 +17,7 @@ export function criarApp(pool: Pool, agora: () => Date = () => new Date()): Hono
   })
 
   app.route('/', rotasEventos(pool, agora))
+  app.route('/', rotasFotos(pool, storage, agora))
 
   return app
 }

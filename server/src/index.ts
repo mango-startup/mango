@@ -4,6 +4,7 @@ import { criarApp } from './app.ts'
 import { lerConfig } from './config.ts'
 import { criarPool } from './db.ts'
 import { migrar } from './migracoes.ts'
+import { StorageDisco } from './storage/disco.ts'
 
 const config = lerConfig()
 const pool = criarPool(config.databaseUrl)
@@ -16,7 +17,7 @@ const agendador = setInterval(() => {
   avancarEstados(pool).catch((erro) => console.error('Falha no agendador:', erro))
 }, 60_000)
 
-const servidor = serve({ fetch: criarApp(pool).fetch, port: config.porta }, (info) => {
+const servidor = serve({ fetch: criarApp(pool, new StorageDisco(config.storageDir)).fetch, port: config.porta }, (info) => {
   console.log(`Mango API ouvindo na porta ${info.port}`)
 })
 
