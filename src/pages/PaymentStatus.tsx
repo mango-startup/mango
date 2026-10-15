@@ -4,7 +4,7 @@ import { BlocoEstado } from '../components/BlocoEstado'
 import { Botao } from '../components/Botao'
 import { MangoLogo } from '../components/MangoLogo'
 import { ErroApi, api, type PainelEvento, type StatusPagamento } from '../lib/api'
-import { PAGAMENTO_DISPONIVEL } from '../lib/config'
+import { useConfigPublica } from '../lib/configPublica'
 
 const CONSULTA_MS = 5000
 const DEMORANDO_MS = 2 * 60 * 1000
@@ -32,6 +32,7 @@ function Casca({ painel, children }: { painel?: string; children: ReactNode }) {
 // /eventos/:id/pagamento — o evento só fica pronto quando o servidor confirma o pagamento.
 // Voltar do pagamento não libera nada: esta tela só consulta o estado.
 export function PaymentStatusPage() {
+  const pagamentoDisponivel = useConfigPublica().pacotes_pagos_disponiveis
   const { id = '' } = useParams()
   const [painel, setPainel] = useState<PainelEvento | null>(null)
   const [pagamento, setPagamento] = useState<StatusPagamento | null | 'carregando'>('carregando')
@@ -92,7 +93,7 @@ export function PaymentStatusPage() {
   else if (estado !== 'aguardando_pagamento' && estado !== 'rascunho') vista = 'aprovado'
   else if (pagamento === 'aprovado') vista = 'aprovado'
   else if (pagamento === 'recusado') vista = 'recusado'
-  else if (pagamento === null) vista = PAGAMENTO_DISPONIVEL ? 'semPagamento' : 'indisponivel'
+  else if (pagamento === null) vista = pagamentoDisponivel ? 'semPagamento' : 'indisponivel'
   else vista = demorando ? 'demorando' : 'pendente'
 
   return (
