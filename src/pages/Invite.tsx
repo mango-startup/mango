@@ -5,6 +5,7 @@ import { Botao } from '../components/Botao'
 import { ErroApi, api, type EventoPublico, type Eu } from '../lib/api'
 import { dataPorExtenso, quando } from '../lib/datas'
 import { BoasVindas } from './convite/BoasVindas'
+import { Album } from './convite/Album'
 import { CameraConvidado } from './convite/CameraConvidado'
 import { Espera } from './convite/Espera'
 import { CascaConvite } from './convite/CascaConvite'
@@ -158,7 +159,6 @@ export function InvitePage() {
       if (e.album_privado) {
         return casca(<BlocoEstado className="flex-1" titulo="Álbum privado" texto="O anfitrião deixou este álbum visível só para ele." />)
       }
-      // Revelação e álbum: issues #21 e #22
-      return casca(<BlocoEstado className="flex-1" titulo="Revelado" texto="A revelação e o álbum chegam nas issues #21 e #22." />)
+      return <Album codigo={codigo} evento={e} eu={eu} onMudou={carregar} />
   }
 }
