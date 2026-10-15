@@ -37,6 +37,8 @@ async function chamar(metodo: string, caminho: string, corpo?: unknown, cabecalh
 async function criarEvento(extra: Record<string, unknown> = {}) {
   const r = await chamar('POST', '/api/eventos', { nome: 'Festa da Ana', captura_inicio: h(1), captura_fim: h(7), ...extra })
   assert.equal(r.status, 201, JSON.stringify(r.json))
+  // O relógio do teste anda sozinho; alinha a criação a ele para a limpeza de rascunhos não pegar o evento.
+  await pool!.query('update eventos set criado_em = $2 where codigo = $1', [r.json.evento.codigo, agora])
   return { codigo: r.json.evento.codigo as string, token: r.json.anfitriao_token as string, evento: r.json.evento }
 }
 
@@ -169,4 +171,114 @@ test('revelação manual não revela sozinha; excluir tira o evento do ar', opco
   assert.equal((await chamar('GET', `/api/eventos/${codigo}`)).status, 404)
   assert.equal((await chamar('GET', '/api/anfitriao/evento', undefined, { authorization: `Bearer ${token}` })).status, 401)
   agora = original
+})
+
+test('GET /api/pacotes devolve limites e preço do servidor', opcoes, async () => {
+  const r = await chamar('GET', '/api/pacotes')
+  assert.equal(r.status, 200)
+  const ids = r.json.pacotes.map((p: { id: string }) => p.id)
+  assert.deepEqual(ids, ['teste', 'festa', 'celebracao', 'casamento'])
+  const teste = r.json.pacotes[0]
+  assert.equal(teste.gratis, true)
+  assert.equal(teste.preco_centavos, 0)
+  assert.deepEqual(teste.poses_opcoes, [12])
+  const festa = r.json.pacotes[1]
+  assert.equal(festa.convidados, 30)
+  assert.deepEqual(festa.poses_opcoes, [12, 24, 36])
+  assert.ok(festa.preco_centavos > 0)
+})
+
+test('editar: nome, poses e horários antes de abrir; recalcula o teto de fotos', opcoes, async () => {
+  const { token, evento } = await criarEvento({ pacote: 'festa', poses_por_convidado: 36 })
+  assert.equal(evento.limite_fotos, 30 * 36)
+  const auth = { authorization: `Bearer ${token}` }
+
+  const r = await chamar('PATCH', '/api/anfitriao/evento', { nome: '  Aniversário da Bia  ', poses_por_convidado: 24 }, auth)
+  assert.equal(r.status, 200)
+  assert.equal(r.json.evento.nome, 'Aniversário da Bia')
+  assert.equal(r.json.evento.poses_por_convidado, 24)
+  assert.equal(r.json.evento.limite_fotos, 30 * 24)
+
+  // Mudou o fim sem informar a revelação: volta ao padrão (fim + 12 h).
+  const novoFim = h(10)
+  const horarios = await chamar('PATCH', '/api/anfitriao/evento', { captura_fim: novoFim }, auth)
+  assert.equal(horarios.status, 200)
+  assert.equal(new Date(horarios.json.evento.captura_fim).toISOString(), novoFim)
+  assert.equal(new Date(horarios.json.evento.revelacao_em).getTime(), new Date(novoFim).getTime() + 12 * 3600_000)
+
+  const manual = await chamar('PATCH', '/api/anfitriao/evento', { revelacao_manual: true }, auth)
+  assert.equal(manual.json.evento.revelacao_manual, true)
+  assert.equal(manual.json.evento.revelacao_em, null)
+
+  for (const [corpo, erroEsperado] of [
+    [{ pacote: 'casamento' }, 'campo_desconhecido'],
+    [{ estado: 'revelado' }, 'campo_desconhecido'],
+    [{}, 'corpo_invalido'],
+    [{ poses_por_convidado: 48 }, 'poses_invalidas'],
+    [{ nome: '' }, 'nome_invalido'],
+    [{ captura_fim: h(-3) }, 'fim_no_passado'],
+    [{ album_privado: 'sim' }, 'album_privado_invalido'],
+  ] as const) {
+    const ruim = await chamar('PATCH', '/api/anfitriao/evento', corpo, auth)
+    assert.equal(ruim.status, 400, JSON.stringify(corpo))
+    assert.equal(ruim.json.erro, erroEsperado)
+  }
+  assert.equal((await chamar('PATCH', '/api/anfitriao/evento', { nome: 'x' })).status, 401)
+})
+
+test('depois que a câmera abre só o álbum privado pode mudar', opcoes, async () => {
+  const { token, codigo } = await criarEvento()
+  const auth = { authorization: `Bearer ${token}` }
+  agora = new Date(agora.getTime() + 2 * 3600_000)
+  assert.equal((await chamar('GET', `/api/eventos/${codigo}`)).json.estado, 'captura_aberta')
+
+  const config = await chamar('PATCH', '/api/anfitriao/evento', { nome: 'Outro nome' }, auth)
+  assert.equal(config.status, 409)
+  assert.equal(config.json.erro, 'evento_em_andamento')
+  const privado = await chamar('PATCH', '/api/anfitriao/evento', { album_privado: true }, auth)
+  assert.equal(privado.status, 200)
+  assert.equal(privado.json.album_privado, true)
+  agora = new Date(agora.getTime() - 2 * 3600_000)
+})
+
+test('cancelar: só antes da câmera abrir e sem fotos; depois o convite fecha', opcoes, async () => {
+  const { token, codigo } = await criarEvento()
+  const auth = { authorization: `Bearer ${token}` }
+  assert.equal((await chamar('POST', '/api/anfitriao/evento/cancelar')).status, 401)
+
+  // Com foto no banco (mesmo "pronto") não cancela.
+  const comFoto = await criarEvento()
+  const evId = (await pool!.query('select id from eventos where codigo = $1', [comFoto.codigo])).rows[0].id
+  const conv = (await pool!.query("insert into convidados (evento_id, token_hash) values ($1, 'h-cancelar') returning id", [evId])).rows[0].id
+  await pool!.query("insert into fotos (evento_id, convidado_id, chave_storage, tipo_mime, tamanho_bytes) values ($1,$2,'chave-cancelar','image/jpeg',10)", [evId, conv])
+  const bloqueado = await chamar('POST', '/api/anfitriao/evento/cancelar', undefined, { authorization: `Bearer ${comFoto.token}` })
+  assert.equal(bloqueado.status, 409)
+  assert.equal(bloqueado.json.erro, 'tem_fotos')
+
+  const ok = await chamar('POST', '/api/anfitriao/evento/cancelar', undefined, auth)
+  assert.equal(ok.status, 200)
+  assert.equal(ok.json.evento.estado, 'cancelado')
+  assert.equal((await chamar('GET', `/api/eventos/${codigo}`)).json.estado, 'cancelado')
+  agora = new Date(agora.getTime() + 2 * 3600_000)
+  assert.equal((await chamar('POST', `/api/eventos/${codigo}/entrar`, {})).json.erro, 'captura_fechada')
+  assert.equal((await chamar('POST', '/api/anfitriao/evento/cancelar', undefined, auth)).json.erro, 'transicao_invalida')
+  agora = new Date(agora.getTime() - 2 * 3600_000)
+
+  // Evento que já abriu não cancela.
+  const aberto = await criarEvento()
+  agora = new Date(agora.getTime() + 2 * 3600_000)
+  const tarde = await chamar('POST', '/api/anfitriao/evento/cancelar', undefined, { authorization: `Bearer ${aberto.token}` })
+  assert.equal(tarde.status, 409)
+  assert.equal(tarde.json.erro, 'transicao_invalida')
+  agora = new Date(agora.getTime() - 2 * 3600_000)
+})
+
+test('pagamento não concluído em 7 dias some; o recente fica', opcoes, async () => {
+  const velho = await criarEvento({ pacote: 'festa' })
+  const recente = await criarEvento({ pacote: 'festa' })
+  await pool!.query("update eventos set criado_em = $2 where codigo = $1", [velho.codigo, new Date(agora.getTime() - 8 * 24 * 3600_000)])
+  await pool!.query("update eventos set criado_em = $2 where codigo = $1", [recente.codigo, new Date(agora.getTime() - 6 * 24 * 3600_000)])
+  assert.equal((await chamar('GET', `/api/eventos/${velho.codigo}`)).status, 404)
+  assert.equal((await chamar('GET', `/api/eventos/${recente.codigo}`)).status, 200)
+  assert.equal((await chamar('GET', '/api/anfitriao/evento', undefined, { authorization: `Bearer ${velho.token}` })).status, 401)
 })

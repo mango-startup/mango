@@ -29,6 +29,7 @@ Os testes de migração e de eventos precisam de um banco descartável (**apaga 
 ## Estrutura
 
 - `src/rotas/fotos.ts` envio · `src/rotas/album.ts` leitura, ZIP e privacidade · `src/zip.ts` escritor de ZIP
+- `src/validacao.ts` regras de nome, poses e horários (criação e edição)
 - `src/limite.ts` contador por janela · `src/limites.ts` limites e IP do cliente
 - `src/app.ts` monta as rotas (`GET /api/saude` checa o banco) · `src/rotas/eventos.ts` eventos, convidado e anfitrião · `src/estados.ts` · `src/pacotes.ts` · `src/tokens.ts` · `src/config.ts` variáveis de ambiente
 - `src/migracoes.ts` runner: aplica `migrations/*.sql` em ordem, uma transação por arquivo, registro na tabela `migracoes`
@@ -47,9 +48,12 @@ Anfitrião sem login no piloto: ao criar o evento ele recebe um **token secreto*
 | `POST /api/eventos/:codigo/entrar` | convidado | cria o convidado (só com a câmera aberta e dentro do limite) ou reconhece o aparelho |
 | `GET /api/anfitriao/evento` | anfitrião | evento + contagem de convidados e fotos |
 | `POST /api/anfitriao/evento/encerrar` e `/revelar` | anfitrião | transições manuais, só na ordem do plano |
+| `GET /api/pacotes` | qualquer um | pacotes vindos do servidor: convidados, poses possíveis, retenção e `preco_centavos` (hipótese do plano, a validar) |
+| `PATCH /api/anfitriao/evento` | anfitrião | edita `nome`, `poses_por_convidado`, horários e revelação só antes de a câmera abrir (recalcula o teto de fotos); `album_privado` a qualquer momento. Campo fora da lista dá `400 campo_desconhecido`; depois de aberta, `409 evento_em_andamento` |
+| `POST /api/anfitriao/evento/cancelar` | anfitrião | `pronto` → `cancelado`, só sem fotos (`409 tem_fotos`). O estorno entra com o pagamento |
 | `DELETE /api/anfitriao/evento` | anfitrião | exclusão lógica |
 
-Erros vêm como `{ "erro": "codigo", "mensagem": "..." }`. O relógio (início, fim, revelação, expiração) roda a cada minuto e também antes de responder as rotas de evento (`src/agendador.ts`, idempotente).
+Erros vêm como `{ "erro": "codigo", "mensagem": "..." }`. O relógio (início, fim, revelação, expiração e a limpeza de rascunhos e pagamentos não concluídos há mais de 7 dias) roda a cada minuto e também antes de responder as rotas de evento (`src/agendador.ts`, idempotente).
 
 ## Envio de fotos (A5 do plano)
 
@@ -73,7 +77,7 @@ Quem vê as fotos: **o anfitrião (token) sempre**, para moderar antes da revela
 | `GET /api/eventos/:codigo/fotos/:fotoId/arquivo` | JPEG original (`?baixar=1` força download) |
 | `GET /api/eventos/:codigo/fotos/:fotoId/miniatura` | miniatura; sem ela cai para a original |
 | `GET /api/anfitriao/album.zip` | ZIP em streaming (sem compressão, uma foto na memória por vez), só depois de revelado. Nomes `0001-apelido.jpg`. Acima de 4 GB ou 65 mil arquivos responde `413` (sem ZIP64) |
-| `PATCH /api/anfitriao/evento` | `{ "album_privado": true }` = "só eu vejo" |
+| `PATCH /api/anfitriao/evento` | `{ "album_privado": true }` = "só eu vejo" (o mesmo PATCH de edição do evento) |
 | `POST /api/anfitriao/evento/novo-codigo` | troca o código; link e QR antigos param de funcionar |
 
 Estado de erro do acesso: `409 nao_revelado` (com `revelacao_em`), `403 album_privado`, `410 expirado`. Fotos usam `cache-control: private`.

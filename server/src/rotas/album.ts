@@ -177,22 +177,6 @@ export function rotasAlbum(pool: Pool, storage: Storage, agora: () => Date = () 
     })
   })
 
-  // "Só eu vejo o álbum".
-  app.patch('/api/anfitriao/evento', async (c) => {
-    const e = await anfitriao(c)
-    if (!e) return erro(c, 401, 'nao_autorizado', 'Token do anfitrião inválido.')
-    let corpo: unknown
-    try {
-      corpo = await c.req.json()
-    } catch {
-      corpo = null
-    }
-    const privado = (corpo as { album_privado?: unknown } | null)?.album_privado
-    if (typeof privado !== 'boolean') return erro(c, 400, 'corpo_invalido', 'Envie { "album_privado": true|false }.')
-    await pool.query('update eventos set album_privado = $2, atualizado_em = $3 where id = $1', [e.id, privado, agora()])
-    return c.json({ album_privado: privado })
-  })
-
   // Troca o código: o link e o QR antigos param de funcionar (útil se o link vazou).
   app.post('/api/anfitriao/evento/novo-codigo', async (c) => {
     const e = await anfitriao(c)
