@@ -33,7 +33,6 @@ export interface ErroHorario {
 }
 
 const DIA_MS = 24 * 60 * 60 * 1000
-const REVELACAO_MAX_MS = 7 * DIA_MS
 const HORA_REVELACAO_PADRAO = 10
 
 function local(data: string, hora: string): Date | null {
@@ -49,7 +48,8 @@ export function manhaSeguinte(fim: Date): Date {
   return r
 }
 
-export function montarHorarios(c: CamposHorario, agora = new Date()): Horarios | ErroHorario {
+/** `revelacaoMaxDias`: configuração `revelacao_max_dias` do servidor (padrão 7). */
+export function montarHorarios(c: CamposHorario, agora = new Date(), limites: { revelacaoMaxDias: number } = { revelacaoMaxDias: 7 }): Horarios | ErroHorario {
   const inicio = local(c.data, c.inicio)
   let fim = local(c.data, c.fim)
   if (!inicio || !fim) return { campo: 'data', mensagem: 'Informe a data e os horários da câmera.' }
@@ -64,8 +64,8 @@ export function montarHorarios(c: CamposHorario, agora = new Date()): Horarios |
   const revelacao = c.revelacao === 'manha' ? manhaSeguinte(fim) : new Date(c.revelacaoEm)
   if (Number.isNaN(revelacao.getTime())) return { campo: 'revelacaoEm', mensagem: 'Escolha o dia e a hora da revelação.' }
   if (revelacao < fim) return { campo: 'revelacaoEm', mensagem: 'A revelação precisa ser depois que a câmera fechar.' }
-  if (revelacao.getTime() - fim.getTime() > REVELACAO_MAX_MS) {
-    return { campo: 'revelacaoEm', mensagem: 'A revelação pode ser no máximo 7 dias depois da festa.' }
+  if (revelacao.getTime() - fim.getTime() > limites.revelacaoMaxDias * DIA_MS) {
+    return { campo: 'revelacaoEm', mensagem: `A revelação pode ser no máximo ${limites.revelacaoMaxDias} dias depois da festa.` }
   }
   return {
     captura_inicio: inicio.toISOString(),

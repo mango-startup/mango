@@ -1,4 +1,4 @@
-import { JPEG_QUALITY, MAX_DIMENSION } from './constants'
+import { configAtual } from './configPublica'
 
 interface CapturedPhoto {
   blob: Blob
@@ -46,10 +46,11 @@ function desenhar(fonte: CanvasImageSource, sx: number, sy: number, sw: number, 
 }
 
 async function comMiniatura(fonte: CanvasImageSource, sx: number, sy: number, sw: number, sh: number): Promise<FotoParaEnvio> {
-  const escala = Math.min(1, MAX_DIMENSION / Math.max(sw, sh))
+  const { foto_dimensao_max_px: maxDimensao, foto_qualidade_jpeg: qualidade } = configAtual()
+  const escala = Math.min(1, maxDimensao / Math.max(sw, sh))
   const width = Math.round(sw * escala)
   const height = Math.round(sh * escala)
-  const blob = await paraJpeg(desenhar(fonte, sx, sy, sw, sh, width, height), JPEG_QUALITY)
+  const blob = await paraJpeg(desenhar(fonte, sx, sy, sw, sh, width, height), qualidade)
   const escalaMini = Math.min(1, MINIATURA_MAX / Math.max(sw, sh))
   const miniatura = await paraJpeg(
     desenhar(fonte, sx, sy, sw, sh, Math.round(sw * escalaMini), Math.round(sh * escalaMini)),

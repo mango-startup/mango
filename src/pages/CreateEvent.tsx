@@ -5,7 +5,7 @@ import { CampoCopiavel } from '../components/CampoCopiavel'
 import { MangoLogo } from '../components/MangoLogo'
 import { ErroApi, api, type DefinicaoPacote, type Evento, type Pacote } from '../lib/api'
 import { quando } from '../lib/datas'
-import { PAGAMENTO_DISPONIVEL } from '../lib/config'
+import { useConfigPublica } from '../lib/configPublica'
 import { precoEmReais } from '../lib/formato'
 import { guardarRascunho, lerRascunho } from './criar/rascunho'
 import { montarHorarios, type CampoHorario, type CamposHorario, type ModoRevelacao } from './criar/horarios'
@@ -18,8 +18,6 @@ interface Formulario extends CamposHorario {
 
 type CampoErro = 'nome' | 'poses' | 'pacote' | CampoHorario | 'geral'
 
-const POSES = [12, 24, 36]
-
 function hojeMais(dias: number): string {
   const d = new Date()
   d.setDate(d.getDate() + dias)
@@ -28,8 +26,8 @@ function hojeMais(dias: number): string {
 
 function formularioInicial(pacote: Pacote | null): Formulario {
   const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', poses: 24, pacote: 'teste', revelacao: 'manha', revelacaoEm: '' }
-  const f: Formulario = { ...padrao, ...lerRascunho<Formulario>(), ...(pacote ? { pacote } : {}) }
-  return PAGAMENTO_DISPONIVEL || f.pacote === 'teste' ? f : { ...f, pacote: 'teste', poses: Math.min(f.poses, 12) }
+  // O pacote e as poses efetivos são conferidos na tela contra os pacotes e a configuração do servidor.
+  return { ...padrao, ...lerRascunho<Formulario>(), ...(pacote ? { pacote } : {}) }
 }
 
 /** Erros da api que dizem respeito a um campo específico. */
@@ -45,7 +43,8 @@ const CAMPO_DO_ERRO: Record<string, CampoErro> = {
   revelacao_fora_do_prazo: 'revelacaoEm',
 }
 
-const ehPacote = (v: string | null): v is Pacote => v === 'teste' || v === 'festa' || v === 'celebracao' || v === 'casamento'
+// Só o formato: se o pacote existe e está à venda, quem decide é a lista que o servidor manda.
+const ehPacote = (v: string | null): v is Pacote => v !== null && /^[a-z][a-z0-9_]{1,29}$/.test(v)
 
 // /criar — uma página só, com padrões prontos. Depois de criar, mostra os links (convidado e anfitrião).
 export function CreateEventPage() {
@@ -57,6 +56,8 @@ export function CreateEventPage() {
   const [enviando, setEnviando] = useState(false)
   const [criado, setCriado] = useState<{ evento: Evento; linkAnfitriao: string } | null>(null)
   const ids = { nome: useId(), data: useId(), inicio: useId(), fim: useId(), revelacaoEm: useId() }
+  const cfg = useConfigPublica()
+  const pagamentoDisponivel = cfg.pacotes_pagos_disponiveis
 
   useEffect(() => {
     let ativo = true
@@ -70,17 +71,19 @@ export function CreateEventPage() {
     if (!criado) guardarRascunho(form)
   }, [form, criado])
 
-  const pacote = pacotes.find((p) => p.id === form.pacote)
-  const posesMax = pacote?.poses_max ?? 36
-  const horarios = useMemo(() => montarHorarios(form), [form])
+  // Pacote que vale: o escolhido, se existe e se pode ser comprado agora; senão o teste grátis.
+  const pacote = pacotes.find((p) => p.id === form.pacote && (p.gratis || pagamentoDisponivel)) ?? pacotes.find((p) => p.id === 'teste')
+  const maiorPose = Math.max(...cfg.poses_validas)
+  const posesMax = pacote?.poses_max ?? maiorPose
+  // Poses que valem: a escolhida, se o pacote deixa; senão a sugestão da configuração (ou a maior que cabe).
+  const cabem = cfg.poses_validas.filter((n) => n <= posesMax)
+  const poses = cabem.includes(form.poses) ? form.poses : cabem.includes(cfg.poses_padrao) ? cfg.poses_padrao : (cabem.at(-1) ?? cfg.poses_validas[0])
+  const horarios = useMemo(() => montarHorarios(form, new Date(), { revelacaoMaxDias: cfg.revelacao_max_dias }), [form, cfg.revelacao_max_dias])
 
   function mudar<K extends keyof Formulario>(campo: K, valor: Formulario[K]) {
     setErro(null)
     setForm((f) => {
       const novo = { ...f, [campo]: valor }
-      // O teste grátis vai até 12 poses: ajusta se o pacote mudar
-      const max = pacotes.find((p) => p.id === novo.pacote)?.poses_max ?? 36
-      if (novo.poses > max) novo.poses = max
       return novo
     })
   }
@@ -94,8 +97,8 @@ export function CreateEventPage() {
     try {
       const evento = await api.criarEvento({
         nome: form.nome,
-        pacote: form.pacote,
-        poses_por_convidado: form.poses,
+        pacote: pacote?.id ?? form.pacote,
+        poses_por_convidado: poses,
         captura_inicio: horarios.captura_inicio,
         captura_fim: horarios.captura_fim,
         revelacao_em: horarios.revelacao_em,
@@ -132,7 +135,7 @@ export function CreateEventPage() {
           <label htmlFor={ids.nome} className="text-sm font-semibold">
             Nome do evento
           </label>
-          <input id={ids.nome} value={form.nome} onChange={(e) => mudar('nome', e.target.value)} maxLength={80} placeholder="Casamento da Ana e do Léo" className={`${campoTexto} placeholder:text-muted/60`} />
+          <input id={ids.nome} value={form.nome} onChange={(e) => mudar('nome', e.target.value)} maxLength={cfg.nome_evento_max} placeholder="Casamento da Ana e do Léo" className={`${campoTexto} placeholder:text-muted/60`} />
           {erroDe('nome')}
         </div>
 
@@ -160,13 +163,15 @@ export function CreateEventPage() {
         <fieldset>
           <legend className="mb-3 text-sm font-semibold">Poses por convidado</legend>
           <Opcoes>
-            {POSES.map((n) => (
-              <Opcao key={n} nome="poses" marcada={form.poses === n} desabilitada={n > posesMax} onEscolher={() => mudar('poses', n)}>
+            {cfg.poses_validas.map((n) => (
+              <Opcao key={n} nome="poses" marcada={poses === n} desabilitada={n > posesMax} onEscolher={() => mudar('poses', n)}>
                 <span className="font-display text-[28px] leading-none tabular-nums">{n}</span>
               </Opcao>
             ))}
           </Opcoes>
-          {posesMax < 36 && <p className="mt-2 text-sm text-muted">O teste grátis vai até {posesMax} poses.</p>}
+          {posesMax < maiorPose && (
+            <p className="mt-2 text-sm text-muted">{pacote?.gratis ? 'O teste grátis' : `O pacote ${pacote?.nome ?? ''}`.trim()} vai até {posesMax} poses.</p>
+          )}
           {erroDe('poses')}
         </fieldset>
 
@@ -198,10 +203,10 @@ export function CreateEventPage() {
           <legend className="mb-3 text-sm font-semibold">Convidados</legend>
           <div className="grid grid-cols-2 gap-2">
             {pacotes.map((p) => (
-              <Opcao key={p.id} nome="pacote" marcada={form.pacote === p.id} desabilitada={!p.gratis && !PAGAMENTO_DISPONIVEL} onEscolher={() => mudar('pacote', p.id)} alinhar="esquerda">
+              <Opcao key={p.id} nome="pacote" marcada={pacote?.id === p.id} desabilitada={!p.gratis && !pagamentoDisponivel} onEscolher={() => mudar('pacote', p.id)} alinhar="esquerda">
                 <span className="flex flex-col gap-1 py-1">
                   <span className="font-display text-[26px] leading-none tabular-nums">até {p.convidados}</span>
-                  <span className="text-sm text-muted">{p.gratis ? 'Grátis' : PAGAMENTO_DISPONIVEL ? precoEmReais(p.preco_centavos) : 'Em breve'}</span>
+                  <span className="text-sm text-muted">{p.gratis ? 'Grátis' : pagamentoDisponivel ? precoEmReais(p.preco_centavos) : 'Em breve'}</span>
                 </span>
               </Opcao>
             ))}
@@ -214,11 +219,16 @@ export function CreateEventPage() {
           {erroDe('pacote')}
         </fieldset>
 
-        <PreviaConvite nome={form.nome} poses={form.poses} revelacao={'campo' in horarios ? null : horarios.revelacao} />
+        <PreviaConvite nome={form.nome} poses={poses} revelacao={'campo' in horarios ? null : horarios.revelacao} />
 
         <div className="flex flex-col gap-3">
           {erroDe('geral')}
-          <Botao type="submit" disabled={enviando || pacotes.length === 0} className="w-full">
+          {!cfg.criacao_aberta && (
+            <p role="status" className="rounded-[12px] border border-line bg-surface px-4 py-3 text-sm">
+              A criação de eventos está pausada por um instante. Tente de novo em breve.
+            </p>
+          )}
+          <Botao type="submit" disabled={enviando || pacotes.length === 0 || !cfg.criacao_aberta} className="w-full">
             {enviando ? 'Criando...' : pacote && !pacote.gratis ? `Continuar · ${precoEmReais(pacote.preco_centavos)}` : 'Criar a câmera'}
           </Botao>
           {pacote && !pacote.gratis && <p className="text-center text-sm text-muted">Você paga na próxima etapa. O link só funciona depois do pagamento.</p>}

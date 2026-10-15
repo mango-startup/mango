@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { carregarConfig } from './lib/configPublica'
 import { RequireHost } from './components/RequireHost'
 import { Administradores } from './pages/admin/Administradores'
 import { AdminLayout } from './pages/admin/AdminLayout'
@@ -21,6 +23,10 @@ import { PhotoViewPage } from './pages/PhotoView'
 import { PricingPage } from './pages/Pricing'
 
 export default function App() {
+  useEffect(() => {
+    void carregarConfig()
+  }, [])
+
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
