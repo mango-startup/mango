@@ -1,0 +1,203 @@
+// Contrato da API usado pelas telas. Os formatos seguem o JSON do servidor (server/README.md),
+// para trocar a implementação simulada pela real sem mexer nas telas.
+// O que ainda não existe no servidor está marcado com "só na simulada".
+
+export type Estado =
+  | 'rascunho'
+  | 'aguardando_pagamento'
+  | 'pronto'
+  | 'captura_aberta'
+  | 'captura_encerrada'
+  | 'revelado'
+  | 'expirado'
+  | 'cancelado'
+
+export type Pacote = 'teste' | 'festa' | 'celebracao' | 'casamento'
+
+export interface DefinicaoPacote {
+  id: Pacote
+  nome: string
+  convidados: number
+  gratis: boolean
+  /** Dias de álbum depois da revelação. */
+  retencao_dias: number
+  poses_max: number
+  /** Hipótese de preço do plano; só na simulada (o servidor ainda não tem preço). */
+  preco_centavos: number
+}
+
+/** Datas em ISO 8601, como chegam no JSON. */
+export interface Evento {
+  id: string
+  codigo: string
+  nome: string
+  estado: Estado
+  pacote: Pacote
+  limite_convidados: number
+  poses_por_convidado: number
+  limite_fotos: number | null
+  captura_inicio: string | null
+  captura_fim: string | null
+  revelacao_em: string | null
+  revelacao_manual: boolean
+  album_privado: boolean
+  revelado_em: string | null
+  expira_em: string | null
+}
+
+/** O que o convidado vê no link /c/:codigo. */
+export interface EventoPublico {
+  nome: string
+  estado: Estado
+  poses_por_convidado: number
+  captura_inicio: string | null
+  captura_fim: string | null
+  revelacao_em: string | null
+  revelacao_manual: boolean
+  revelado_em: string | null
+  expira_em: string | null
+  album_privado: boolean
+  lotado: boolean
+}
+
+export interface NovoEvento {
+  nome: string
+  pacote?: Pacote
+  poses_por_convidado?: number
+  captura_inicio: string
+  captura_fim: string
+  /** Sem valor e sem revelacao_manual: 12 h depois do fim. */
+  revelacao_em?: string
+  revelacao_manual?: boolean
+}
+
+export interface PainelEvento {
+  evento: Evento
+  convidados: number
+  fotos: number
+}
+
+export interface Entrada {
+  convidado_id: string
+  apelido: string | null
+  poses_restantes: number
+}
+
+export interface Eu {
+  convidado_id: string
+  apelido: string | null
+  estado: Estado
+  poses_restantes: number
+  /** Ids das fotos que o servidor já tem, para a fila de envio sincronizar. */
+  fotos: string[]
+}
+
+export interface InfoFoto {
+  largura?: number
+  altura?: number
+  tirada_em?: string
+}
+
+export interface EnvioFoto {
+  foto_id: string
+  repetida: boolean
+}
+
+/** Foto da folha de contato (GET /api/eventos/:codigo/album). */
+export interface FotoAlbum {
+  id: string
+  /** Posição no álbum inteiro, na ordem em que as fotos foram tiradas, a partir de 1. */
+  numero: number
+  apelido: string | null
+  tirada_em: string | null
+  largura: number | null
+  altura: number | null
+  tem_miniatura: boolean
+  /** Endereços prontos para <img>, montados pela api (não vêm no JSON do servidor). */
+  url: string
+  miniatura_url: string
+}
+
+export interface PaginaAlbum {
+  evento: { nome: string; expira_em: string | null; estado: Estado }
+  pagina: number
+  limite: number
+  total: number
+  fotos: FotoAlbum[]
+}
+
+export interface OpcoesAlbum {
+  /** Só as fotos deste aparelho; exige ter entrado como convidado. */
+  minhas?: boolean
+  /** A partir de 1. */
+  pagina?: number
+  /** Padrão 60, máximo 200. */
+  limite?: number
+}
+
+/** Só na simulada. */
+export interface PedidoRemocao {
+  id: string
+  foto_id: string
+  motivo: string | null
+  criado_em: string
+}
+
+/** Só na simulada: o pagamento (AbacatePay) entra por último. */
+export type StatusPagamento = 'pendente' | 'aprovado' | 'recusado'
+
+/** Erro no formato do servidor: `{ erro: "codigo", mensagem: "..." }`. */
+export class ErroApi extends Error {
+  readonly status: number
+  readonly erro: string
+  readonly extra: Record<string, unknown>
+
+  constructor(status: number, erro: string, mensagem: string, extra: Record<string, unknown> = {}) {
+    super(mensagem)
+    this.name = 'ErroApi'
+    this.status = status
+    this.erro = erro
+    this.extra = extra
+  }
+}
+
+export interface MangoApi {
+  pacotes(): Promise<DefinicaoPacote[]>
+
+  // Anfitrião. No piloto não há login: criar o evento devolve um token secreto,
+  // que a api guarda neste aparelho. As telas só usam o id do evento.
+  criarEvento(dados: NovoEvento): Promise<Evento>
+  meusEventos(): Promise<PainelEvento[]>
+  painel(eventoId: string): Promise<PainelEvento>
+  /** Link secreto que dá acesso de anfitrião em outro aparelho. */
+  linkDoAnfitriao(eventoId: string): Promise<string>
+  /** Guarda neste aparelho o acesso de anfitrião vindo do link secreto. */
+  entrarComoAnfitriao(token: string): Promise<Evento>
+  encerrar(eventoId: string): Promise<Evento>
+  revelar(eventoId: string): Promise<Evento>
+  excluir(eventoId: string): Promise<void>
+  definirAlbumPrivado(eventoId: string, privado: boolean): Promise<{ album_privado: boolean }>
+  /** O link e o QR antigos param de funcionar. */
+  trocarCodigo(eventoId: string): Promise<{ codigo: string }>
+  /** O anfitrião vê o álbum em qualquer estado (para moderar), menos expirado. */
+  albumDoAnfitriao(eventoId: string, opcoes?: Omit<OpcoesAlbum, 'minhas'>): Promise<PaginaAlbum>
+  /** ZIP com todas as fotos, só depois de revelado. */
+  baixarAlbum(eventoId: string): Promise<Blob>
+  // Só na simulada:
+  cancelar(eventoId: string): Promise<Evento>
+  apagarFoto(eventoId: string, fotoId: string): Promise<void>
+  pedidosDeRemocao(eventoId: string): Promise<PedidoRemocao[]>
+  iniciarPagamento(eventoId: string): Promise<StatusPagamento>
+  statusPagamento(eventoId: string): Promise<StatusPagamento | null>
+
+  // Convidado. O token do aparelho também fica guardado pela api.
+  eventoPublico(codigo: string): Promise<EventoPublico>
+  entrar(codigo: string, apelido?: string): Promise<Entrada>
+  eu(codigo: string): Promise<Eu>
+  enviarFoto(codigo: string, fotoId: string, foto: Blob, info?: InfoFoto): Promise<EnvioFoto>
+  enviarMiniatura(codigo: string, fotoId: string, miniatura: Blob): Promise<void>
+  /** Só depois de revelado e se o álbum não for privado. */
+  album(codigo: string, opcoes?: OpcoesAlbum): Promise<PaginaAlbum>
+  // Só na simulada:
+  pedirRemocao(codigo: string, fotoId: string, motivo?: string): Promise<void>
+}
