@@ -167,6 +167,8 @@ export interface MangoApi {
   // Anfitrião. No piloto não há login: criar o evento devolve um token secreto,
   // que a api guarda neste aparelho. As telas só usam o id do evento.
   criarEvento(dados: NovoEvento): Promise<Evento>
+  /** Se este aparelho guarda acesso de anfitrião a algum evento (sem ir ao servidor). */
+  anfitriaoNesteAparelho(): boolean
   meusEventos(): Promise<PainelEvento[]>
   painel(eventoId: string): Promise<PainelEvento>
   /** Link secreto que dá acesso de anfitrião em outro aparelho. */
