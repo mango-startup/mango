@@ -9,18 +9,21 @@ import { hashToken } from './tokens.ts'
  * leitura e upload NÃO são limitados por IP. Só o que é abuso de verdade:
  * - criar evento (por IP, por hora);
  * - upload (por aparelho do convidado, por minuto: cobre a fila offline despejando de uma vez);
- * - tentativas que falham com 401/404 (por IP, por minuto): só falha conta, quem acerta nunca é barrado.
+ * - tentativas que falham com 401/404 (por IP, por minuto): só falha conta, quem acerta nunca é barrado;
+ * - pedidos de remoção de foto (por IP, por hora).
  */
 export interface Limites {
   criarEventoPorHora: number
   uploadsPorMinutoPorConvidado: number
   falhasPorMinuto: number
+  pedidosRemocaoPorHora: number
 }
 
 export const LIMITES_PADRAO: Limites = {
   criarEventoPorHora: 30,
   uploadsPorMinutoPorConvidado: 300,
   falhasPorMinuto: 600,
+  pedidosRemocaoPorHora: 30,
 }
 
 const HORA = 3_600_000
@@ -49,6 +52,7 @@ export function criarLimites(limites: Limites, agora: () => Date): MiddlewareHan
   const criar = new Limitador(limites.criarEventoPorHora, HORA)
   const uploads = new Limitador(limites.uploadsPorMinutoPorConvidado, MINUTO)
   const falhas = new Limitador(limites.falhasPorMinuto, MINUTO)
+  const remocoes = new Limitador(limites.pedidosRemocaoPorHora, HORA)
   const agoraMs = () => agora().getTime()
 
   const porFalhas: MiddlewareHandler = async (c, next) => {
@@ -75,5 +79,12 @@ export function criarLimites(limites: Limites, agora: () => Date): MiddlewareHan
     return next()
   }
 
-  return [porFalhas, porCriacao, porUpload]
+  const porRemocao: MiddlewareHandler = async (c, next) => {
+    if (c.req.method !== 'POST') return next()
+    const r = remocoes.consumir(ipDoCliente(c), agoraMs())
+    if (!r.permitido) return recusar(c, r.retryEmSegundos, 'Muitos pedidos de remoção deste endereço. Tente de novo mais tarde.')
+    return next()
+  }
+
+  return [porFalhas, porCriacao, porUpload, porRemocao]
 }

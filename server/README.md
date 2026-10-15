@@ -29,11 +29,13 @@ Os testes de migração e de eventos precisam de um banco descartável (**apaga 
 ## Estrutura
 
 - `src/rotas/fotos.ts` envio · `src/rotas/album.ts` leitura, ZIP e privacidade · `src/zip.ts` escritor de ZIP
+- `src/rotas/acesso.ts` quem vê as fotos e quem é o anfitrião · `src/rotas/moderacao.ts` · `src/limpeza.ts`
 - `src/validacao.ts` regras de nome, poses e horários (criação e edição)
 - `src/limite.ts` contador por janela · `src/limites.ts` limites e IP do cliente
 - `src/app.ts` monta as rotas (`GET /api/saude` checa o banco) · `src/rotas/eventos.ts` eventos, convidado e anfitrião · `src/estados.ts` · `src/pacotes.ts` · `src/tokens.ts` · `src/config.ts` variáveis de ambiente
 - `src/migracoes.ts` runner: aplica `migrations/*.sql` em ordem, uma transação por arquivo, registro na tabela `migracoes`
 - `src/storage/` interface `Storage` (`salvar`, `ler`, `apagar`) e implementação em disco; trocar por R2 = nova classe
+- `migrations/003_*.sql` `arquivo_apagado_em` e tabela `pedidos_remocao`
 - `migrations/002_*.sql` token secreto do anfitrião (e-mail opcional)
 - `migrations/001_*.sql` tabelas `eventos`, `convidados`, `fotos` (estados conforme seção 3.3 do plano)
 
@@ -91,8 +93,22 @@ Pensados para festa: dezenas de convidados no mesmo Wi-Fi compartilham UM IP, en
 | Criar evento | 30 por hora | IP |
 | Upload de foto/miniatura | 300 por minuto | aparelho do convidado (token) |
 | Tentativas que falham com 401/404 | 600 por minuto | IP (só falha conta; sucesso nunca) |
+| Pedido de remoção de foto | 30 por hora | IP |
 
 Estourou: `429` com `Retry-After` e `{ "erro": "muitas_requisicoes", "retry_em_segundos": N }`. O limite de upload cobre a fila offline despejando de uma vez (36 fotos + miniaturas). Os contadores ficam em memória (uma instância só) e se esvaziam sozinhos se a tabela crescer demais (falha aberta, nunca derruba a API). Em emergência, `RATE_LIMIT=off` desliga tudo. O IP vem do **fim** do `X-Forwarded-For` (o que o Caddy escreve); sem proxy, vale o socket. Valores em `src/limites.ts`.
+
+## Moderação e limpeza (A9 e A10 do plano)
+
+| Rota | O que faz |
+|---|---|
+| `DELETE /api/anfitriao/fotos/:fotoId` | apaga a foto: some do álbum na hora (antes e depois da revelação) e resolve os pedidos de remoção dela. O arquivo sai do armazenamento em até 30 dias |
+| `POST /api/eventos/:codigo/fotos/:fotoId/pedir-remocao` | quem vê o álbum pede a remoção (`{ "motivo": "..." }` opcional). Um pedido por pessoa e foto: convidado reconhecido pelo token, os demais pelo IP (guardado só como hash). Repetir devolve `{ repetido: true }`. 30 por hora por IP |
+| `GET /api/anfitriao/pedidos-remocao` | pedidos pendentes com o número do quadro |
+| `POST /api/anfitriao/pedidos-remocao/:pedidoId/manter` | o anfitrião decide manter a foto |
+
+Cada pedido novo também sai numa linha de log JSON (`{"aviso":"pedido_remocao",...}`) em `docker compose logs api`: é o que o suporte lê enquanto não há e-mail (#58).
+
+**Limpeza (`src/limpeza.ts`, roda a cada minuto junto com o agendador):** apaga os arquivos de foto removida há 30 dias ou mais, de evento expirado e de evento excluído há 30 dias ou mais; guarda a linha com `arquivo_apagado_em` (metadados mínimos). Idempotente; se o armazenamento falhar, a foto fica sem marca e entra de novo na próxima rodada.
 
 ## Variáveis
 
