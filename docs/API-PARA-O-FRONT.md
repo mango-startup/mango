@@ -71,7 +71,8 @@ Anfitrião (sempre `Authorization: Bearer <token do evento>`):
 | `apagarFoto(id, fotoId)` | `DELETE /api/anfitriao/fotos/:fotoId` | `204`. Some do álbum na hora; resolve os pedidos de remoção dela |
 | `pedidosDeRemocao` | `GET /api/anfitriao/pedidos-remocao` | resposta `{ pedidos: [...] }` com `id`, `foto_id`, `numero` (quadro no álbum), `motivo`, `criado_em` |
 | **(novo)** `manterFoto(pedidoId)` | `POST /api/anfitriao/pedidos-remocao/:pedidoId/manter` | `204`; o pedido sai da fila |
-| `iniciarPagamento` / `statusPagamento` | **não existe no servidor** | continuam simulados até o #37 (AbacatePay) |
+| `iniciarPagamento(eventoId)` | `POST /api/anfitriao/evento/pagamento` | resposta `{ status: 'pendente', url, reaproveitada }`. Redirecionar o navegador para a `url` (página do Stripe). Repetir reaproveita a sessão aberta. `409 pagamento_em_andamento` = Pix gerado, esperando o banco; `503 pagamento_indisponivel` = pagamento desligado |
+| `statusPagamento(eventoId)` | `GET /api/anfitriao/evento/pagamento` | `{ status: 'pendente' \| 'aprovado' \| 'recusado' \| null, valor_centavos, estornado }`. Quem libera o evento é o webhook do Stripe, não o retorno do navegador: depois de pagar, consulte até o evento sair de `aguardando_pagamento` |
 
 Convidado (sem token na entrada; depois `X-Convidado-Token`):
 
@@ -120,7 +121,7 @@ Convidado (sem token na entrada; depois `X-Convidado-Token`):
 ## 6. O que falta, e de quem
 
 **Servidor (nada bloqueia a troca da api, exceto o pagamento):**
-- Pagamento (`iniciarPagamento`, `statusPagamento`): #37, depende da conta do AbacatePay. **Mantenha simulado** até lá (a implementação real pode delegar só esses dois métodos à simulada).
+- Pagamento com Stripe (#37): rotas prontas (`iniciarPagamento` e `statusPagamento` na tabela acima). Só liga em produção com `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e `APP_URL` no servidor e `pacotes_pagos_disponiveis` ligado no admin. Passo a passo: [`PAGAMENTO-STRIPE.md`](PAGAMENTO-STRIPE.md).
 - E-mail (aviso de expiração e de revelação): #58.
 - Migração das fotos para R2 (#52): vai trocar como as fotos são servidas; o contrato das rotas não muda.
 

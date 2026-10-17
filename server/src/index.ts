@@ -4,6 +4,7 @@ import { limparArquivos } from './limpeza.ts'
 import { lerConfig } from './config.ts'
 import { ServicoAdmin } from './admin/autenticacao.ts'
 import { criarPool } from './db.ts'
+import { criarProvedorStripe } from './pagamento.ts'
 import { migrar } from './migracoes.ts'
 import { criarServicos } from './servicos.ts'
 import { StorageDisco } from './storage/disco.ts'
@@ -15,7 +16,10 @@ const storage = new StorageDisco(config.storageDir)
 const aplicadas = await migrar(pool)
 if (aplicadas.length) console.log(`Migrações aplicadas: ${aplicadas.join(', ')}`)
 
-const servicos = criarServicos(pool)
+// Pagamento: só liga com a chave do Stripe no ambiente. Sem ela, só pacotes grátis funcionam.
+const gateway = config.stripeSecretKey ? { provedor: criarProvedorStripe(config.stripeSecretKey, config.stripeWebhookSecret!), appUrl: config.appUrl! } : null
+if (!gateway) console.warn('STRIPE_SECRET_KEY não definida: pagamento desligado.')
+const servicos = criarServicos(pool, undefined, gateway)
 
 // Admins iniciais: criados uma vez, com a senha inicial do ambiente e troca obrigatória no primeiro login.
 if (config.adminSenhaInicial) {

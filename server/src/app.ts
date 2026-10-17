@@ -7,6 +7,7 @@ import { rotasAlbum } from './rotas/album.ts'
 import { rotasEventos } from './rotas/eventos.ts'
 import { rotasFotos } from './rotas/fotos.ts'
 import { rotasModeracao } from './rotas/moderacao.ts'
+import { rotasPagamento } from './rotas/pagamento.ts'
 import { criarServicos } from './servicos.ts'
 import type { Servicos } from './servicos.ts'
 import type { Storage } from './storage/storage.ts'
@@ -62,6 +63,7 @@ export function criarApp(
   app.route('/', rotasFotos(pool, storage, agora, servicos))
   app.route('/', rotasAlbum(pool, storage, agora, servicos))
   app.route('/', rotasModeracao(pool, agora, servicos))
+  app.route('/', rotasPagamento(pool, servicos))
   app.route('/', rotasAdmin(pool, servicos, agora))
 
   return app

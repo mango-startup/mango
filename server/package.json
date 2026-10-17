@@ -11,12 +11,14 @@
     "migrar": "node src/migrar.ts",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --test-concurrency=1 test/*.test.ts"
+    "test": "node --test --test-concurrency=1 test/*.test.ts",
+    "smoke:stripe": "node scripts/smoke-stripe.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
     "hono": "^4.9.0",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "stripe": "22.6.2"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

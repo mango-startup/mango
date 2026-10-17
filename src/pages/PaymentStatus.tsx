@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { BlocoEstado } from '../components/BlocoEstado'
 import { Botao } from '../components/Botao'
 import { MangoLogo } from '../components/MangoLogo'
-import { ErroApi, api, type PainelEvento, type StatusPagamento } from '../lib/api'
+import { ErroApi, api, type DefinicaoPacote, type PainelEvento, type StatusPagamento } from '../lib/api'
 import { useConfigPublica } from '../lib/configPublica'
+import { precoEmReais } from '../lib/formato'
 
 const CONSULTA_MS = 5000
 const DEMORANDO_MS = 2 * 60 * 1000
 
-type Vista = 'confirmando' | 'aprovado' | 'pendente' | 'demorando' | 'recusado' | 'indisponivel' | 'semPagamento' | 'erro'
+type Vista = 'confirmando' | 'aprovado' | 'cancelado' | 'pendente' | 'demorando' | 'recusado' | 'indisponivel' | 'semPagamento' | 'erro'
 
 function Casca({ painel, children }: { painel?: string; children: ReactNode }) {
   return (
@@ -29,12 +30,15 @@ function Casca({ painel, children }: { painel?: string; children: ReactNode }) {
   )
 }
 
-// /eventos/:id/pagamento — o evento só fica pronto quando o servidor confirma o pagamento.
-// Voltar do pagamento não libera nada: esta tela só consulta o estado.
+// /eventos/:id/pagamento — o evento só fica pronto quando o servidor confirma o pagamento (webhook do Stripe).
+// Voltar da página do Stripe não libera nada: esta tela só consulta o estado.
 export function PaymentStatusPage() {
   const pagamentoDisponivel = useConfigPublica().pacotes_pagos_disponiveis
   const { id = '' } = useParams()
+  // ?stripe=ok / ?stripe=cancelado: como o cliente voltou da página de pagamento
+  const voltou = useSearchParams()[0].get('stripe')
   const [painel, setPainel] = useState<PainelEvento | null>(null)
+  const [pacotes, setPacotes] = useState<DefinicaoPacote[]>([])
   const [pagamento, setPagamento] = useState<StatusPagamento | null | 'carregando'>('carregando')
   const [falha, setFalha] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -57,14 +61,31 @@ export function PaymentStatusPage() {
     // Primeira consulta ao abrir (os setState vêm depois do await)
     desde.current = Date.now()
     const primeira = setTimeout(() => void consultar(), 0)
-    return () => clearTimeout(primeira)
+    let ativo = true
+    api.pacotes().then(
+      (p) => ativo && setPacotes(p),
+      () => {},
+    )
+    return () => {
+      clearTimeout(primeira)
+      ativo = false
+    }
   }, [consultar])
+
+  // Voltar do Stripe pelo botão "voltar" do navegador pode restaurar a página parada em "abrindo...".
+  useEffect(() => {
+    const aoRestaurar = (e: PageTransitionEvent) => {
+      if (e.persisted) setTentando(false)
+    }
+    window.addEventListener('pageshow', aoRestaurar)
+    return () => window.removeEventListener('pageshow', aoRestaurar)
+  }, [])
 
   const estado = painel?.evento.estado
   const aguardando = estado === 'aguardando_pagamento' || estado === 'rascunho'
-  // Enquanto não aprovou, consulta de 5 em 5 segundos e avisa se estiver demorando
+  // Com o pagamento em andamento, consulta de 5 em 5 segundos e avisa se estiver demorando
   useEffect(() => {
-    if (!aguardando || pagamento === null) return
+    if (!aguardando || pagamento !== 'pendente') return
     const timer = setInterval(() => {
       void consultar()
       if (Date.now() - desde.current > DEMORANDO_MS) setDemorando(true)
@@ -72,24 +93,33 @@ export function PaymentStatusPage() {
     return () => clearInterval(timer)
   }, [aguardando, pagamento, consultar])
 
-  async function tentarDeNovo() {
+  // Abre (ou retoma) a página de pagamento do Stripe. O servidor reaproveita a sessão que ainda estiver aberta.
+  async function irParaPagamento() {
     setTentando(true)
     setErro(null)
     try {
-      setPagamento(await api.iniciarPagamento(id))
+      const r = await api.iniciarPagamento(id)
+      if (r.url) {
+        window.location.assign(r.url) // sai da página: o botão continua desabilitado até lá
+        return
+      }
+      setPagamento(r.status)
       desde.current = Date.now()
       setDemorando(false)
     } catch (e) {
-      setErro(e instanceof ErroApi ? e.message : 'Não foi possível iniciar o pagamento. Tente de novo.')
-    } finally {
-      setTentando(false)
+      setErro(e instanceof ErroApi ? e.message : 'Não foi possível abrir o pagamento. Tente de novo.')
+      await consultar()
     }
+    setTentando(false)
   }
 
   const voltar = `/eventos/${id}`
+  const pacote = pacotes.find((p) => p.id === painel?.evento.pacote)
+  const rotuloPagar = pacote && !pacote.gratis ? `Pagar ${precoEmReais(pacote.preco_centavos)}` : 'Ir para o pagamento'
   let vista: Vista
   if (falha && !painel) vista = 'erro'
   else if (!painel || pagamento === 'carregando') vista = 'confirmando'
+  else if (estado === 'cancelado') vista = 'cancelado'
   else if (estado !== 'aguardando_pagamento' && estado !== 'rascunho') vista = 'aprovado'
   else if (pagamento === 'aprovado') vista = 'aprovado'
   else if (pagamento === 'recusado') vista = 'recusado'
@@ -122,10 +152,19 @@ export function PaymentStatusPage() {
         />
       )}
 
+      {vista === 'cancelado' && (
+        <BlocoEstado
+          className="py-12"
+          titulo="Este evento foi cancelado"
+          texto="Se houve cobrança, o valor volta pela mesma forma de pagamento. Você pode criar outro evento quando quiser."
+          acao={<Botao para="/criar">Criar uma câmera</Botao>}
+        />
+      )}
+
       {(vista === 'pendente' || vista === 'demorando') && (
         <BlocoEstado
           className="py-12"
-          titulo={vista === 'demorando' ? 'Está demorando mais que o normal' : 'Aguardando a confirmação'}
+          titulo={vista === 'demorando' ? 'Está demorando mais que o normal' : voltou === 'ok' ? 'Pagamento recebido, confirmando' : 'Aguardando a confirmação'}
           texto={
             vista === 'demorando'
               ? 'Se você já pagou, pode levar alguns minutos para o banco avisar. Não pague de novo: esta tela atualiza sozinha. Se o Pix expirou, gere outro.'
@@ -134,11 +173,9 @@ export function PaymentStatusPage() {
           acao={
             <div className="flex flex-col items-center gap-2">
               <Botao onClick={() => void consultar()}>Já paguei, conferir agora</Botao>
-              {vista === 'demorando' && (
-                <Botao variante="secundario" disabled={tentando} onClick={() => void tentarDeNovo()}>
-                  {tentando ? 'Gerando...' : 'Gerar outro pagamento'}
-                </Botao>
-              )}
+              <Botao variante="secundario" disabled={tentando} onClick={() => void irParaPagamento()}>
+                {tentando ? 'Abrindo...' : 'Voltar à página de pagamento'}
+              </Botao>
             </div>
           }
         />
@@ -150,8 +187,8 @@ export function PaymentStatusPage() {
           titulo="O pagamento não foi concluído"
           texto="Nenhum valor foi cobrado. Dá para tentar de novo, e o evento continua guardado."
           acao={
-            <Botao disabled={tentando} onClick={() => void tentarDeNovo()}>
-              {tentando ? 'Gerando...' : 'Tentar de novo'}
+            <Botao disabled={tentando} onClick={() => void irParaPagamento()}>
+              {tentando ? 'Abrindo...' : 'Tentar de novo'}
             </Botao>
           }
         />
@@ -160,11 +197,15 @@ export function PaymentStatusPage() {
       {vista === 'semPagamento' && (
         <BlocoEstado
           className="py-12"
-          titulo="Este evento ainda não tem cobrança"
-          texto="Gere o pagamento para liberar o link dos convidados."
+          titulo={voltou === 'cancelado' ? 'Você voltou sem pagar' : 'Falta só o pagamento'}
+          texto={
+            voltou === 'cancelado'
+              ? 'Nada foi cobrado, e o evento continua guardado. Quando quiser, é só pagar.'
+              : 'Você vai para a página de pagamento do Stripe e escolhe como pagar. O link para os convidados só funciona depois da confirmação.'
+          }
           acao={
-            <Botao disabled={tentando} onClick={() => void tentarDeNovo()}>
-              {tentando ? 'Gerando...' : 'Gerar o pagamento'}
+            <Botao disabled={tentando} onClick={() => void irParaPagamento()}>
+              {tentando ? 'Abrindo...' : rotuloPagar}
             </Botao>
           }
         />
@@ -191,7 +232,7 @@ export function PaymentStatusPage() {
           {erro}
         </p>
       )}
-      {painel && vista !== 'confirmando' && vista !== 'erro' && vista !== 'aprovado' && (
+      {painel && vista !== 'confirmando' && vista !== 'erro' && vista !== 'aprovado' && vista !== 'cancelado' && (
         <p className="mt-8 border-t border-line pt-4 text-center text-sm text-muted">
           {painel.evento.nome} · pacote {painel.evento.pacote} · até {painel.evento.limite_convidados} convidados
         </p>

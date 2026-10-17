@@ -140,6 +140,7 @@ export function PrivacyPage() {
               <li>O nome que o convidado escolhe mostrar no álbum, se escolher (é opcional).</li>
               <li>Um código aleatório que identifica o aparelho dentro do evento, para manter o rolo de cada convidado.</li>
               <li>Os dados do evento informados pelo anfitrião (nome, datas e configurações).</li>
+              <li>Nos pacotes pagos, o valor, a data e o identificador da cobrança. O pagamento é feito na página do Stripe: o Mango não recebe nem guarda o número do cartão.</li>
             </ul>
           ),
         },
