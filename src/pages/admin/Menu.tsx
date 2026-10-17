@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 // Ícones de traço simples (24x24), no mesmo peso do texto. Sem dependência nova.
 const ICONES: Record<string, ReactNode> = {
+  analise: <path d="M5 20V10M12 20V4M19 20v-7" />,
   resumo: <path d="M4 5h7v7H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 14h7v5H4z" />,
   crescimento: <path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7" />,
   eventos: <path d="M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />,
@@ -29,6 +30,7 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
     nome: 'Visão geral',
     itens: [
       { para: '/admin', rotulo: 'Resumo', icone: 'resumo', fim: true },
+      { para: '/admin/analise', rotulo: 'Análise', icone: 'analise' },
       { para: '/admin/crescimento', rotulo: 'Crescimento', icone: 'crescimento' },
     ],
   },

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
-import { admin, urlCsv, type FiltroEventos, type PaginaEventos } from '../../lib/admin.ts'
+import { admin, formatarBytes, urlCsv, type FiltroEventos, type PaginaEventos } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
 import { Aviso, Cartao, Titulo } from './ui'
 import { campoTexto, dataHora, ESTADOS_EVENTO } from './util'
@@ -8,6 +9,9 @@ import { campoTexto, dataHora, ESTADOS_EVENTO } from './util'
 export function Eventos() {
   const [estado, setEstado] = useState('')
   const [pacote, setPacote] = useState('')
+  const [ordem, setOrdem] = useState('recentes')
+  const [de, setDe] = useState('')
+  const [ate, setAte] = useState('')
   const [busca, setBusca] = useState('')
   const [buscaAplicada, setBuscaAplicada] = useState('')
   const [pagina, setPagina] = useState(1)
@@ -30,7 +34,7 @@ export function Eventos() {
 
   useEffect(() => {
     let ativo = true
-    const filtro: FiltroEventos = { estado, pacote, busca: buscaAplicada }
+    const filtro: FiltroEventos = { estado, pacote, busca: buscaAplicada, ordem, de, ate }
     admin
       .eventos(filtro, pagina)
       .then((r) => ativo && (setDados(r), setErro(null)))
@@ -38,7 +42,7 @@ export function Eventos() {
     return () => {
       ativo = false
     }
-  }, [estado, pacote, buscaAplicada, pagina])
+  }, [estado, pacote, buscaAplicada, ordem, de, ate, pagina])
 
   const filtrar = (definir: (v: string) => void) => (e: { target: { value: string } }) => {
     definir(e.target.value)
@@ -67,13 +71,30 @@ export function Eventos() {
           ))}
         </select>
       </div>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <select aria-label="Ordenar por" value={ordem} onChange={filtrar(setOrdem)} className={campoTexto}>
+          <option value="recentes">Mais recentes primeiro</option>
+          <option value="antigos">Mais antigos primeiro</option>
+          <option value="fotos">Mais fotos</option>
+          <option value="convidados">Mais convidados</option>
+          <option value="armazenamento">Maior armazenamento</option>
+        </select>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          De
+          <input type="date" value={de} onChange={filtrar(setDe)} className={campoTexto} />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          Até
+          <input type="date" value={ate} onChange={filtrar(setAte)} className={campoTexto} />
+        </label>
+      </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {!dados && !erro && <p className="text-muted">Carregando...</p>}
       {dados && (
         <>
           <div className="mb-2 flex items-center justify-between gap-3">
             <p className="text-sm text-muted">{dados.total} {dados.total === 1 ? 'evento' : 'eventos'}</p>
-            <a href={urlCsv('eventos', { estado, pacote, busca: buscaAplicada })} download className="text-sm font-semibold underline underline-offset-4 hover:text-paper">
+            <a href={urlCsv('eventos', { estado, pacote, busca: buscaAplicada, ordem, de, ate })} download className="text-sm font-semibold underline underline-offset-4 hover:text-paper">
               Exportar CSV
             </a>
           </div>
@@ -81,7 +102,7 @@ export function Eventos() {
             {dados.eventos.length === 0 ? (
               <p className="p-5 text-muted">Nenhum evento com esses filtros.</p>
             ) : (
-              <table className="w-full min-w-[820px] text-left text-[14px]">
+              <table className="w-full min-w-[920px] text-left text-[14px]">
                 <thead className="border-b border-line text-muted">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Evento</th>
@@ -90,13 +111,18 @@ export function Eventos() {
                     <th className="px-4 py-3 font-semibold">Pacote</th>
                     <th className="px-4 py-3 text-right font-semibold">Convidados</th>
                     <th className="px-4 py-3 text-right font-semibold">Fotos</th>
+                    <th className="px-4 py-3 text-right font-semibold">Armazenamento</th>
                     <th className="px-4 py-3 font-semibold">Criado em</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {dados.eventos.map((e) => (
                     <tr key={e.id}>
-                      <td className="px-4 py-3">{e.nome}</td>
+                      <td className="px-4 py-3">
+                        <Link to={`/admin/eventos/${e.id}`} className="underline underline-offset-4 hover:text-muted">
+                          {e.nome}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-muted">{e.anfitriao_email}</td>
                       <td className="px-4 py-3">{ESTADOS_EVENTO[e.estado] ?? e.estado}</td>
                       <td className="px-4 py-3 text-muted">{e.pacote}</td>
@@ -105,6 +131,7 @@ export function Eventos() {
                         <span className="text-muted"> / {e.limite_convidados}</span>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{e.fotos}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted">{formatarBytes(e.armazenamento_bytes)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted">{dataHora(e.criado_em)}</td>
                     </tr>
                   ))}
