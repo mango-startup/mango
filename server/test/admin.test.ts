@@ -414,10 +414,42 @@ test('resumo, administradores e redefinição de senha entre admins', opcoes, as
   assert.match((await csvEventos.text()).replace('\ufeff', ''), /^id,codigo,nome,anfitriao_email,estado,pacote,/)
   assert.equal((await app!.request('/api/admin/pagamentos?formato=csv', { headers: { cookie: raziel } })).status, 200)
 
+  const ordenados = await chamar('GET', '/api/admin/eventos?ordem=armazenamento&de=2020-01-01&ate=2099-12-31', { cookie: raziel })
+  assert.equal(ordenados.status, 200)
+  assert.equal(typeof ordenados.json.eventos[0].armazenamento_bytes, 'number')
+  assert.equal((await chamar('GET', '/api/admin/eventos?de=ontem', { cookie: raziel })).json.erro, 'periodo_invalido')
+  assert.equal((await chamar('GET', '/api/admin/eventos?ordem=drop%20table', { cookie: raziel })).status, 200) // ordem desconhecida cai no padrão
+
+  const idEvento = eventos.json.eventos[0].id as string
+  const detalhe = await chamar('GET', `/api/admin/eventos/${idEvento}`, { cookie: raziel })
+  assert.equal(detalhe.status, 200)
+  assert.equal(detalhe.json.evento.id, idEvento)
+  assert.equal(typeof detalhe.json.fotos.total, 'number')
+  assert.ok(Array.isArray(detalhe.json.convidados) && Array.isArray(detalhe.json.pagamentos) && Array.isArray(detalhe.json.pedidos_de_remocao))
+  assert.equal((await chamar('GET', `/api/admin/eventos/${randomUUID()}`, { cookie: raziel })).status, 404)
+  assert.equal((await chamar('GET', '/api/admin/eventos/x', { cookie: raziel })).status, 400)
+  assert.equal((await chamar('GET', `/api/admin/eventos/${idEvento}`)).status, 401)
+
+  const analise = await chamar('GET', '/api/admin/analise?dias=30', { cookie: raziel })
+  assert.equal(analise.status, 200)
+  for (const k of ['eventos', 'convidados', 'fotos', 'receita_centavos', 'ticket_medio_centavos']) {
+    assert.equal(typeof analise.json.periodo[k].atual, 'number')
+    assert.equal(typeof analise.json.periodo[k].anterior, 'number')
+  }
+  assert.ok(analise.json.funil.criados >= analise.json.funil.ativados)
+  assert.ok(Array.isArray(analise.json.pacotes) && analise.json.pacotes.length >= 1)
+  assert.ok(analise.json.maiores_eventos.length <= 10)
+  assert.equal((await chamar('GET', '/api/admin/analise')).status, 401)
+
+  const filtrada = await chamar('GET', '/api/admin/auditoria?usuario=ninguem', { cookie: raziel })
+  assert.equal(filtrada.status, 200)
+  assert.equal(filtrada.json.total, 0)
+
   const crescimento = await chamar('GET', '/api/admin/crescimento?dias=7', { cookie: raziel })
   assert.equal(crescimento.status, 200)
   assert.equal(crescimento.json.serie.length, 7)
   assert.equal(typeof crescimento.json.totais.fotos, 'number')
+  assert.equal(typeof crescimento.json.totais.receita_centavos, 'number')
   assert.equal((await chamar('GET', '/api/admin/crescimento')).status, 401)
 
   const moderacao = await chamar('GET', '/api/admin/moderacao', { cookie: raziel })

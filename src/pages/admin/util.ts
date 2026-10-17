@@ -15,3 +15,11 @@ export const ESTADOS_EVENTO: Record<string, string> = {
   expirado: 'Expirado',
   cancelado: 'Cancelado',
 }
+
+export function porcento(v: number | null): string {
+  return v === null ? '—' : `${(v * 100).toFixed(0)}%`
+}
+
+export function decimal(v: number): string {
+  return v.toFixed(1).replace('.', ',')
+}

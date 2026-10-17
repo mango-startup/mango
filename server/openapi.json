@@ -2189,6 +2189,42 @@
                 "csv"
               ]
             }
+          },
+          {
+            "name": "ordem",
+            "in": "query",
+            "required": false,
+            "description": "Ordenação.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "recentes",
+                "antigos",
+                "fotos",
+                "convidados",
+                "armazenamento"
+              ]
+            }
+          },
+          {
+            "name": "de",
+            "in": "query",
+            "required": false,
+            "description": "Criados a partir desta data (AAAA-MM-DD, fuso de São Paulo).",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "ate",
+            "in": "query",
+            "required": false,
+            "description": "Criados até esta data (AAAA-MM-DD, fuso de São Paulo).",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           }
         ],
         "responses": {
@@ -2203,6 +2239,16 @@
               "text/csv": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Período inválido. Códigos: `periodo_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
                 }
               }
             }
@@ -2545,6 +2591,142 @@
           },
           "403": {
             "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/analise": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Análise",
+        "description": "Período escolhido contra o período anterior de mesmo tamanho, funil dos eventos criados no período, médias, desempenho por pacote e os 10 maiores eventos.",
+        "parameters": [
+          {
+            "name": "dias",
+            "in": "query",
+            "required": false,
+            "description": "Tamanho do período (1 a 365, padrão 30).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnaliseAdmin"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/eventos/{id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Detalhe do evento",
+        "description": "Dados do evento, fotos, convidados (até 300), pagamentos e pedidos de remoção.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoAdminDetalhe"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido. Códigos: `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento não encontrado. Códigos: `nao_encontrado`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3027,6 +3209,24 @@
             "schema": {
               "type": "integer",
               "default": 1
+            }
+          },
+          {
+            "name": "usuario",
+            "in": "query",
+            "required": false,
+            "description": "Só ações deste administrador.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acao",
+            "in": "query",
+            "required": false,
+            "description": "Só este tipo de ação (ex.: `config.alterar`).",
+            "schema": {
+              "type": "string"
             }
           }
         ]
@@ -4090,6 +4290,9 @@
                 "criado_em": {
                   "type": "string",
                   "format": "date-time"
+                },
+                "armazenamento_bytes": {
+                  "type": "number"
                 }
               }
             }
@@ -4174,6 +4377,9 @@
               },
               "fotos": {
                 "type": "integer"
+              },
+              "receita_centavos": {
+                "type": "integer"
               }
             }
           },
@@ -4192,6 +4398,9 @@
                   "type": "integer"
                 },
                 "fotos": {
+                  "type": "integer"
+                },
+                "receita_centavos": {
                   "type": "integer"
                 }
               }
@@ -4318,6 +4527,374 @@
           },
           "pedidos_de_remocao_pendentes_ha_mais_de_2_dias": {
             "type": "integer"
+          }
+        }
+      },
+      "AnaliseAdmin": {
+        "type": "object",
+        "properties": {
+          "dias": {
+            "type": "integer"
+          },
+          "periodo": {
+            "type": "object",
+            "properties": {
+              "eventos": {
+                "type": "object",
+                "properties": {
+                  "atual": {
+                    "type": "number"
+                  },
+                  "anterior": {
+                    "type": "number"
+                  }
+                }
+              },
+              "convidados": {
+                "type": "object",
+                "properties": {
+                  "atual": {
+                    "type": "number"
+                  },
+                  "anterior": {
+                    "type": "number"
+                  }
+                }
+              },
+              "fotos": {
+                "type": "object",
+                "properties": {
+                  "atual": {
+                    "type": "number"
+                  },
+                  "anterior": {
+                    "type": "number"
+                  }
+                }
+              },
+              "pagamentos_aprovados": {
+                "type": "object",
+                "properties": {
+                  "atual": {
+                    "type": "number"
+                  },
+                  "anterior": {
+                    "type": "number"
+                  }
+                }
+              },
+              "receita_centavos": {
+                "type": "object",
+                "properties": {
+                  "atual": {
+                    "type": "number"
+                  },
+                  "anterior": {
+                    "type": "number"
+                  }
+                }
+              },
+              "ticket_medio_centavos": {
+                "type": "object",
+                "properties": {
+                  "atual": {
+                    "type": "number"
+                  },
+                  "anterior": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          },
+          "funil": {
+            "type": "object",
+            "properties": {
+              "criados": {
+                "type": "integer"
+              },
+              "ativados": {
+                "type": "integer"
+              },
+              "com_fotos": {
+                "type": "integer"
+              },
+              "revelados": {
+                "type": "integer"
+              },
+              "pagos_criados": {
+                "type": "integer"
+              },
+              "pagos_ativados": {
+                "type": "integer"
+              },
+              "conversao_paga": {
+                "type": "number",
+                "nullable": true
+              }
+            }
+          },
+          "medias": {
+            "type": "object",
+            "properties": {
+              "fotos_por_evento": {
+                "type": "number"
+              },
+              "convidados_por_evento": {
+                "type": "number"
+              },
+              "fotos_por_convidado": {
+                "type": "number"
+              },
+              "ocupacao_das_vagas": {
+                "type": "number",
+                "nullable": true
+              },
+              "eventos_capturando_agora": {
+                "type": "integer"
+              }
+            }
+          },
+          "pacotes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "preco_centavos": {
+                  "type": "integer"
+                },
+                "eventos_no_periodo": {
+                  "type": "integer"
+                },
+                "eventos_total": {
+                  "type": "integer"
+                },
+                "receita_no_periodo_centavos": {
+                  "type": "integer"
+                },
+                "fotos": {
+                  "type": "integer"
+                },
+                "armazenamento_bytes": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "maiores_eventos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "anfitriao_email": {
+                  "type": "string"
+                },
+                "pacote": {
+                  "type": "string"
+                },
+                "estado": {
+                  "type": "string"
+                },
+                "fotos": {
+                  "type": "integer"
+                },
+                "convidados": {
+                  "type": "integer"
+                },
+                "armazenamento_bytes": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EventoAdminDetalhe": {
+        "type": "object",
+        "properties": {
+          "evento": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "codigo": {
+                "type": "string"
+              },
+              "nome": {
+                "type": "string"
+              },
+              "anfitriao_email": {
+                "type": "string"
+              },
+              "estado": {
+                "type": "string"
+              },
+              "pacote": {
+                "type": "string"
+              },
+              "pacote_nome": {
+                "type": "string",
+                "nullable": true
+              },
+              "limite_convidados": {
+                "type": "integer"
+              },
+              "poses_por_convidado": {
+                "type": "integer"
+              },
+              "limite_fotos": {
+                "type": "integer",
+                "nullable": true
+              },
+              "captura_inicio": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "captura_fim": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "revelacao_em": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "revelado_em": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "expira_em": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "album_privado": {
+                "type": "boolean"
+              },
+              "criado_em": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "excluido_em": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          },
+          "fotos": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "removidas": {
+                "type": "integer"
+              },
+              "armazenamento_bytes": {
+                "type": "number"
+              },
+              "primeira_em": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "ultima_em": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          },
+          "convidados": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "apelido": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "criado_em": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "fotos": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "pagamentos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "valor_centavos": {
+                  "type": "integer"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "criado_em": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "pedidos_de_remocao": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "foto_id": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "resolucao": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "resolvido_em": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "criado_em": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
           }
         }
       },

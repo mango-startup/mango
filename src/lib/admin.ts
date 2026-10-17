@@ -92,6 +92,7 @@ export interface EventoAdmin {
   limite_convidados: number
   convidados: number
   fotos: number
+  armazenamento_bytes: number
   criado_em: string
 }
 
@@ -106,6 +107,9 @@ export interface FiltroEventos {
   estado?: string
   pacote?: string
   busca?: string
+  ordem?: string
+  de?: string
+  ate?: string
 }
 
 export interface PagamentoAdmin {
@@ -129,8 +133,8 @@ export interface PaginaPagamentos {
 
 export interface Crescimento {
   dias: number
-  totais: { eventos: number; convidados: number; fotos: number }
-  serie: { dia: string; eventos: number; convidados: number; fotos: number }[]
+  totais: { eventos: number; convidados: number; fotos: number; receita_centavos: number }
+  serie: { dia: string; eventos: number; convidados: number; fotos: number; receita_centavos: number }[]
 }
 
 export interface PedidoRemocaoAdmin {
@@ -173,6 +177,47 @@ export interface SaudeAdmin {
   pedidos_de_remocao_pendentes_ha_mais_de_2_dias: number
 }
 
+export interface Dupla {
+  atual: number
+  anterior: number
+}
+
+export interface Analise {
+  dias: number
+  periodo: { eventos: Dupla; convidados: Dupla; fotos: Dupla; pagamentos_aprovados: Dupla; receita_centavos: Dupla; ticket_medio_centavos: Dupla }
+  funil: { criados: number; ativados: number; com_fotos: number; revelados: number; pagos_criados: number; pagos_ativados: number; conversao_paga: number | null }
+  medias: { fotos_por_evento: number; convidados_por_evento: number; fotos_por_convidado: number; ocupacao_das_vagas: number | null; eventos_capturando_agora: number }
+  pacotes: { id: string; nome: string; preco_centavos: number; eventos_no_periodo: number; eventos_total: number; receita_no_periodo_centavos: number; fotos: number; armazenamento_bytes: number }[]
+  maiores_eventos: { id: string; nome: string; anfitriao_email: string; pacote: string; estado: string; fotos: number; convidados: number; armazenamento_bytes: number }[]
+}
+
+export interface EventoDetalhe {
+  evento: {
+    id: string
+    codigo: string
+    nome: string
+    anfitriao_email: string
+    estado: string
+    pacote: string
+    pacote_nome: string | null
+    limite_convidados: number
+    poses_por_convidado: number
+    limite_fotos: number | null
+    captura_inicio: string | null
+    captura_fim: string | null
+    revelacao_em: string | null
+    revelado_em: string | null
+    expira_em: string | null
+    album_privado: boolean
+    criado_em: string
+    excluido_em: string | null
+  }
+  fotos: { total: number; removidas: number; armazenamento_bytes: number; primeira_em: string | null; ultima_em: string | null }
+  convidados: { id: string; apelido: string | null; criado_em: string; fotos: number }[]
+  pagamentos: { id: string; valor_centavos: number; status: string; criado_em: string }[]
+  pedidos_de_remocao: { id: string; foto_id: string; motivo: string | null; resolucao: string | null; resolvido_em: string | null; criado_em: string }[]
+}
+
 async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH', caminho: string, corpo?: unknown): Promise<T> {
   const cabecalhos: Record<string, string> = {}
   if (metodo !== 'GET') cabecalhos['X-Mango-Admin'] = '1'
@@ -205,7 +250,13 @@ export const admin = {
   configuracoes: () => chamar<{ grupos: GrupoConfig[] }>('GET', '/api/admin/configuracoes').then((r) => r.grupos),
   /** `null` volta a chave ao padrão. Tudo ou nada. */
   salvarConfiguracoes: (mudancas: Record<string, ValorConfig | null>) => chamar<{ ok: boolean }>('PATCH', '/api/admin/configuracoes', mudancas),
-  auditoria: (pagina = 1, limite = 50) => chamar<PaginaAuditoria>('GET', `/api/admin/auditoria?pagina=${pagina}&limite=${limite}`),
+  auditoria: (pagina = 1, limite = 50, filtro: { usuario?: string; acao?: string } = {}) => {
+    const q = new URLSearchParams({ pagina: String(pagina), limite: String(limite) })
+    for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)
+    return chamar<PaginaAuditoria>('GET', `/api/admin/auditoria?${q}`)
+  },
+  analise: (dias: number) => chamar<Analise>('GET', `/api/admin/analise?dias=${dias}`),
+  evento: (id: string) => chamar<EventoDetalhe>('GET', `/api/admin/eventos/${encodeURIComponent(id)}`),
   eventos: (filtro: FiltroEventos = {}, pagina = 1) => {
     const q = new URLSearchParams({ pagina: String(pagina) })
     for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)

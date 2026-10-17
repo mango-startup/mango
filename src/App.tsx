@@ -3,11 +3,13 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { carregarConfig } from './lib/configPublica'
 import { RequireHost } from './components/RequireHost'
 import { Administradores } from './pages/admin/Administradores'
+import { Analise } from './pages/admin/Analise'
 import { Anfitrioes } from './pages/admin/Anfitrioes'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { Auditoria } from './pages/admin/Auditoria'
 import { Configuracoes } from './pages/admin/Configuracoes'
 import { Crescimento } from './pages/admin/Crescimento'
+import { EventoDetalhe } from './pages/admin/EventoDetalhe'
 import { Eventos } from './pages/admin/Eventos'
 import { Moderacao as ModeracaoAdmin } from './pages/admin/Moderacao'
 import { Pacotes } from './pages/admin/Pacotes'
@@ -63,7 +65,9 @@ export default function App() {
           <Route path="anfitrioes" element={<Anfitrioes />} />
           <Route path="moderacao" element={<ModeracaoAdmin />} />
           <Route path="saude" element={<Saude />} />
+          <Route path="analise" element={<Analise />} />
           <Route path="eventos" element={<Eventos />} />
+          <Route path="eventos/:id" element={<EventoDetalhe />} />
           <Route path="pagamentos" element={<Pagamentos />} />
           <Route path="pacotes" element={<Pacotes />} />
           <Route path="configuracoes" element={<Configuracoes />} />

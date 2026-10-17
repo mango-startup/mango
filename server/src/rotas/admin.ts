@@ -137,28 +137,80 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
   const LIMITE_CSV = 10000
 
   // --- Eventos: lista com filtros (estado, pacote, busca por nome/e-mail do anfitrião) e contagens.
+  const DATA = /^\d{4}-\d{2}-\d{2}$/
+  const ORDEM_EVENTOS: Record<string, string> = {
+    recentes: 'e.criado_em desc, e.id desc',
+    antigos: 'e.criado_em asc, e.id asc',
+    fotos: 'fotos desc, e.criado_em desc',
+    convidados: 'convidados desc, e.criado_em desc',
+    armazenamento: 'armazenamento_bytes desc, e.criado_em desc',
+  }
+
   app.get('/api/admin/eventos', exigirAdmin, async (c) => {
     const exportar = c.req.query('formato') === 'csv'
     const { limite, pagina, deslocamento } = exportar ? { limite: LIMITE_CSV, pagina: 1, deslocamento: 0 } : paginar(c)
     const estado = c.req.query('estado')
     const pacote = c.req.query('pacote')
     const busca = (c.req.query('busca') ?? '').trim().slice(0, 100)
+    const de = c.req.query('de')
+    const ate = c.req.query('ate')
+    if ((de && !DATA.test(de)) || (ate && !DATA.test(ate))) return erro(c, 400, 'periodo_invalido', 'Use datas no formato AAAA-MM-DD.')
+    const ordem = ORDEM_EVENTOS[c.req.query('ordem') ?? ''] ?? ORDEM_EVENTOS.recentes
     const r = await pool.query(
       `select e.id::text, e.codigo, e.nome, e.anfitriao_email, e.estado, e.pacote, e.limite_convidados, e.criado_em,
               (select count(*) from convidados where evento_id = e.id)::int as convidados,
               (select count(*) from fotos where evento_id = e.id and removida_em is null)::int as fotos,
+              (select coalesce(sum(tamanho_bytes), 0) from fotos where evento_id = e.id and arquivo_apagado_em is null)::bigint::float8 as armazenamento_bytes,
               count(*) over () as total
          from eventos e
         where e.excluido_em is null
           and ($1::text is null or e.estado = $1)
           and ($2::text is null or e.pacote = $2)
           and ($3 = '' or e.nome ilike '%' || $3 || '%' or e.anfitriao_email ilike '%' || $3 || '%')
-        order by e.criado_em desc, e.id desc limit $4 offset $5`,
-      [estado || null, pacote || null, busca.replace(/[\\%_]/g, '\\$&'), limite, deslocamento],
+          and ($6::date is null or (e.criado_em at time zone 'America/Sao_Paulo')::date >= $6::date)
+          and ($7::date is null or (e.criado_em at time zone 'America/Sao_Paulo')::date <= $7::date)
+        order by ${ordem} limit $4 offset $5`,
+      [estado || null, pacote || null, busca.replace(/[\\%_]/g, '\\$&'), limite, deslocamento, de || null, ate || null],
     )
     const eventos = r.rows.map(({ total: _t, ...linha }) => linha)
-    if (exportar) return csv(c, 'eventos', ['id', 'codigo', 'nome', 'anfitriao_email', 'estado', 'pacote', 'limite_convidados', 'convidados', 'fotos', 'criado_em'], eventos)
+    if (exportar) return csv(c, 'eventos', ['id', 'codigo', 'nome', 'anfitriao_email', 'estado', 'pacote', 'limite_convidados', 'convidados', 'fotos', 'armazenamento_bytes', 'criado_em'], eventos)
     return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, eventos })
+  })
+
+  // Detalhe de um evento: tudo o que o admin precisa para entender (e atender) aquele evento.
+  app.get('/api/admin/eventos/:id', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const ev = await pool.query(
+      `select e.id::text, e.codigo, e.nome, e.anfitriao_email, e.estado, e.pacote, p.nome as pacote_nome, e.limite_convidados, e.poses_por_convidado, e.limite_fotos,
+              e.captura_inicio, e.captura_fim, e.revelacao_em, e.revelado_em, e.expira_em, e.album_privado, e.criado_em, e.excluido_em
+         from eventos e left join pacotes p on p.id = e.pacote where e.id = $1`,
+      [id],
+    )
+    if (!ev.rows[0]) return erro(c, 404, 'nao_encontrado', 'Evento não encontrado.')
+    const [convidados, fotos, pagamentos, pedidos] = await Promise.all([
+      pool.query(
+        `select v.id::text, v.apelido, v.criado_em, (select count(*) from fotos f where f.convidado_id = v.id and f.removida_em is null)::int as fotos
+           from convidados v where v.evento_id = $1 order by v.criado_em limit 300`,
+        [id],
+      ),
+      pool.query<{ total: number; removidas: number; bytes: string; primeira: Date | null; ultima: Date | null }>(
+        `select count(*) filter (where removida_em is null)::int as total, count(*) filter (where removida_em is not null)::int as removidas,
+                coalesce(sum(tamanho_bytes) filter (where arquivo_apagado_em is null), 0) as bytes, min(criado_em) as primeira, max(criado_em) as ultima
+           from fotos where evento_id = $1`,
+        [id],
+      ),
+      pool.query('select id::text, valor_centavos, status, criado_em from pagamentos where evento_id = $1 order by criado_em desc', [id]),
+      pool.query('select id::text, foto_id::text, motivo, resolucao, resolvido_em, criado_em from pedidos_remocao where evento_id = $1 order by criado_em desc', [id]),
+    ])
+    const f = fotos.rows[0]
+    return c.json({
+      evento: ev.rows[0],
+      fotos: { total: f.total, removidas: f.removidas, armazenamento_bytes: Number(f.bytes), primeira_em: f.primeira, ultima_em: f.ultima },
+      convidados: convidados.rows,
+      pagamentos: pagamentos.rows,
+      pedidos_de_remocao: pedidos.rows,
+    })
   })
 
   // --- Pagamentos: totais por status e lista paginada (mais recentes primeiro).
@@ -193,17 +245,18 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
   // --- Crescimento: série diária dos últimos N dias (eventos, convidados, fotos), com os dias sem nada zerados.
   app.get('/api/admin/crescimento', exigirAdmin, async (c) => {
     const dias = Math.min(365, Math.max(1, Number(c.req.query('dias') ?? 30) || 30))
-    const r = await pool.query<{ dia: string; eventos: number; convidados: number; fotos: number }>(
+    const r = await pool.query<{ dia: string; eventos: number; convidados: number; fotos: number; receita_centavos: number }>(
       `with dias as (select generate_series(($1::timestamptz at time zone 'America/Sao_Paulo')::date - ($2::int - 1), ($1::timestamptz at time zone 'America/Sao_Paulo')::date, interval '1 day')::date as dia)
        select to_char(d.dia, 'YYYY-MM-DD') as dia,
               (select count(*) from eventos e where (e.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as eventos,
               (select count(*) from convidados v where (v.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as convidados,
-              (select count(*) from fotos f where (f.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as fotos
+              (select count(*) from fotos f where (f.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as fotos,
+              (select coalesce(sum(p.valor_centavos), 0) from pagamentos p where p.status = 'aprovado' and (p.atualizado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as receita_centavos
          from dias d order by d.dia`,
       [agora(), dias],
     )
-    const soma = (k: 'eventos' | 'convidados' | 'fotos') => r.rows.reduce((a, l) => a + l[k], 0)
-    return c.json({ dias, totais: { eventos: soma('eventos'), convidados: soma('convidados'), fotos: soma('fotos') }, serie: r.rows })
+    const soma = (k: 'eventos' | 'convidados' | 'fotos' | 'receita_centavos') => r.rows.reduce((a, l) => a + l[k], 0)
+    return c.json({ dias, totais: { eventos: soma('eventos'), convidados: soma('convidados'), fotos: soma('fotos'), receita_centavos: soma('receita_centavos') }, serie: r.rows })
   })
 
   // --- Moderação: pedidos de remoção pendentes (mais antigos primeiro) e o que já foi resolvido.
@@ -258,6 +311,104 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
       pagamentos_aprovados_sem_evento: Number(l.orfaos),
       ultimo_webhook_do_stripe_em: l.ultimo_webhook,
       pedidos_de_remocao_pendentes_ha_mais_de_2_dias: Number(l.pendentes_antigos),
+    })
+  })
+
+  // --- Análise: o período escolhido contra o período anterior, funil, pacotes e maiores eventos.
+  app.get('/api/admin/analise', exigirAdmin, async (c) => {
+    const dias = Math.min(365, Math.max(1, Number(c.req.query('dias') ?? 30) || 30))
+    const parametros = [agora(), dias]
+    const janela = (coluna: string, alias: string) =>
+      `count(*) filter (where ${coluna} >= $1::timestamptz - make_interval(days => $2) and ${coluna} < $1::timestamptz) as ${alias}_atual,
+       count(*) filter (where ${coluna} >= $1::timestamptz - make_interval(days => $2 * 2) and ${coluna} < $1::timestamptz - make_interval(days => $2)) as ${alias}_anterior`
+    const [ev, cv, ft, pg, funil, medias, pacotes, maiores] = await Promise.all([
+      pool.query(`select ${janela('criado_em', 'n')} from eventos where excluido_em is null`, parametros),
+      pool.query(`select ${janela('criado_em', 'n')} from convidados`, parametros),
+      pool.query(`select ${janela('criado_em', 'n')} from fotos`, parametros),
+      pool.query(
+        `select ${janela('atualizado_em', 'n')},
+                coalesce(sum(valor_centavos) filter (where atualizado_em >= $1::timestamptz - make_interval(days => $2) and atualizado_em < $1::timestamptz), 0) as receita_atual,
+                coalesce(sum(valor_centavos) filter (where atualizado_em >= $1::timestamptz - make_interval(days => $2 * 2) and atualizado_em < $1::timestamptz - make_interval(days => $2)), 0) as receita_anterior
+           from pagamentos where status = 'aprovado'`,
+        parametros,
+      ),
+      pool.query(
+        `select count(*) as criados,
+                count(*) filter (where e.estado in ('pronto','captura_aberta','captura_encerrada','revelado','expirado')) as ativados,
+                count(*) filter (where exists (select 1 from fotos f where f.evento_id = e.id)) as com_fotos,
+                count(*) filter (where e.revelado_em is not null) as revelados,
+                count(*) filter (where coalesce(p.preco_centavos, 0) > 0) as pagos_criados,
+                count(*) filter (where coalesce(p.preco_centavos, 0) > 0 and e.estado in ('pronto','captura_aberta','captura_encerrada','revelado','expirado')) as pagos_ativados
+           from eventos e left join pacotes p on p.id = e.pacote
+          where e.excluido_em is null and e.criado_em >= $1::timestamptz - make_interval(days => $2) and e.criado_em < $1::timestamptz`,
+        parametros,
+      ),
+      pool.query(
+        `select (select count(*) from eventos where excluido_em is null) as eventos,
+                (select count(*) from fotos where removida_em is null) as fotos,
+                (select count(*) from convidados) as convidados,
+                (select coalesce(sum(limite_convidados), 0) from eventos where excluido_em is null and estado in ('captura_aberta','captura_encerrada','revelado')) as vagas,
+                (select count(*) from convidados v join eventos e on e.id = v.evento_id where e.excluido_em is null and e.estado in ('captura_aberta','captura_encerrada','revelado')) as ocupadas,
+                (select count(*) from eventos where excluido_em is null and estado = 'captura_aberta') as capturando_agora`,
+      ),
+      pool.query(
+        `select p.id, p.nome, p.preco_centavos,
+                count(e.id) filter (where e.criado_em >= $1::timestamptz - make_interval(days => $2) and e.criado_em < $1::timestamptz)::int as eventos_no_periodo,
+                count(e.id)::int as eventos_total,
+                coalesce((select sum(g.valor_centavos) from pagamentos g join eventos x on x.id = g.evento_id
+                           where x.pacote = p.id and g.status = 'aprovado' and g.atualizado_em >= $1::timestamptz - make_interval(days => $2) and g.atualizado_em < $1::timestamptz), 0)::int as receita_no_periodo_centavos,
+                coalesce((select count(*) from fotos f join eventos x on x.id = f.evento_id where x.pacote = p.id and f.removida_em is null), 0)::int as fotos,
+                coalesce((select sum(f.tamanho_bytes) from fotos f join eventos x on x.id = f.evento_id where x.pacote = p.id and f.arquivo_apagado_em is null), 0)::float8 as armazenamento_bytes
+           from pacotes p left join eventos e on e.pacote = p.id and e.excluido_em is null
+          group by p.id order by p.ordem, p.id`,
+        parametros,
+      ),
+      pool.query(
+        `select e.id::text, e.nome, e.anfitriao_email, e.pacote, e.estado,
+                (select count(*) from fotos where evento_id = e.id and removida_em is null)::int as fotos,
+                (select count(*) from convidados where evento_id = e.id)::int as convidados,
+                (select coalesce(sum(tamanho_bytes), 0) from fotos where evento_id = e.id and arquivo_apagado_em is null)::float8 as armazenamento_bytes
+           from eventos e where e.excluido_em is null order by armazenamento_bytes desc, fotos desc limit 10`,
+      ),
+    ])
+    const par = (l: Record<string, string>, k: string) => ({ atual: Number(l[`${k}_atual`]), anterior: Number(l[`${k}_anterior`]) })
+    const f = funil.rows[0]
+    const m = medias.rows[0]
+    const eventosTotal = Number(m.eventos)
+    const pagosCriados = Number(f.pagos_criados)
+    const aprovados = par(pg.rows[0], 'n')
+    const receita = par(pg.rows[0], 'receita')
+    return c.json({
+      dias,
+      periodo: {
+        eventos: par(ev.rows[0], 'n'),
+        convidados: par(cv.rows[0], 'n'),
+        fotos: par(ft.rows[0], 'n'),
+        pagamentos_aprovados: aprovados,
+        receita_centavos: receita,
+        ticket_medio_centavos: {
+          atual: aprovados.atual ? Math.round(receita.atual / aprovados.atual) : 0,
+          anterior: aprovados.anterior ? Math.round(receita.anterior / aprovados.anterior) : 0,
+        },
+      },
+      funil: {
+        criados: Number(f.criados),
+        ativados: Number(f.ativados),
+        com_fotos: Number(f.com_fotos),
+        revelados: Number(f.revelados),
+        pagos_criados: pagosCriados,
+        pagos_ativados: Number(f.pagos_ativados),
+        conversao_paga: pagosCriados ? Number(f.pagos_ativados) / pagosCriados : null,
+      },
+      medias: {
+        fotos_por_evento: eventosTotal ? Number(m.fotos) / eventosTotal : 0,
+        convidados_por_evento: eventosTotal ? Number(m.convidados) / eventosTotal : 0,
+        fotos_por_convidado: Number(m.convidados) ? Number(m.fotos) / Number(m.convidados) : 0,
+        ocupacao_das_vagas: Number(m.vagas) ? Number(m.ocupadas) / Number(m.vagas) : null,
+        eventos_capturando_agora: Number(m.capturando_agora),
+      },
+      pacotes: pacotes.rows,
+      maiores_eventos: maiores.rows,
     })
   })
 
@@ -324,10 +475,13 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
   app.get('/api/admin/auditoria', exigirAdmin, async (c) => {
     const limite = Math.min(200, Math.max(1, Number(c.req.query('limite') ?? 50) || 50))
     const pagina = Math.max(1, Number(c.req.query('pagina') ?? 1) || 1)
+    const usuario = c.req.query('usuario') || null
+    const acao = c.req.query('acao') || null
     const r = await pool.query(
       `select id::text, usuario, acao, alvo, antes, depois, criado_em, count(*) over () as total
-       from auditoria_admin order by criado_em desc, id desc limit $1 offset $2`,
-      [limite, (pagina - 1) * limite],
+         from auditoria_admin where ($3::text is null or usuario = $3) and ($4::text is null or acao = $4)
+        order by criado_em desc, id desc limit $1 offset $2`,
+      [limite, (pagina - 1) * limite, usuario, acao],
     )
     return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, registros: r.rows.map(({ total: _t, ...linha }) => linha) })
   })
