@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
-import { admin, formatarReais, type PaginaPagamentos } from '../../lib/admin.ts'
+import { admin, formatarReais, urlCsv, type PaginaPagamentos } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
 import { Aviso, Cartao, Titulo } from './ui'
 import { campoTexto, dataHora } from './util'
@@ -53,6 +53,7 @@ export function Pagamentos() {
             ))}
           </div>
           <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <select
               aria-label="Status"
               value={status}
@@ -60,7 +61,7 @@ export function Pagamentos() {
                 setStatus(e.target.value)
                 setPagina(1)
               }}
-              className={`${campoTexto} mb-4 sm:max-w-[260px]`}
+              className={`${campoTexto} sm:max-w-[260px]`}
             >
               <option value="">Todos os status</option>
               {Object.entries(STATUS).map(([id, rotulo]) => (
@@ -69,6 +70,10 @@ export function Pagamentos() {
                 </option>
               ))}
             </select>
+            <a href={urlCsv('pagamentos', { status })} download className="text-sm font-semibold underline underline-offset-4 hover:text-paper">
+              Exportar CSV
+            </a>
+            </div>
             <Cartao className="overflow-x-auto p-0">
               {dados.pagamentos.length === 0 ? (
                 <p className="p-5 text-muted">Nenhum pagamento{status ? ' com esse status' : ' ainda'}.</p>

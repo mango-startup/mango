@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
-import { admin, type FiltroEventos, type PaginaEventos } from '../../lib/admin.ts'
+import { admin, urlCsv, type FiltroEventos, type PaginaEventos } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
 import { Aviso, Cartao, Titulo } from './ui'
 import { campoTexto, dataHora, ESTADOS_EVENTO } from './util'
@@ -71,7 +71,12 @@ export function Eventos() {
       {!dados && !erro && <p className="text-muted">Carregando...</p>}
       {dados && (
         <>
-          <p className="mb-2 text-sm text-muted">{dados.total} {dados.total === 1 ? 'evento' : 'eventos'}</p>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-sm text-muted">{dados.total} {dados.total === 1 ? 'evento' : 'eventos'}</p>
+            <a href={urlCsv('eventos', { estado, pacote, busca: buscaAplicada })} download className="text-sm font-semibold underline underline-offset-4 hover:text-paper">
+              Exportar CSV
+            </a>
+          </div>
           <Cartao className="overflow-x-auto p-0">
             {dados.eventos.length === 0 ? (
               <p className="p-5 text-muted">Nenhum evento com esses filtros.</p>

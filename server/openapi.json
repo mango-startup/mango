@@ -2177,6 +2177,18 @@
               "minimum": 1,
               "maximum": 100
             }
+          },
+          {
+            "name": "formato",
+            "in": "query",
+            "required": false,
+            "description": "`csv` devolve todos os resultados filtrados (até 10.000) como planilha, sem paginação.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
           }
         ],
         "responses": {
@@ -2186,6 +2198,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EventosAdmin"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -2255,6 +2272,18 @@
               "minimum": 1,
               "maximum": 100
             }
+          },
+          {
+            "name": "formato",
+            "in": "query",
+            "required": false,
+            "description": "`csv` devolve todos os resultados filtrados (até 10.000) como planilha, sem paginação.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
           }
         ],
         "responses": {
@@ -2264,6 +2293,242 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PagamentosAdmin"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/crescimento": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Crescimento",
+        "description": "Série diária (fuso de São Paulo) de eventos, convidados e fotos criados nos últimos N dias.",
+        "parameters": [
+          {
+            "name": "dias",
+            "in": "query",
+            "required": false,
+            "description": "Quantos dias (1 a 365, padrão 30).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrescimentoAdmin"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/moderacao": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Moderação",
+        "description": "Pedidos de remoção de foto pendentes (mais antigos primeiro, até 100) e contagem dos já resolvidos.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModeracaoAdmin"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/anfitrioes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Anfitriões",
+        "description": "Um registro por e-mail de anfitrião, com eventos, fotos e valor pago.",
+        "parameters": [
+          {
+            "name": "busca",
+            "in": "query",
+            "required": false,
+            "description": "Texto no e-mail do anfitrião.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "description": "Página, começando em 1.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "description": "Itens por página (1 a 100, padrão 25).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnfitrioesAdmin"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/saude": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Saúde",
+        "description": "Indicadores operacionais: banco, fila de limpeza de arquivos, pagamentos sem evento e último webhook do Stripe.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaudeAdmin"
                 }
               }
             }
@@ -3889,6 +4154,170 @@
                 }
               }
             }
+          }
+        }
+      },
+      "CrescimentoAdmin": {
+        "type": "object",
+        "properties": {
+          "dias": {
+            "type": "integer"
+          },
+          "totais": {
+            "type": "object",
+            "properties": {
+              "eventos": {
+                "type": "integer"
+              },
+              "convidados": {
+                "type": "integer"
+              },
+              "fotos": {
+                "type": "integer"
+              }
+            }
+          },
+          "serie": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dia": {
+                  "type": "string"
+                },
+                "eventos": {
+                  "type": "integer"
+                },
+                "convidados": {
+                  "type": "integer"
+                },
+                "fotos": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ModeracaoAdmin": {
+        "type": "object",
+        "properties": {
+          "pendentes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "evento_id": {
+                  "type": "string"
+                },
+                "evento_nome": {
+                  "type": "string"
+                },
+                "anfitriao_email": {
+                  "type": "string"
+                },
+                "foto_id": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "criado_em": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "resolvidos": {
+            "type": "object",
+            "properties": {
+              "removida": {
+                "type": "integer"
+              },
+              "mantida": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "AnfitrioesAdmin": {
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer"
+          },
+          "limite": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "anfitrioes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "anfitriao_email": {
+                  "type": "string"
+                },
+                "eventos": {
+                  "type": "integer"
+                },
+                "fotos": {
+                  "type": "integer"
+                },
+                "pago_centavos": {
+                  "type": "integer"
+                },
+                "primeiro_evento_em": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "ultimo_evento_em": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SaudeAdmin": {
+        "type": "object",
+        "properties": {
+          "banco": {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "latencia_ms": {
+                "type": "integer"
+              }
+            }
+          },
+          "fotos_aguardando_limpeza": {
+            "type": "integer"
+          },
+          "fotos_aguardando_limpeza_ha_mais_de_2_dias": {
+            "type": "integer"
+          },
+          "pagamentos_aprovados_sem_evento": {
+            "type": "integer"
+          },
+          "ultimo_webhook_do_stripe_em": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "pedidos_de_remocao_pendentes_ha_mais_de_2_dias": {
+            "type": "integer"
           }
         }
       },

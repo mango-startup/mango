@@ -122,9 +122,24 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     return { limite, pagina, deslocamento: (pagina - 1) * limite }
   }
 
+  /** CSV seguro para planilha: aspas dobradas e células que começam com = + - @ ganham um apóstrofo (injeção de fórmula). */
+  const csv = (c: Context, nome: string, colunas: string[], linhas: Record<string, unknown>[]) => {
+    const celula = (v: unknown) => {
+      let s = v instanceof Date ? v.toISOString() : v === null || v === undefined ? '' : String(v)
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const corpo = [colunas.join(','), ...linhas.map((l) => colunas.map((k) => celula(l[k])).join(','))].join('\r\n')
+    c.header('Content-Type', 'text/csv; charset=utf-8')
+    c.header('Content-Disposition', `attachment; filename="${nome}.csv"`)
+    return c.body('\ufeff' + corpo + '\r\n')
+  }
+  const LIMITE_CSV = 10000
+
   // --- Eventos: lista com filtros (estado, pacote, busca por nome/e-mail do anfitrião) e contagens.
   app.get('/api/admin/eventos', exigirAdmin, async (c) => {
-    const { limite, pagina, deslocamento } = paginar(c)
+    const exportar = c.req.query('formato') === 'csv'
+    const { limite, pagina, deslocamento } = exportar ? { limite: LIMITE_CSV, pagina: 1, deslocamento: 0 } : paginar(c)
     const estado = c.req.query('estado')
     const pacote = c.req.query('pacote')
     const busca = (c.req.query('busca') ?? '').trim().slice(0, 100)
@@ -141,12 +156,15 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
         order by e.criado_em desc, e.id desc limit $4 offset $5`,
       [estado || null, pacote || null, busca.replace(/[\\%_]/g, '\\$&'), limite, deslocamento],
     )
-    return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, eventos: r.rows.map(({ total: _t, ...linha }) => linha) })
+    const eventos = r.rows.map(({ total: _t, ...linha }) => linha)
+    if (exportar) return csv(c, 'eventos', ['id', 'codigo', 'nome', 'anfitriao_email', 'estado', 'pacote', 'limite_convidados', 'convidados', 'fotos', 'criado_em'], eventos)
+    return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, eventos })
   })
 
   // --- Pagamentos: totais por status e lista paginada (mais recentes primeiro).
   app.get('/api/admin/pagamentos', exigirAdmin, async (c) => {
-    const { limite, pagina, deslocamento } = paginar(c)
+    const exportar = c.req.query('formato') === 'csv'
+    const { limite, pagina, deslocamento } = exportar ? { limite: LIMITE_CSV, pagina: 1, deslocamento: 0 } : paginar(c)
     const status = c.req.query('status')
     const [totais, lista] = await Promise.all([
       pool.query<{ status: string; n: string; soma: string }>('select status, count(*) as n, coalesce(sum(valor_centavos), 0) as soma from pagamentos group by status'),
@@ -158,6 +176,9 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
         [status || null, limite, deslocamento],
       ),
     ])
+    if (exportar) {
+      return csv(c, 'pagamentos', ['id', 'evento_id', 'evento_nome', 'pacote', 'valor_centavos', 'status', 'criado_em'], lista.rows)
+    }
     const por_status = Object.fromEntries(totais.rows.map((t) => [t.status, { pagamentos: Number(t.n), valor_centavos: Number(t.soma) }]))
     return c.json({
       pagina,
@@ -166,6 +187,77 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
       receita_centavos: por_status.aprovado?.valor_centavos ?? 0,
       por_status,
       pagamentos: lista.rows.map(({ total: _t, ...linha }) => linha),
+    })
+  })
+
+  // --- Crescimento: série diária dos últimos N dias (eventos, convidados, fotos), com os dias sem nada zerados.
+  app.get('/api/admin/crescimento', exigirAdmin, async (c) => {
+    const dias = Math.min(365, Math.max(1, Number(c.req.query('dias') ?? 30) || 30))
+    const r = await pool.query<{ dia: string; eventos: number; convidados: number; fotos: number }>(
+      `with dias as (select generate_series(($1::timestamptz at time zone 'America/Sao_Paulo')::date - ($2::int - 1), ($1::timestamptz at time zone 'America/Sao_Paulo')::date, interval '1 day')::date as dia)
+       select to_char(d.dia, 'YYYY-MM-DD') as dia,
+              (select count(*) from eventos e where (e.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as eventos,
+              (select count(*) from convidados v where (v.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as convidados,
+              (select count(*) from fotos f where (f.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as fotos
+         from dias d order by d.dia`,
+      [agora(), dias],
+    )
+    const soma = (k: 'eventos' | 'convidados' | 'fotos') => r.rows.reduce((a, l) => a + l[k], 0)
+    return c.json({ dias, totais: { eventos: soma('eventos'), convidados: soma('convidados'), fotos: soma('fotos') }, serie: r.rows })
+  })
+
+  // --- Moderação: pedidos de remoção pendentes (mais antigos primeiro) e o que já foi resolvido.
+  app.get('/api/admin/moderacao', exigirAdmin, async (c) => {
+    const [pendentes, resolvidos] = await Promise.all([
+      pool.query(
+        `select p.id::text, p.evento_id::text, e.nome as evento_nome, e.anfitriao_email, p.foto_id::text, p.motivo, p.criado_em
+           from pedidos_remocao p join eventos e on e.id = p.evento_id
+          where p.resolvido_em is null order by p.criado_em asc limit 100`,
+      ),
+      pool.query<{ resolucao: string; n: string }>('select resolucao, count(*) as n from pedidos_remocao where resolvido_em is not null group by resolucao'),
+    ])
+    const por = Object.fromEntries(resolvidos.rows.map((l) => [l.resolucao, Number(l.n)]))
+    return c.json({ pendentes: pendentes.rows, resolvidos: { removida: por.removida ?? 0, mantida: por.mantida ?? 0 } })
+  })
+
+  // --- Anfitriões: um por e-mail, com eventos, fotos e quanto já pagou.
+  app.get('/api/admin/anfitrioes', exigirAdmin, async (c) => {
+    const { limite, pagina, deslocamento } = paginar(c)
+    const busca = (c.req.query('busca') ?? '').trim().slice(0, 100)
+    const r = await pool.query(
+      `select e.anfitriao_email,
+              count(*)::int as eventos,
+              coalesce(sum((select count(*) from fotos f where f.evento_id = e.id and f.removida_em is null)), 0)::int as fotos,
+              coalesce(sum((select coalesce(sum(p.valor_centavos), 0) from pagamentos p where p.evento_id = e.id and p.status = 'aprovado')), 0)::int as pago_centavos,
+              min(e.criado_em) as primeiro_evento_em, max(e.criado_em) as ultimo_evento_em,
+              count(*) over () as total
+         from eventos e
+        where e.excluido_em is null and ($1 = '' or e.anfitriao_email ilike '%' || $1 || '%')
+        group by e.anfitriao_email order by max(e.criado_em) desc, e.anfitriao_email limit $2 offset $3`,
+      [busca.replace(/[\\%_]/g, '\\$&'), limite, deslocamento],
+    )
+    return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, anfitrioes: r.rows.map(({ total: _t, ...linha }) => linha) })
+  })
+
+  // --- Saúde: banco, fila de limpeza de arquivos, pagamentos e webhook.
+  app.get('/api/admin/saude', exigirAdmin, async (c) => {
+    const inicio = Date.now()
+    const r = await pool.query<{ limpeza: string; limpeza_antiga: string; orfaos: string; ultimo_webhook: Date | null; pendentes_antigos: string }>(
+      `select (select count(*) from fotos where removida_em is not null and arquivo_apagado_em is null) as limpeza,
+              (select count(*) from fotos where removida_em < $1::timestamptz - interval '2 days' and arquivo_apagado_em is null) as limpeza_antiga,
+              (select count(*) from pagamentos where status = 'aprovado_orfao') as orfaos,
+              (select max(recebido_em) from stripe_eventos) as ultimo_webhook,
+              (select count(*) from pedidos_remocao where resolvido_em is null and criado_em < $1::timestamptz - interval '2 days') as pendentes_antigos`,
+      [agora()],
+    )
+    const l = r.rows[0]
+    return c.json({
+      banco: { ok: true, latencia_ms: Date.now() - inicio },
+      fotos_aguardando_limpeza: Number(l.limpeza),
+      fotos_aguardando_limpeza_ha_mais_de_2_dias: Number(l.limpeza_antiga),
+      pagamentos_aprovados_sem_evento: Number(l.orfaos),
+      ultimo_webhook_do_stripe_em: l.ultimo_webhook,
+      pedidos_de_remocao_pendentes_ha_mais_de_2_dias: Number(l.pendentes_antigos),
     })
   })
 

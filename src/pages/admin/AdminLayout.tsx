@@ -13,10 +13,14 @@ type Estado = { tipo: 'carregando' } | { tipo: 'entrar' } | { tipo: 'erro'; mens
 
 const ABAS = [
   { para: '/admin', rotulo: 'Resumo', fim: true },
+  { para: '/admin/crescimento', rotulo: 'Crescimento' },
   { para: '/admin/eventos', rotulo: 'Eventos' },
+  { para: '/admin/anfitrioes', rotulo: 'Anfitriões' },
   { para: '/admin/pagamentos', rotulo: 'Pagamentos' },
+  { para: '/admin/moderacao', rotulo: 'Moderação' },
   { para: '/admin/pacotes', rotulo: 'Pacotes' },
   { para: '/admin/configuracoes', rotulo: 'Configurações' },
+  { para: '/admin/saude', rotulo: 'Saúde' },
   { para: '/admin/auditoria', rotulo: 'Auditoria' },
   { para: '/admin/administradores', rotulo: 'Administradores' },
 ]
