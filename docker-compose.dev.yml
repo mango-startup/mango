@@ -25,6 +25,11 @@ services:
       STORAGE_DIR: /dados/fotos
       # Área de admin local: usuários raziel e lucas com esta senha inicial (a troca é obrigatória no primeiro login).
       ADMIN_SENHA_INICIAL: mango-dev-2026
+      # Pagamento (opcional, só para testar o Stripe em modo teste). Exporte no seu terminal antes de subir; nunca grave a chave aqui:
+      #   STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_... APP_URL=http://localhost:5173 docker compose -f docker-compose.dev.yml up
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      APP_URL: ${APP_URL:-}
     ports:
       - "3000:3000"
     volumes:

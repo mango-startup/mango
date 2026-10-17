@@ -26,6 +26,10 @@
       "name": "Convidado"
     },
     {
+      "name": "Pagamento",
+      "description": "Cobrança dos pacotes pagos com o Stripe Checkout. O evento só fica `pronto` pelo webhook assinado, depois de o servidor reconsultar a sessão no Stripe."
+    },
+    {
       "name": "Álbum"
     },
     {
@@ -2739,6 +2743,172 @@
           }
         ]
       }
+    },
+    "/api/anfitriao/evento/pagamento": {
+      "post": {
+        "tags": [
+          "Pagamento"
+        ],
+        "summary": "Abrir a cobrança do evento",
+        "description": "Cria uma sessão do Stripe Checkout em reais com o preço do pacote lido do banco (nunca do cliente) e devolve a página de pagamento. Repetir enquanto a sessão estiver aberta devolve a mesma `url`. Depois de pagar, o Stripe avisa o webhook e o evento vira `pronto`: voltar do pagamento não libera nada.",
+        "responses": {
+          "200": {
+            "description": "Sessão aberta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagamentoIniciado"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Não há o que cobrar. Códigos: `sem_cobranca_pendente` (o evento não está aguardando pagamento), `pacote_gratis`, `pagamento_em_andamento` (Pix gerado, esperando o banco).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Pagamento desligado ou Stripe fora do ar. Códigos: `pagamento_indisponivel`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Pagamento"
+        ],
+        "summary": "Situação do pagamento",
+        "description": "Pagamento mais recente do evento. A tela de pagamento consulta enquanto espera o webhook.",
+        "responses": {
+          "200": {
+            "description": "Situação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPagamento"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token do anfitrião ausente ou inválido. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "anfitriao": []
+          }
+        ]
+      }
+    },
+    "/api/stripe/webhook": {
+      "post": {
+        "tags": [
+          "Pagamento"
+        ],
+        "summary": "Webhook do Stripe",
+        "description": "Quem chama é o Stripe, não o front. A assinatura do header `Stripe-Signature` é conferida sobre o corpo bruto; sem ela nada é lido nem alterado. Eventos tratados: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` e `charge.refunded`. O id do evento é gravado: a mesma entrega nunca é aplicada duas vezes. Antes de liberar o evento, o servidor reconsulta a sessão e confere valor, moeda e evento. Erro 500 faz o Stripe repetir a entrega por até três dias.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Objeto Event do Stripe."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recebido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "recebido": {
+                      "type": "boolean"
+                    },
+                    "resultado": {
+                      "type": "string",
+                      "enum": [
+                        "processado",
+                        "duplicado",
+                        "ignorado"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Assinatura inválida ou corpo grande demais. Códigos: `assinatura_invalida`, `corpo_grande`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Falha ao processar; o Stripe vai repetir. Códigos: `falha_ao_processar`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Pagamento não configurado no servidor. Códigos: `pagamento_indisponivel`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {
@@ -3729,6 +3899,60 @@
               "null"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "StatusPagamento": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendente",
+              "aprovado",
+              "recusado",
+              null
+            ],
+            "description": "`null` = ainda não houve cobrança. `recusado` inclui sessão expirada ou pagamento que falhou: dá para tentar de novo."
+          },
+          "valor_centavos": {
+            "type": "integer",
+            "description": "Valor cobrado, em centavos de real."
+          },
+          "estornado": {
+            "type": "boolean",
+            "description": "A cobrança foi devolvida por inteiro. Se não havia fotos, o evento também foi cancelado."
+          }
+        }
+      },
+      "PagamentoIniciado": {
+        "type": "object",
+        "required": [
+          "status",
+          "url",
+          "reaproveitada"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pendente"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Página de pagamento hospedada pelo Stripe. Redirecionar o navegador para ela."
+          },
+          "reaproveitada": {
+            "type": "boolean",
+            "description": "Já havia uma sessão aberta e ela foi devolvida, sem criar outra cobrança."
           }
         }
       }

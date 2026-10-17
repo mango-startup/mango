@@ -127,6 +127,20 @@ Cada pedido novo também sai numa linha de log JSON (`{"aviso":"pedido_remocao",
 
 **Limpeza (`src/limpeza.ts`, roda a cada minuto junto com o agendador):** apaga os arquivos de foto removida há 30 dias ou mais, de evento expirado e de evento excluído há 30 dias ou mais; guarda a linha com `arquivo_apagado_em` (metadados mínimos). Idempotente; se o armazenamento falhar, a foto fica sem marca e entra de novo na próxima rodada.
 
+## Pagamento com Stripe (#37)
+
+Guia completo, com o passo a passo para testar e ir para produção: [`docs/PAGAMENTO-STRIPE.md`](../docs/PAGAMENTO-STRIPE.md). Contrato das rotas: `openapi.json`.
+
+| Rota | Quem | O que faz |
+|---|---|---|
+| `POST /api/anfitriao/evento/pagamento` | anfitrião | abre a cobrança do pacote e devolve a página de pagamento do Stripe (`url`). Repetir reaproveita a sessão aberta |
+| `GET /api/anfitriao/evento/pagamento` | anfitrião | situação do pagamento mais recente: `pendente`, `aprovado`, `recusado` ou `null` |
+| `POST /api/stripe/webhook` | Stripe | única porta de saída de "aguardando pagamento": assinatura conferida sobre o corpo bruto, id do evento gravado (uma entrega nunca vale duas vezes) e **reconsulta da sessão** (valor, moeda e evento) antes de liberar |
+
+O preço sai do banco (tabela `pacotes`), nunca do cliente. Voltar da página do Stripe não libera nada. Eventos tratados: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` e `charge.refunded` (estorno total antes da primeira foto cancela o evento). Pagamento de evento já apagado vira `aprovado_orfao` e uma linha de log `pagamento_sem_evento`, para estorno manual. Tabelas: `pagamentos` e `stripe_eventos` (migração 005). Sem `STRIPE_SECRET_KEY`, as rotas respondem `503 pagamento_indisponivel`.
+
+`npm run smoke:stripe` (com `STRIPE_SECRET_KEY=sk_test_...`) confere a conta de teste: abre e expira uma sessão e mostra se o Pix está ligado. Recusa chaves de produção.
+
 ## Variáveis
 
-`DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`), `RATE_LIMIT=off` (desliga os limites), `ADMIN_USUARIOS` e `ADMIN_SENHA_INICIAL` (admins iniciais). Nenhum segredo no repo.
+`DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`), `RATE_LIMIT=off` (desliga os limites), `ADMIN_USUARIOS` e `ADMIN_SENHA_INICIAL` (admins iniciais). Pagamento: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e `APP_URL` (as três juntas; sem a chave o pagamento fica desligado). Nenhum segredo no repo.
