@@ -408,6 +408,35 @@ test('resumo, administradores e redefinição de senha entre admins', opcoes, as
   assert.ok(Array.isArray(pagamentos.json.pagamentos))
   assert.equal((await chamar('GET', '/api/admin/pagamentos')).status, 401)
 
+  const csvEventos = await app!.request('/api/admin/eventos?formato=csv', { headers: { cookie: raziel } })
+  assert.equal(csvEventos.status, 200)
+  assert.match(csvEventos.headers.get('content-type') ?? '', /^text\/csv/)
+  assert.match((await csvEventos.text()).replace('\ufeff', ''), /^id,codigo,nome,anfitriao_email,estado,pacote,/)
+  assert.equal((await app!.request('/api/admin/pagamentos?formato=csv', { headers: { cookie: raziel } })).status, 200)
+
+  const crescimento = await chamar('GET', '/api/admin/crescimento?dias=7', { cookie: raziel })
+  assert.equal(crescimento.status, 200)
+  assert.equal(crescimento.json.serie.length, 7)
+  assert.equal(typeof crescimento.json.totais.fotos, 'number')
+  assert.equal((await chamar('GET', '/api/admin/crescimento')).status, 401)
+
+  const moderacao = await chamar('GET', '/api/admin/moderacao', { cookie: raziel })
+  assert.equal(moderacao.status, 200)
+  assert.ok(Array.isArray(moderacao.json.pendentes))
+  assert.equal(typeof moderacao.json.resolvidos.removida, 'number')
+
+  const anfitrioes = await chamar('GET', '/api/admin/anfitrioes', { cookie: raziel })
+  assert.equal(anfitrioes.status, 200)
+  assert.ok(anfitrioes.json.total >= 1)
+  assert.equal(typeof anfitrioes.json.anfitrioes[0].pago_centavos, 'number')
+  assert.equal((await chamar('GET', '/api/admin/anfitrioes?busca=%25%25nada', { cookie: raziel })).json.total, 0)
+
+  const saude = await chamar('GET', '/api/admin/saude', { cookie: raziel })
+  assert.equal(saude.status, 200)
+  assert.equal(saude.json.banco.ok, true)
+  assert.equal(typeof saude.json.fotos_aguardando_limpeza, 'number')
+  assert.equal((await chamar('GET', '/api/admin/saude')).status, 401)
+
   const lista = await chamar('GET', '/api/admin/administradores', { cookie: raziel })
   assert.deepEqual(lista.json.administradores.map((a: { usuario: string }) => a.usuario), ['lucas', 'raziel'])
   assert.ok(lista.json.administradores.every((a: { senha_hash?: string }) => a.senha_hash === undefined)) // nunca sai o hash

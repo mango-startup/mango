@@ -3,13 +3,17 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { carregarConfig } from './lib/configPublica'
 import { RequireHost } from './components/RequireHost'
 import { Administradores } from './pages/admin/Administradores'
+import { Anfitrioes } from './pages/admin/Anfitrioes'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { Auditoria } from './pages/admin/Auditoria'
 import { Configuracoes } from './pages/admin/Configuracoes'
+import { Crescimento } from './pages/admin/Crescimento'
 import { Eventos } from './pages/admin/Eventos'
+import { Moderacao as ModeracaoAdmin } from './pages/admin/Moderacao'
 import { Pacotes } from './pages/admin/Pacotes'
 import { Pagamentos } from './pages/admin/Pagamentos'
 import { Resumo } from './pages/admin/Resumo'
+import { Saude } from './pages/admin/Saude'
 import { TrocarSenha } from './pages/admin/TrocarSenha'
 import { CreateEventPage } from './pages/CreateEvent'
 import { EventDashboardPage } from './pages/EventDashboard'
@@ -55,6 +59,10 @@ export default function App() {
         {/* Admin dos donos do Mango: fora da navegação do site e dos buscadores */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Resumo />} />
+          <Route path="crescimento" element={<Crescimento />} />
+          <Route path="anfitrioes" element={<Anfitrioes />} />
+          <Route path="moderacao" element={<ModeracaoAdmin />} />
+          <Route path="saude" element={<Saude />} />
           <Route path="eventos" element={<Eventos />} />
           <Route path="pagamentos" element={<Pagamentos />} />
           <Route path="pacotes" element={<Pacotes />} />

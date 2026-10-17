@@ -127,6 +127,52 @@ export interface PaginaPagamentos {
   pagamentos: PagamentoAdmin[]
 }
 
+export interface Crescimento {
+  dias: number
+  totais: { eventos: number; convidados: number; fotos: number }
+  serie: { dia: string; eventos: number; convidados: number; fotos: number }[]
+}
+
+export interface PedidoRemocaoAdmin {
+  id: string
+  evento_id: string
+  evento_nome: string
+  anfitriao_email: string
+  foto_id: string
+  motivo: string | null
+  criado_em: string
+}
+
+export interface ModeracaoAdmin {
+  pendentes: PedidoRemocaoAdmin[]
+  resolvidos: { removida: number; mantida: number }
+}
+
+export interface AnfitriaoAdmin {
+  anfitriao_email: string
+  eventos: number
+  fotos: number
+  pago_centavos: number
+  primeiro_evento_em: string
+  ultimo_evento_em: string
+}
+
+export interface PaginaAnfitrioes {
+  pagina: number
+  limite: number
+  total: number
+  anfitrioes: AnfitriaoAdmin[]
+}
+
+export interface SaudeAdmin {
+  banco: { ok: boolean; latencia_ms: number }
+  fotos_aguardando_limpeza: number
+  fotos_aguardando_limpeza_ha_mais_de_2_dias: number
+  pagamentos_aprovados_sem_evento: number
+  ultimo_webhook_do_stripe_em: string | null
+  pedidos_de_remocao_pendentes_ha_mais_de_2_dias: number
+}
+
 async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH', caminho: string, corpo?: unknown): Promise<T> {
   const cabecalhos: Record<string, string> = {}
   if (metodo !== 'GET') cabecalhos['X-Mango-Admin'] = '1'
@@ -165,9 +211,20 @@ export const admin = {
     for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)
     return chamar<PaginaEventos>('GET', `/api/admin/eventos?${q}`)
   },
+  crescimento: (dias: number) => chamar<Crescimento>('GET', `/api/admin/crescimento?dias=${dias}`),
+  moderacao: () => chamar<ModeracaoAdmin>('GET', '/api/admin/moderacao'),
+  anfitrioes: (busca = '', pagina = 1) => chamar<PaginaAnfitrioes>('GET', `/api/admin/anfitrioes?pagina=${pagina}${busca ? `&busca=${encodeURIComponent(busca)}` : ''}`),
+  saude: () => chamar<SaudeAdmin>('GET', '/api/admin/saude'),
   pagamentos: (status = '', pagina = 1) => chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?pagina=${pagina}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
   administradores: () => chamar<{ administradores: Administrador[] }>('GET', '/api/admin/administradores').then((r) => r.administradores),
   redefinirSenha: (id: string) => chamar<{ usuario: string; senha_temporaria: string }>('POST', `/api/admin/administradores/${id}/redefinir-senha`),
+}
+
+/** Endereço da planilha (o navegador manda o cookie de sessão sozinho). */
+export function urlCsv(recurso: 'eventos' | 'pagamentos', filtro: Record<string, string | undefined> = {}): string {
+  const q = new URLSearchParams({ formato: 'csv' })
+  for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)
+  return `/api/admin/${recurso}?${q}`
 }
 
 /** "49,90" ou "49.90" → 4990. Vazio ou inválido → null. */
