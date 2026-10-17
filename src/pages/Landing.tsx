@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MangoLogo } from '../components/MangoLogo'
+import { useTitulo } from '../lib/useTitulo'
 
 // Fotos de exemplo do Pexels, só para a landing do protótipo
 const STRIP_PHOTOS = [6224713, 6174129, 3171742]
@@ -14,14 +15,15 @@ const STEPS = [
 ]
 
 // Regras do MVP (plano, seção 3); se mudarem, atualizar aqui.
-const PERGUNTAS = [
+const PERGUNTAS: { pergunta: string; resposta: string; link?: { to: string; texto: string } }[] = [
   {
     pergunta: 'Precisa instalar algum app?',
     resposta: 'Não. O convidado abre o link ou lê o QR na mesa e já fotografa pelo navegador do celular.',
   },
   {
     pergunta: 'Quantas fotos cada convidado tira?',
-    resposta: 'Você escolhe ao criar a câmera: 12, 24 ou 36 poses, como um rolo de verdade. Não dá para apagar e tirar de novo.',
+    resposta: 'Você escolhe ao criar a câmera: 12, 24 ou 36 poses, como um rolo de verdade. No teste grátis são 12. Não dá para apagar e tirar de novo.',
+    link: { to: '/precos', texto: 'Ver os pacotes' },
   },
   {
     pergunta: 'Quando as fotos aparecem?',
@@ -34,6 +36,26 @@ const PERGUNTAS = [
   {
     pergunta: 'Quem consegue ver o álbum?',
     resposta: 'Quem tem o link do evento. Você pode deixar o álbum visível só para você ou trocar o link se ele circular demais.',
+  },
+  {
+    pergunta: 'E se eu perder o link de anfitrião?',
+    resposta: 'Ele fica salvo no aparelho em que você criou o evento: abra Meus eventos por lá e copie o link no painel. Sem esse link, não dá para administrar o evento em outro aparelho.',
+    link: { to: '/ajuda', texto: 'Ver a ajuda' },
+  },
+  {
+    pergunta: 'E se o link do álbum vazar?',
+    resposta: 'No painel do evento, use "Trocar o link dos convidados". O link antigo para de funcionar e você manda o novo para quem deve receber.',
+    link: { to: '/privacidade', texto: 'Ler sobre privacidade' },
+  },
+  {
+    pergunta: 'Dá para remover uma foto do álbum?',
+    resposta: 'Sim. O anfitrião apaga qualquer foto em Moderar fotos, no painel do evento, e quem aparece numa foto pode tocar em "Pedir remoção".',
+    link: { to: '/privacidade', texto: 'Ler sobre privacidade' },
+  },
+  {
+    pergunta: 'E as fotos de crianças e a localização?',
+    resposta: 'As fotos saem sem localização (GPS) nem outros dados da câmera. Festas costumam ter crianças: o anfitrião é responsável por quem recebe o link, e pais e responsáveis podem pedir a remoção.',
+    link: { to: '/privacidade', texto: 'Ler sobre privacidade' },
   },
 ]
 
@@ -76,6 +98,7 @@ function Reveal({
 }
 
 export function LandingPage() {
+  useTitulo()
   return (
     <div className="min-h-svh bg-base text-paper">
       <div className="mx-auto max-w-[520px] lg:max-w-[1360px] lg:px-10">
@@ -104,8 +127,8 @@ export function LandingPage() {
             Ninguém vê.
           </h1>
           <p style={{ '--d': '280ms' } as React.CSSProperties} className="anim-up mt-5 max-w-[350px] px-6 text-[17px] leading-normal opacity-90 lg:mt-10 lg:max-w-[520px] lg:px-14 lg:text-[22px]">
-            Uma câmera descartável para a sua festa. Cada convidado leva um rolo. As fotos só
-            aparecem quando você revelar.
+            Uma câmera descartável para a sua festa. Cada convidado leva um rolo, com 12, 24 ou 36
+            poses. As fotos só aparecem quando você revelar.
           </p>
           <div style={{ '--d': '440ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
             <Link
@@ -114,7 +137,7 @@ export function LandingPage() {
             >
               Criar uma câmera
             </Link>
-            <p className="mt-3 text-sm opacity-75">Sem app. Só um link.</p>
+            <p className="mt-3 text-sm font-medium opacity-90 lg:text-base">Sem app. Só um link.</p>
           </div>
         </section>
 
@@ -129,11 +152,11 @@ export function LandingPage() {
               className="border-t border-line first:border-t-0 lg:border-l lg:border-t-0 lg:first:border-l-0"
             >
             <div
-              className="grid grid-cols-[40px_1fr] gap-x-1 py-5 lg:px-10 lg:py-4"
+              className="grid grid-cols-[40px_1fr] gap-x-1 py-5 lg:grid-cols-[56px_1fr] lg:px-8 lg:py-4"
             >
-              <span className="pt-0.5 font-display text-[22px] text-paper">0{i + 1}</span>
-              <h2 className="font-display text-[26px] leading-tight lg:text-[40px]">{step.title}</h2>
-              <p className="col-start-2 mt-1.5 text-[15px] leading-normal text-muted lg:text-[18px]">{step.text}</p>
+              <span className="pt-0.5 font-display text-[26px] text-paper lg:text-[32px]">0{i + 1}</span>
+              <h2 className="font-display text-[26px] leading-tight lg:text-[36px]">{step.title}</h2>
+              <p className="col-start-2 mt-1.5 text-[16px] leading-normal text-paper/80 lg:text-[18px]">{step.text}</p>
             </div>
             </Reveal>
           ))}
@@ -144,11 +167,22 @@ export function LandingPage() {
           <div className="mt-6 border-t border-line">
             {PERGUNTAS.map((item) => (
               <details key={item.pergunta} className="group border-b border-line">
-                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
+                <summary className="flex min-h-14 rounded-sm focus-visible:outline-offset-[-2px] cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
                   {item.pergunta}
                   <span aria-hidden="true" className="text-muted transition-transform duration-200 group-open:rotate-45">+</span>
                 </summary>
-                <p className="pb-5 text-[15px] leading-normal text-muted">{item.resposta}</p>
+                <p className="pb-5 text-[15px] leading-normal text-muted">
+                  {item.resposta}
+                  {item.link && (
+                    <>
+                      {' '}
+                      <Link to={item.link.to} className="font-semibold text-paper underline underline-offset-4">
+                        {item.link.texto}
+                      </Link>
+                      .
+                    </>
+                  )}
+                </p>
               </details>
             ))}
           </div>
@@ -171,7 +205,7 @@ export function LandingPage() {
           </Reveal>
         </section>
 
-        <footer className="flex items-center justify-between px-6 pb-7 pt-14 text-sm text-muted lg:px-0 lg:pb-10 lg:pt-40">
+        <footer className="flex items-center justify-between px-6 pb-7 pt-14 text-sm text-muted lg:px-0 lg:pb-10 lg:pt-24">
           <span className="flex items-center gap-2 font-display text-lg text-paper">
             <MangoLogo className="h-[18px] w-3.5" />
             mango

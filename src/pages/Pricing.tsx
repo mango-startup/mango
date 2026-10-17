@@ -5,6 +5,7 @@ import { MangoLogo } from '../components/MangoLogo'
 import { api, type DefinicaoPacote } from '../lib/api'
 import { useConfigPublica } from '../lib/configPublica'
 import { precoEmReais } from '../lib/formato'
+import { useTitulo } from '../lib/useTitulo'
 
 function retencao(dias: number): string {
   return dias >= 365 ? `${Math.round(dias / 30)} meses` : `${dias} dias`
@@ -16,6 +17,7 @@ function poses(opcoes: number[]): string {
 
 // /precos — escolha pelo tamanho da festa. Os valores vêm da api, não ficam presos no componente.
 export function PricingPage() {
+  useTitulo('Preços')
   const pagamentoDisponivel = useConfigPublica().pacotes_pagos_disponiveis
   const [pacotes, setPacotes] = useState<DefinicaoPacote[] | null>(null)
   const [falhou, setFalhou] = useState(false)
@@ -38,9 +40,14 @@ export function PricingPage() {
           <MangoLogo className="h-[21px] w-4" />
           <span className="pb-0.5">mango</span>
         </Link>
-        <Link to="/eventos" className="flex min-h-11 items-center text-sm font-semibold text-muted transition hover:text-paper">
-          Meus eventos
-        </Link>
+        <nav className="flex items-center gap-5 text-sm font-semibold text-muted">
+          <Link to="/" className="flex min-h-11 items-center transition hover:text-paper">
+            Início
+          </Link>
+          <Link to="/eventos" className="flex min-h-11 items-center transition hover:text-paper">
+            Meus eventos
+          </Link>
+        </nav>
       </header>
 
       <main className="mx-auto mt-8 max-w-[1040px]">

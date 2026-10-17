@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { MangoLogo } from '../components/MangoLogo'
 import { useConfigPublica } from '../lib/configPublica'
+import { useTitulo } from '../lib/useTitulo'
 
 // Textos provisórios: seguem as regras do plano do MVP e precisam de revisão jurídica antes do lançamento.
 
@@ -11,6 +12,7 @@ interface Secao {
 }
 
 function DocumentoLegal({ titulo, resumo, secoes, rascunho = true }: { titulo: string; resumo: string; secoes: Secao[]; rascunho?: boolean }) {
+  useTitulo(titulo)
   return (
     <div className="min-h-dvh bg-base px-5 pb-14 pt-[env(safe-area-inset-top)] text-paper">
       <header className="mx-auto flex min-h-16 max-w-[680px] items-center">

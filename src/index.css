@@ -1,5 +1,18 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'DM Serif Display';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/dm-serif-display-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans.woff2') format('woff2');
+}
+
 @theme {
   --font-display: 'DM Serif Display', ui-serif, Georgia, serif;
   --font-sans: 'Plus Jakarta Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -72,8 +85,7 @@ body {
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(24px);
-    filter: blur(6px);
+    transform: translateY(16px);
   }
 }
 
@@ -92,7 +104,7 @@ body {
 }
 
 .anim-up {
-  animation: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--d, 0ms);
 }
 
@@ -107,7 +119,7 @@ body {
   width: 40%;
   background: linear-gradient(90deg, transparent, rgb(244 242 236 / 0.28), transparent);
   transform: skewX(-20deg);
-  animation: shimmer 3.2s ease-in-out infinite;
+  animation: shimmer 3.2s ease-in-out 1.2s 2;
 }
 .btn-shimmer-dark::after {
   background: linear-gradient(90deg, transparent, rgb(21 21 19 / 0.14), transparent);
@@ -126,24 +138,20 @@ body {
 /* Revelação ao rolar */
 .reveal {
   opacity: 0;
-  transform: translateY(32px);
-  filter: blur(6px);
+  transform: translateY(20px);
   transition:
-    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms),
-    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms),
-    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms);
+    opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms),
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms);
 }
 .reveal.in {
   opacity: 1;
   transform: none;
-  filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1;
     transform: none;
-    filter: none;
   }
   *,
   *::before,
