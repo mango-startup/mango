@@ -166,8 +166,16 @@ export interface ResultadoPedido {
   repetido: boolean
 }
 
-/** Só na simulada: o pagamento (AbacatePay) entra por último. */
+/** Situação do pagamento do evento. `recusado` inclui a sessão expirada: dá para tentar de novo. */
 export type StatusPagamento = 'pendente' | 'aprovado' | 'recusado'
+
+export interface PagamentoIniciado {
+  status: StatusPagamento
+  /** Página de pagamento do Stripe: redirecionar o navegador para ela. Na simulada não existe (`null`). */
+  url: string | null
+  /** Já havia uma sessão aberta e ela foi devolvida, sem criar outra cobrança. */
+  reaproveitada?: boolean
+}
 
 /** Erro no formato do servidor: `{ erro: "codigo", mensagem: "..." }`. */
 export class ErroApi extends Error {
@@ -216,8 +224,10 @@ export interface MangoApi {
   pedidosDeRemocao(eventoId: string): Promise<PedidoRemocao[]>
   /** O anfitrião decide manter a foto: o pedido sai da fila. */
   manterFoto(eventoId: string, pedidoId: string): Promise<void>
-  // Só na simulada (pagamento com AbacatePay, #37):
-  iniciarPagamento(eventoId: string): Promise<StatusPagamento>
+  // Pagamento com Stripe (#37). Quem libera o evento é o webhook do Stripe, nunca o retorno do navegador:
+  // depois de pagar, a tela só consulta `statusPagamento` e o estado do evento até ele sair de aguardando_pagamento.
+  iniciarPagamento(eventoId: string): Promise<PagamentoIniciado>
+  /** `null` = ainda não houve cobrança. */
   statusPagamento(eventoId: string): Promise<StatusPagamento | null>
 
   // Convidado. O token do aparelho também fica guardado pela api.

@@ -11,8 +11,10 @@ import {
   type MangoApi,
   type PainelEvento,
   type PaginaAlbum,
+  type PagamentoIniciado,
   type PedidoRemocao,
   type OpcoesAlbum,
+  type StatusPagamento,
 } from './tipos.ts'
 
 export interface OpcoesReal {
@@ -225,12 +227,12 @@ export function criarApiReal({ sessao, base = '', origem = globalThis.location?.
       await chamar<void>(`/api/anfitriao/pedidos-remocao/${pedidoId}/manter`, { metodo: 'POST', anfitriao: tokenDe(eventoId) })
     },
 
-    // O pagamento ainda não existe no servidor (#37, AbacatePay).
-    async iniciarPagamento() {
-      throw new ErroApi(501, 'pagamento_indisponivel', 'O pagamento ainda não está disponível. Crie um evento de teste grátis por enquanto.')
+    // Pagamento com Stripe (#37): o servidor abre a sessão do Checkout e devolve a página de pagamento.
+    async iniciarPagamento(eventoId) {
+      return chamar<PagamentoIniciado>('/api/anfitriao/evento/pagamento', { metodo: 'POST', anfitriao: tokenDe(eventoId) })
     },
-    async statusPagamento() {
-      return null
+    async statusPagamento(eventoId) {
+      return (await chamar<{ status: StatusPagamento | null }>('/api/anfitriao/evento/pagamento', { anfitriao: tokenDe(eventoId) })).status
     },
 
     async eventoPublico(c) {

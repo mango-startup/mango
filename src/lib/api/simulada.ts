@@ -446,7 +446,8 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
       }
       banco.pagamentos[e.id] = 'pendente'
       await salvar(banco)
-      return 'pendente'
+      // Sem Stripe na simulada: não há página de pagamento. `mango.simularPagamento` faz o papel do webhook.
+      return { status: 'pendente', url: null }
     },
 
     async statusPagamento(eventoId) {
