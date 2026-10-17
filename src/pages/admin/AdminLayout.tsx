@@ -13,6 +13,8 @@ type Estado = { tipo: 'carregando' } | { tipo: 'entrar' } | { tipo: 'erro'; mens
 
 const ABAS = [
   { para: '/admin', rotulo: 'Resumo', fim: true },
+  { para: '/admin/eventos', rotulo: 'Eventos' },
+  { para: '/admin/pagamentos', rotulo: 'Pagamentos' },
   { para: '/admin/pacotes', rotulo: 'Pacotes' },
   { para: '/admin/configuracoes', rotulo: 'Configurações' },
   { para: '/admin/auditoria', rotulo: 'Auditoria' },

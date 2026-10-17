@@ -6,7 +6,9 @@ import { Administradores } from './pages/admin/Administradores'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { Auditoria } from './pages/admin/Auditoria'
 import { Configuracoes } from './pages/admin/Configuracoes'
+import { Eventos } from './pages/admin/Eventos'
 import { Pacotes } from './pages/admin/Pacotes'
+import { Pagamentos } from './pages/admin/Pagamentos'
 import { Resumo } from './pages/admin/Resumo'
 import { TrocarSenha } from './pages/admin/TrocarSenha'
 import { CreateEventPage } from './pages/CreateEvent'
@@ -53,6 +55,8 @@ export default function App() {
         {/* Admin dos donos do Mango: fora da navegação do site e dos buscadores */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Resumo />} />
+          <Route path="eventos" element={<Eventos />} />
+          <Route path="pagamentos" element={<Pagamentos />} />
           <Route path="pacotes" element={<Pacotes />} />
           <Route path="configuracoes" element={<Configuracoes />} />
           <Route path="auditoria" element={<Auditoria />} />

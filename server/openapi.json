@@ -2122,6 +2122,180 @@
         ]
       }
     },
+    "/api/admin/eventos": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Eventos",
+        "description": "Lista de eventos com filtros e contagens, mais recentes primeiro.",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "description": "Filtra pelo estado do evento.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pacote",
+            "in": "query",
+            "required": false,
+            "description": "Filtra pelo id do pacote.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "busca",
+            "in": "query",
+            "required": false,
+            "description": "Texto no nome do evento ou no e-mail do anfitrião.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "description": "Página, começando em 1.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "description": "Itens por página (1 a 100, padrão 25).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de resultados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventosAdmin"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/pagamentos": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Pagamentos",
+        "description": "Receita, totais por status e lista de pagamentos, mais recentes primeiro.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filtra pelo status do pagamento.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "description": "Página, começando em 1.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "description": "Itens por página (1 a 100, padrão 25).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de resultados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagamentosAdmin"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
     "/api/admin/pacotes": {
       "get": {
         "tags": [
@@ -3599,6 +3773,120 @@
               "trocar_senha": {
                 "type": "boolean",
                 "description": "`true` enquanto a senha for a inicial/temporária: só `eu`, `sair` e `trocar-senha` funcionam."
+              }
+            }
+          }
+        }
+      },
+      "EventosAdmin": {
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer"
+          },
+          "limite": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "eventos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "codigo": {
+                  "type": "string"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "anfitriao_email": {
+                  "type": "string"
+                },
+                "estado": {
+                  "type": "string"
+                },
+                "pacote": {
+                  "type": "string"
+                },
+                "limite_convidados": {
+                  "type": "integer"
+                },
+                "convidados": {
+                  "type": "integer"
+                },
+                "fotos": {
+                  "type": "integer"
+                },
+                "criado_em": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PagamentosAdmin": {
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer"
+          },
+          "limite": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "receita_centavos": {
+            "type": "integer"
+          },
+          "por_status": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "pagamentos": {
+                  "type": "integer"
+                },
+                "valor_centavos": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "pagamentos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "evento_id": {
+                  "type": "string"
+                },
+                "evento_nome": {
+                  "type": "string"
+                },
+                "pacote": {
+                  "type": "string"
+                },
+                "valor_centavos": {
+                  "type": "integer"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "criado_em": {
+                  "type": "string",
+                  "format": "date-time"
+                }
               }
             }
           }
