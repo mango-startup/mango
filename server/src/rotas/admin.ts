@@ -116,6 +116,59 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     })
   })
 
+  const paginar = (c: Context) => {
+    const limite = Math.min(100, Math.max(1, Number(c.req.query('limite') ?? 25) || 25))
+    const pagina = Math.max(1, Number(c.req.query('pagina') ?? 1) || 1)
+    return { limite, pagina, deslocamento: (pagina - 1) * limite }
+  }
+
+  // --- Eventos: lista com filtros (estado, pacote, busca por nome/e-mail do anfitrião) e contagens.
+  app.get('/api/admin/eventos', exigirAdmin, async (c) => {
+    const { limite, pagina, deslocamento } = paginar(c)
+    const estado = c.req.query('estado')
+    const pacote = c.req.query('pacote')
+    const busca = (c.req.query('busca') ?? '').trim().slice(0, 100)
+    const r = await pool.query(
+      `select e.id::text, e.codigo, e.nome, e.anfitriao_email, e.estado, e.pacote, e.limite_convidados, e.criado_em,
+              (select count(*) from convidados where evento_id = e.id)::int as convidados,
+              (select count(*) from fotos where evento_id = e.id and removida_em is null)::int as fotos,
+              count(*) over () as total
+         from eventos e
+        where e.excluido_em is null
+          and ($1::text is null or e.estado = $1)
+          and ($2::text is null or e.pacote = $2)
+          and ($3 = '' or e.nome ilike '%' || $3 || '%' or e.anfitriao_email ilike '%' || $3 || '%')
+        order by e.criado_em desc, e.id desc limit $4 offset $5`,
+      [estado || null, pacote || null, busca.replace(/[\\%_]/g, '\\$&'), limite, deslocamento],
+    )
+    return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, eventos: r.rows.map(({ total: _t, ...linha }) => linha) })
+  })
+
+  // --- Pagamentos: totais por status e lista paginada (mais recentes primeiro).
+  app.get('/api/admin/pagamentos', exigirAdmin, async (c) => {
+    const { limite, pagina, deslocamento } = paginar(c)
+    const status = c.req.query('status')
+    const [totais, lista] = await Promise.all([
+      pool.query<{ status: string; n: string; soma: string }>('select status, count(*) as n, coalesce(sum(valor_centavos), 0) as soma from pagamentos group by status'),
+      pool.query(
+        `select p.id::text, p.evento_id::text, e.nome as evento_nome, e.pacote, p.valor_centavos, p.status, p.criado_em, count(*) over () as total
+           from pagamentos p join eventos e on e.id = p.evento_id
+          where ($1::text is null or p.status = $1)
+          order by p.criado_em desc, p.id desc limit $2 offset $3`,
+        [status || null, limite, deslocamento],
+      ),
+    ])
+    const por_status = Object.fromEntries(totais.rows.map((t) => [t.status, { pagamentos: Number(t.n), valor_centavos: Number(t.soma) }]))
+    return c.json({
+      pagina,
+      limite,
+      total: lista.rows[0] ? Number(lista.rows[0].total) : 0,
+      receita_centavos: por_status.aprovado?.valor_centavos ?? 0,
+      por_status,
+      pagamentos: lista.rows.map(({ total: _t, ...linha }) => linha),
+    })
+  })
+
   // --- Pacotes
   const maiorPose = async () => Math.max(...(await servicos.config.valores()).poses_validas)
 

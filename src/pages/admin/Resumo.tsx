@@ -2,18 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, type Resumo as DadosResumo } from '../../lib/admin.ts'
-import {Aviso, Cartao, Titulo} from './ui'
-
-const ESTADOS: Record<string, string> = {
-  rascunho: 'Rascunho',
-  aguardando_pagamento: 'Aguardando pagamento',
-  pronto: 'Pronto',
-  captura_aberta: 'Câmera aberta',
-  captura_encerrada: 'Câmera encerrada',
-  revelado: 'Revelado',
-  expirado: 'Expirado',
-  cancelado: 'Cancelado',
-}
+import { Aviso, Cartao, Titulo } from './ui'
+import { ESTADOS_EVENTO } from './util'
 
 function Numero({ rotulo, valor, detalhe }: { rotulo: string; valor: string | number; detalhe?: string }) {
   return (
@@ -64,7 +54,7 @@ export function Resumo() {
                 <ul className="divide-y divide-line text-[15px]">
                   {Object.entries(dados.eventos_por_estado).map(([estado, n]) => (
                     <li key={estado} className="flex justify-between py-2">
-                      <span>{ESTADOS[estado] ?? estado}</span>
+                      <span>{ESTADOS_EVENTO[estado] ?? estado}</span>
                       <span className="tabular-nums text-muted">{n}</span>
                     </li>
                   ))}

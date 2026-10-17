@@ -394,6 +394,20 @@ test('resumo, administradores e redefinição de senha entre admins', opcoes, as
   assert.ok(Object.values(resumo.json.eventos_por_estado).length >= 1)
   for (const k of ['convidados', 'fotos', 'fotos_ultimas_24_horas', 'armazenamento_bytes', 'pedidos_de_remocao_pendentes']) assert.equal(typeof resumo.json[k], 'number')
 
+  const eventos = await chamar('GET', '/api/admin/eventos?limite=5', { cookie: raziel })
+  assert.equal(eventos.status, 200)
+  assert.ok(eventos.json.total >= 1 && eventos.json.eventos.length <= 5)
+  for (const k of ['convidados', 'fotos']) assert.equal(typeof eventos.json.eventos[0][k], 'number')
+  assert.equal((await chamar('GET', '/api/admin/eventos?busca=%25%25nao-existe-%25', { cookie: raziel })).json.total, 0) // % e _ não viram curinga
+  assert.equal((await chamar('GET', '/api/admin/eventos?estado=cancelado&pacote=inexistente', { cookie: raziel })).json.total, 0)
+  assert.equal((await chamar('GET', '/api/admin/eventos')).status, 401)
+
+  const pagamentos = await chamar('GET', '/api/admin/pagamentos', { cookie: raziel })
+  assert.equal(pagamentos.status, 200)
+  assert.equal(typeof pagamentos.json.receita_centavos, 'number')
+  assert.ok(Array.isArray(pagamentos.json.pagamentos))
+  assert.equal((await chamar('GET', '/api/admin/pagamentos')).status, 401)
+
   const lista = await chamar('GET', '/api/admin/administradores', { cookie: raziel })
   assert.deepEqual(lista.json.administradores.map((a: { usuario: string }) => a.usuario), ['lucas', 'raziel'])
   assert.ok(lista.json.administradores.every((a: { senha_hash?: string }) => a.senha_hash === undefined)) // nunca sai o hash

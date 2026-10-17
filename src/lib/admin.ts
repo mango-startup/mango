@@ -82,6 +82,51 @@ export interface Administrador {
   ultimo_login_em: string | null
 }
 
+export interface EventoAdmin {
+  id: string
+  codigo: string
+  nome: string
+  anfitriao_email: string
+  estado: string
+  pacote: string
+  limite_convidados: number
+  convidados: number
+  fotos: number
+  criado_em: string
+}
+
+export interface PaginaEventos {
+  pagina: number
+  limite: number
+  total: number
+  eventos: EventoAdmin[]
+}
+
+export interface FiltroEventos {
+  estado?: string
+  pacote?: string
+  busca?: string
+}
+
+export interface PagamentoAdmin {
+  id: string
+  evento_id: string
+  evento_nome: string
+  pacote: string
+  valor_centavos: number
+  status: string
+  criado_em: string
+}
+
+export interface PaginaPagamentos {
+  pagina: number
+  limite: number
+  total: number
+  receita_centavos: number
+  por_status: Record<string, { pagamentos: number; valor_centavos: number }>
+  pagamentos: PagamentoAdmin[]
+}
+
 async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH', caminho: string, corpo?: unknown): Promise<T> {
   const cabecalhos: Record<string, string> = {}
   if (metodo !== 'GET') cabecalhos['X-Mango-Admin'] = '1'
@@ -115,6 +160,12 @@ export const admin = {
   /** `null` volta a chave ao padrão. Tudo ou nada. */
   salvarConfiguracoes: (mudancas: Record<string, ValorConfig | null>) => chamar<{ ok: boolean }>('PATCH', '/api/admin/configuracoes', mudancas),
   auditoria: (pagina = 1, limite = 50) => chamar<PaginaAuditoria>('GET', `/api/admin/auditoria?pagina=${pagina}&limite=${limite}`),
+  eventos: (filtro: FiltroEventos = {}, pagina = 1) => {
+    const q = new URLSearchParams({ pagina: String(pagina) })
+    for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)
+    return chamar<PaginaEventos>('GET', `/api/admin/eventos?${q}`)
+  },
+  pagamentos: (status = '', pagina = 1) => chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?pagina=${pagina}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
   administradores: () => chamar<{ administradores: Administrador[] }>('GET', '/api/admin/administradores').then((r) => r.administradores),
   redefinirSenha: (id: string) => chamar<{ usuario: string; senha_temporaria: string }>('POST', `/api/admin/administradores/${id}/redefinir-senha`),
 }
@@ -124,6 +175,11 @@ export function reaisParaCentavos(texto: string): number | null {
   const limpo = texto.trim().replace(/^R\$\s*/, '').replace(/\./g, '').replace(',', '.')
   if (!/^\d+(\.\d{1,2})?$/.test(limpo)) return null
   return Math.round(Number(limpo) * 100)
+}
+
+/** 4990 → "R$ 49,90". */
+export function formatarReais(centavos: number): string {
+  return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 /** 4990 → "49,90". */
