@@ -3,18 +3,8 @@ import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type PaginaAuditoria } from '../../lib/admin.ts'
 import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
-import { campoTexto, dataHora } from './util'
+import { ACOES_AUDITORIA, campoTexto, dataHora } from './util'
 
-const ACOES: Record<string, string> = {
-  'config.alterar': 'Alterou configuração',
-  'config.restaurar': 'Voltou ao padrão',
-  'pacote.criar': 'Criou pacote',
-  'pacote.alterar': 'Alterou pacote',
-  'admin.entrar': 'Entrou',
-  'admin.trocar_senha': 'Trocou a senha',
-  'admin.redefinir_senha': 'Redefiniu a senha de',
-  'admin.conta_bloqueada': 'Conta bloqueada por tentativas',
-}
 
 function resumo(valor: unknown): string {
   if (valor === null || valor === undefined) return '—'
@@ -80,7 +70,7 @@ export function Auditoria() {
         </select>
         <select aria-label="O quê" value={acao} onChange={(e) => { setAcao(e.target.value); setPagina(1) }} className={campoTexto}>
           <option value="">Todas as ações</option>
-          {Object.entries(ACOES).map(([id, rotulo]) => (
+          {Object.entries(ACOES_AUDITORIA).map(([id, rotulo]) => (
             <option key={id} value={id}>
               {rotulo}
             </option>
@@ -110,7 +100,7 @@ export function Auditoria() {
                     <td className="whitespace-nowrap px-4 py-3 text-muted">{dataHora(r.criado_em)}</td>
                     <td className="px-4 py-3">{r.usuario}</td>
                     <td className="px-4 py-3">
-                      {ACOES[r.acao] ?? r.acao}
+                      {ACOES_AUDITORIA[r.acao] ?? r.acao}
                       {r.alvo && <code className="ml-2 rounded-md bg-base px-1.5 py-0.5 text-xs text-muted">{r.alvo}</code>}
                     </td>
                     <td className="px-4 py-3 text-muted">{r.antes === null && r.depois === null ? '' : `${resumo(r.antes)} → ${resumo(r.depois)}`}</td>

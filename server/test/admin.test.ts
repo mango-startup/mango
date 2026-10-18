@@ -548,6 +548,7 @@ test('onda 2: ao vivo, retenção, armazenamento, estender a câmera e moderaç�
   assert.ok(meu && meu.fotos_ultima_hora >= 2)
   assert.equal((await chamar('GET', '/api/admin/ao-vivo')).status, 401)
 
+  await pool.query(`update eventos set anfitriao_email = 'retencao@example.com' where id = $1`, [id])
   const retencao = await chamar('GET', '/api/admin/retencao', { cookie: raziel })
   assert.equal(retencao.status, 200)
   assert.ok(retencao.json.anfitrioes >= 1 && retencao.json.recorrentes <= retencao.json.anfitrioes)

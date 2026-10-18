@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarReais, urlCsv, type PaginaPagamentos } from '../../lib/admin.ts'
+import { useNomesPacotes } from './usePacotes'
 import { Paginacao } from './Paginacao'
-import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
+import { ExportarCsv, Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { campoTexto, dataHora } from './util'
 
 const STATUS: Record<string, string> = {
@@ -15,6 +16,7 @@ const STATUS: Record<string, string> = {
 }
 
 export function Pagamentos() {
+  const nomePacote = useNomesPacotes()
   const [status, setStatus] = useState('')
   const [pagina, setPagina] = useState(1)
   const [dados, setDados] = useState<PaginaPagamentos | null>(null)
@@ -70,9 +72,7 @@ export function Pagamentos() {
                 </option>
               ))}
             </select>
-            <a href={urlCsv('pagamentos', { status })} download className="text-sm font-semibold underline underline-offset-4 hover:text-paper">
-              Exportar CSV
-            </a>
+            <ExportarCsv href={urlCsv('pagamentos', { status })} />
             </div>
             <Cartao className="overflow-x-auto p-0">
               {dados.pagamentos.length === 0 ? (
@@ -93,7 +93,7 @@ export function Pagamentos() {
                       <tr key={p.id}>
                         <td className="whitespace-nowrap px-4 py-3 text-muted">{dataHora(p.criado_em)}</td>
                         <td className="px-4 py-3">{p.evento_nome}</td>
-                        <td className="px-4 py-3 text-muted">{p.pacote}</td>
+                        <td className="px-4 py-3 text-muted">{nomePacote(p.pacote)}</td>
                         <td className="px-4 py-3">{STATUS[p.status] ?? p.status}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{formatarReais(p.valor_centavos)}</td>
                       </tr>

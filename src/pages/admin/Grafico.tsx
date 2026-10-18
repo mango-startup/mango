@@ -14,15 +14,29 @@ export function Tendencia({ valores, className = 'h-10 w-full' }: { valores: num
   )
 }
 
-/** Colunas por dia, com rótulo acessível em cada uma. */
+/** Colunas por dia ou semana, com valor máximo, primeira e última data e tooltip em cada coluna. */
 export function Colunas({ itens, formatar = String }: { itens: { rotulo: string; valor: number }[]; formatar?: (v: number) => string }) {
-  const max = Math.max(...itens.map((i) => i.valor), 1)
+  const max = Math.max(...itens.map((i) => i.valor), 0)
   return (
-    <div className="flex h-40 items-end gap-[3px]" role="img" aria-label={itens.map((i) => `${i.rotulo}: ${formatar(i.valor)}`).join('; ')}>
-      {itens.map((i) => (
-        <div key={i.rotulo} title={`${i.rotulo}: ${formatar(i.valor)}`} className="min-w-0 flex-1 rounded-t-[3px] bg-paper/70 transition-colors hover:bg-paper" style={{ height: `${Math.max((i.valor / max) * 100, i.valor > 0 ? 3 : 0.5)}%` }} />
-      ))}
-    </div>
+    <figure className="m-0">
+      <div className="flex gap-2">
+        <div className="flex h-40 w-16 shrink-0 flex-col justify-between text-right text-[11px] tabular-nums text-muted" aria-hidden="true">
+          <span>{formatar(max)}</span>
+          <span>{formatar(0)}</span>
+        </div>
+        <div className="flex h-40 min-w-0 flex-1 items-end gap-[3px] border-b border-l border-line pl-1" role="img" aria-label={itens.map((i) => `${i.rotulo}: ${formatar(i.valor)}`).join('; ')}>
+          {itens.map((i) => (
+            <div key={i.rotulo} title={`${i.rotulo}: ${formatar(i.valor)}`} className="min-w-0 flex-1 rounded-t-[3px] bg-paper/70 transition-colors hover:bg-paper" style={{ height: `${max > 0 ? Math.max((i.valor / max) * 100, i.valor > 0 ? 3 : 0.5) : 0.5}%` }} />
+          ))}
+        </div>
+      </div>
+      {itens.length > 1 && (
+        <figcaption className="mt-1 flex justify-between pl-[72px] text-[11px] text-muted">
+          <span>{itens[0].rotulo}</span>
+          <span>{itens[itens.length - 1].rotulo}</span>
+        </figcaption>
+      )}
+    </figure>
   )
 }
 

@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, urlCsv, type FiltroEventos, type PaginaEventos } from '../../lib/admin.ts'
+import { useNomesPacotes } from './usePacotes'
 import { Paginacao } from './Paginacao'
-import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
+import { ExportarCsv, Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { Input } from '@/components/ui/input'
-import { campoTexto, dataHora, ESTADOS_EVENTO } from './util'
+import { campoTexto, dataHora, ESTADOS_EVENTO, rotuloEmail } from './util'
 
 export function Eventos() {
+  const nomePacote = useNomesPacotes()
   const [estado, setEstado] = useState('')
   const [pacote, setPacote] = useState('')
   const [ordem, setOrdem] = useState('recentes')
@@ -69,7 +71,7 @@ export function Eventos() {
           <option value="">Todos os pacotes</option>
           {pacotes.map((id) => (
             <option key={id} value={id}>
-              {id}
+              {nomePacote(id)}
             </option>
           ))}
         </select>
@@ -97,9 +99,7 @@ export function Eventos() {
         <>
           <div className="mb-2 flex items-center justify-between gap-3">
             <p className="text-sm text-muted">{dados.total} {dados.total === 1 ? 'evento' : 'eventos'}</p>
-            <a href={urlCsv('eventos', { estado, pacote, busca: buscaAplicada, ordem, de, ate })} download className="text-sm font-semibold underline underline-offset-4 hover:text-paper">
-              Exportar CSV
-            </a>
+            <ExportarCsv href={urlCsv('eventos', { estado, pacote, busca: buscaAplicada, ordem, de, ate })} />
           </div>
           <Cartao className="overflow-x-auto p-0">
             {dados.eventos.length === 0 ? (
@@ -122,13 +122,13 @@ export function Eventos() {
                   {dados.eventos.map((e) => (
                     <tr key={e.id}>
                       <td className="px-4 py-3">
-                        <Link to={`/admin/eventos/${e.id}`} className="underline underline-offset-4 hover:text-muted">
+                        <Link to={`/admin/eventos/${e.id}`} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-muted">
                           {e.nome}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-muted">{e.anfitriao_email}</td>
+                      <td className="px-4 py-3 text-muted">{rotuloEmail(e.anfitriao_email)}</td>
                       <td className="px-4 py-3">{ESTADOS_EVENTO[e.estado] ?? e.estado}</td>
-                      <td className="px-4 py-3 text-muted">{e.pacote}</td>
+                      <td className="px-4 py-3 text-muted">{nomePacote(e.pacote)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {e.convidados}
                         <span className="text-muted"> / {e.limite_convidados}</span>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type AoVivo as Dados } from '../../lib/admin.ts'
 import { Aviso, Cartao, Carregando, EstadoVazio, Titulo } from './ui'
-import { dataHora } from './util'
+import { dataHora, rotuloEmail } from './util'
 
 // Atualiza sozinho a cada 30 s enquanto a aba está aberta.
 export function AoVivo() {
@@ -50,11 +50,11 @@ export function AoVivo() {
                 {dados.eventos.map((e) => (
                   <tr key={e.id}>
                     <td className="px-4 py-3">
-                      <Link to={`/admin/eventos/${e.id}`} className="underline underline-offset-4 hover:text-muted">
+                      <Link to={`/admin/eventos/${e.id}`} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-muted">
                         {e.nome}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-muted">{e.anfitriao_email}</td>
+                    <td className="px-4 py-3 text-muted">{rotuloEmail(e.anfitriao_email)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       {e.convidados}
                       <span className="text-muted"> / {e.limite_convidados}</span>

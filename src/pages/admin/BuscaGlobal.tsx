@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { admin } from '../../lib/admin.ts'
 import { Icone } from './Menu'
+import { rotuloEmail } from './util'
 
 interface Resultado {
   chave: string
@@ -11,7 +12,7 @@ interface Resultado {
 }
 
 const PAGINAS: Resultado[] = [
-  ['Resumo', '/admin'], ['Análise', '/admin/analise'], ['Crescimento', '/admin/crescimento'], ['Eventos', '/admin/eventos'], ['Anfitriões', '/admin/anfitrioes'],
+  ['Resumo', '/admin'], ['Análise', '/admin/analise'], ['Crescimento', '/admin/crescimento'], ['Uso e retenção', '/admin/uso'], ['Ao vivo', '/admin/ao-vivo'], ['Eventos', '/admin/eventos'], ['Anfitriões', '/admin/anfitrioes'],
   ['Moderação', '/admin/moderacao'], ['Pagamentos', '/admin/pagamentos'], ['Pacotes', '/admin/pacotes'], ['Configurações', '/admin/configuracoes'],
   ['Saúde', '/admin/saude'], ['Auditoria', '/admin/auditoria'], ['Administradores', '/admin/administradores'],
 ].map(([rotulo, para]) => ({ chave: para, rotulo, detalhe: 'Ir para a tela', para }))
@@ -24,8 +25,13 @@ export function BuscaGlobal({ aberta, aoFechar }: { aberta: boolean; aoFechar: (
   const [ativo, setAtivo] = useState(0)
   const campo = useRef<HTMLInputElement>(null)
 
+  // Cada abertura começa limpa (o estado do componente sobrevive ao fechar).
   useEffect(() => {
-    if (aberta) campo.current?.focus()
+    if (!aberta) return
+    setTexto('')
+    setRemotos([])
+    setAtivo(0)
+    campo.current?.focus()
   }, [aberta])
 
   const termo = texto.trim()
@@ -36,8 +42,8 @@ export function BuscaGlobal({ aberta, aoFechar }: { aberta: boolean; aoFechar: (
       Promise.all([admin.eventos({ busca: termo }, 1).catch(() => null), admin.anfitrioes(termo, 1).catch(() => null)]).then(([ev, an]) => {
         if (!vivo) return
         setRemotos([
-          ...(ev?.eventos.slice(0, 6).map((e) => ({ chave: `e${e.id}`, rotulo: e.nome, detalhe: `Evento · ${e.anfitriao_email}`, para: `/admin/eventos/${e.id}` })) ?? []),
-          ...(an?.anfitrioes.slice(0, 4).map((a) => ({ chave: `a${a.anfitriao_email}`, rotulo: a.anfitriao_email, detalhe: `Anfitrião · ${a.eventos} evento(s)`, para: `/admin/eventos?busca=${encodeURIComponent(a.anfitriao_email)}` })) ?? []),
+          ...(ev?.eventos.slice(0, 6).map((e) => ({ chave: `e${e.id}`, rotulo: e.nome, detalhe: `Evento · ${rotuloEmail(e.anfitriao_email)}`, para: `/admin/eventos/${e.id}` })) ?? []),
+          ...(an?.anfitrioes.slice(0, 4).map((a) => ({ chave: `a${a.anfitriao_email}`, rotulo: a.anfitriao_email ?? 'Sem e-mail', detalhe: `Anfitrião · ${a.eventos} evento(s)`, para: `/admin/eventos?busca=${encodeURIComponent(a.anfitriao_email ?? '')}` })) ?? []),
         ])
       })
     }, 250)
@@ -99,7 +105,7 @@ export function BotaoBusca({ aoAbrir }: { aoAbrir: () => void }) {
     <button type="button" onClick={aoAbrir} className="flex h-10 w-full items-center gap-2 rounded-[12px] border border-line bg-surface/60 px-3 text-sm text-muted hover:text-paper">
       <Icone nome="analise" className="size-4" />
       <span className="flex-1 text-left">Buscar</span>
-      <kbd className="rounded border border-line px-1.5 text-[11px]">Ctrl K</kbd>
+      <kbd className="hidden rounded border border-line px-1.5 text-[11px] md:inline">Ctrl K</kbd>
     </button>
   )
 }
