@@ -1,3 +1,4 @@
+import { useTitulo } from '../lib/useTitulo'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BlocoEstado } from '../components/BlocoEstado'
@@ -19,6 +20,7 @@ const COM_FOTOS: Estado[] = ['captura_aberta', 'captura_encerrada', 'revelado']
 
 // /eventos/:id — a ficha do evento: em que pé está, a próxima ação e os links.
 export function EventDashboardPage() {
+  useTitulo('Painel do evento')
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const [painel, setPainel] = useState<PainelEvento | null>(null)

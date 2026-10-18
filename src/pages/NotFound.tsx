@@ -1,7 +1,9 @@
+import { useTitulo } from '../lib/useTitulo'
 import { Botao } from '../components/Botao'
 import { MangoLogo } from '../components/MangoLogo'
 
 export function NotFoundPage() {
+  useTitulo('Página não encontrada')
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-base p-6 text-center text-paper">
       <MangoLogo className="h-[42px] w-8" />

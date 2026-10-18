@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { carregarConfig } from './lib/configPublica'
+import { NavegacaoAnimada } from './components/NavegacaoAnimada'
 import { RequireHost } from './components/RequireHost'
 import { Administradores } from './pages/admin/Administradores'
 import { Analise } from './pages/admin/Analise'
@@ -37,6 +38,7 @@ export default function App() {
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <NavegacaoAnimada>
       <Routes>
         {/* Públicas */}
         <Route path="/" element={<LandingPage />} />
@@ -78,6 +80,7 @@ export default function App() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </NavegacaoAnimada>
     </BrowserRouter>
   )
 }

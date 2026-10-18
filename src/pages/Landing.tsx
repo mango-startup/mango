@@ -119,18 +119,18 @@ export function LandingPage() {
             </nav>
           </header>
 
-          <h1 style={{ '--d': '120ms' } as React.CSSProperties} className="anim-up mt-14 px-6 font-display text-[48px] leading-none sm:text-[54px] lg:mt-auto lg:px-14 lg:text-[88px]">
+          <h1 style={{ '--d': '80ms' } as React.CSSProperties} className="anim-up mt-14 px-6 font-display text-[48px] leading-none sm:text-[54px] lg:mt-auto lg:px-14 lg:text-[88px]">
             Todo mundo
             <br />
             fotografa.
             <br />
             Ninguém vê.
           </h1>
-          <p style={{ '--d': '280ms' } as React.CSSProperties} className="anim-up mt-5 max-w-[350px] px-6 text-[17px] leading-normal opacity-90 lg:mt-10 lg:max-w-[520px] lg:px-14 lg:text-[22px]">
+          <p style={{ '--d': '160ms' } as React.CSSProperties} className="anim-up mt-5 max-w-[350px] px-6 text-[17px] leading-normal opacity-90 lg:mt-10 lg:max-w-[520px] lg:px-14 lg:text-[22px]">
             Uma câmera descartável para a sua festa. Cada convidado leva um rolo, com 12, 24 ou 36
             poses. As fotos só aparecem quando você revelar.
           </p>
-          <div style={{ '--d': '440ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
+          <div style={{ '--d': '240ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
             <Link
               to="/criar"
               className="btn-shimmer flex h-[52px] items-center justify-center rounded-[14px] bg-base text-base font-semibold text-paper transition hover:bg-surface active:scale-[0.98] lg:inline-flex lg:h-16 lg:px-12 lg:text-lg"
@@ -166,7 +166,7 @@ export function LandingPage() {
           <h2 className="font-display text-[32px] leading-none lg:text-[48px]">Perguntas</h2>
           <div className="mt-6 border-t border-line">
             {PERGUNTAS.map((item) => (
-              <details key={item.pergunta} className="group border-b border-line">
+              <details key={item.pergunta} className="faq group border-b border-line">
                 <summary className="flex min-h-14 rounded-sm focus-visible:outline-offset-[-2px] cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
                   {item.pergunta}
                   <span aria-hidden="true" className="text-muted transition-transform duration-200 group-open:rotate-45">+</span>
@@ -231,7 +231,7 @@ function PhotoStrip() {
   }, [])
 
   return (
-    <div style={{ '--d': '350ms' } as React.CSSProperties} className="anim-up lg:self-center">
+    <div style={{ '--d': '200ms' } as React.CSSProperties} className="anim-up lg:self-center">
       <div className="mx-6 mt-7 grid grid-cols-3 gap-2.5 lg:mx-0 lg:mt-0 lg:gap-5">
         {STRIP_PHOTOS.map((id, i) => (
           <button
@@ -246,8 +246,7 @@ function PhotoStrip() {
               {
                 clipPath: 'polygon(0 0, 100% 0, 100% 86%, 86% 100%, 0 100%)',
                 '--tilt': ['-2deg', '1.5deg', '-1deg'][i],
-                '--d': `${i * 700}ms`,
-              } as React.CSSProperties
+                              } as React.CSSProperties
             }
           >
             <img

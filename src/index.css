@@ -96,13 +96,6 @@ body {
   }
 }
 
-/* Flutuação suave dos quadros */
-@keyframes float {
-  50% {
-    transform: translateY(-10px) rotate(var(--tilt, 0deg));
-  }
-}
-
 .anim-up {
   animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--d, 0ms);
@@ -127,12 +120,52 @@ body {
 
 .frame {
   transform: rotate(var(--tilt, 0deg));
-  animation: float 6s ease-in-out infinite;
-  animation-delay: var(--d, 0ms);
-  transition: scale 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: translate 0.15s ease-out;
 }
 .frame:hover {
-  scale: 1.05;
+  translate: 0 -4px;
+}
+
+/* Entrada curta: rota nova, estados que aparecem de repente e troca de valor */
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.anim-rota,
+.anim-in {
+  animation: entrar 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-troca {
+  animation: trocar 150ms ease-out both;
+}
+@keyframes trocar {
+  from {
+    opacity: 0;
+  }
+}
+
+/* FAQ: o painel abre e fecha com altura suave (navegadores sem suporte abrem direto) */
+.faq {
+  interpolate-size: allow-keywords;
+}
+.faq::details-content {
+  height: 0;
+  overflow: clip;
+  transition:
+    height 220ms ease-out,
+    content-visibility 220ms allow-discrete;
+}
+.faq[open]::details-content {
+  height: auto;
+}
+
+/* Âncoras (Como funciona) rolam suave */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Revelação ao rolar */

@@ -1,3 +1,4 @@
+import { useTitulo } from '../lib/useTitulo'
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Botao } from '../components/Botao'
@@ -48,6 +49,7 @@ const ehPacote = (v: string | null): v is Pacote => v !== null && /^[a-z][a-z0-9
 
 // /criar — uma página só, com padrões prontos. Depois de criar, mostra os links (convidado e anfitrião).
 export function CreateEventPage() {
+  useTitulo('Nova câmera')
   const [params] = useSearchParams()
   const pacoteDaUrl = params.get('pacote')
   const [form, setForm] = useState<Formulario>(() => formularioInicial(ehPacote(pacoteDaUrl) ? pacoteDaUrl : null))
@@ -191,7 +193,7 @@ export function CreateEventPage() {
             ))}
           </div>
           {form.revelacao === 'escolher' && (
-            <label htmlFor={ids.revelacaoEm} className="mt-3 flex flex-col gap-1.5 text-xs text-muted">
+            <label htmlFor={ids.revelacaoEm} className="anim-in mt-3 flex flex-col gap-1.5 text-xs text-muted">
               Dia e hora da revelação
               <input id={ids.revelacaoEm} type="datetime-local" value={form.revelacaoEm} onChange={(e) => mudar('revelacaoEm', e.target.value)} className={campoTexto} />
             </label>
@@ -229,7 +231,9 @@ export function CreateEventPage() {
             </p>
           )}
           <Botao type="submit" disabled={enviando || pacotes.length === 0 || !cfg.criacao_aberta} className="w-full">
-            {enviando ? 'Criando...' : pacote && !pacote.gratis ? `Continuar · ${precoEmReais(pacote.preco_centavos)}` : 'Criar a câmera'}
+            <span key={enviando ? 'envio' : pacote?.id} className="anim-troca">
+              {enviando ? 'Criando...' : pacote && !pacote.gratis ? `Continuar · ${precoEmReais(pacote.preco_centavos)}` : 'Criar a câmera'}
+            </span>
           </Botao>
           {pacote && !pacote.gratis && <p className="text-center text-sm text-muted">Você paga na próxima etapa. O link só funciona depois do pagamento.</p>}
         </div>
@@ -287,10 +291,12 @@ function PreviaConvite({ nome, poses, revelacao }: { nome: string; poses: number
       <p className="mt-3 font-display text-[30px] leading-[1.05] [text-wrap:balance]">{nome.trim() || 'Nome do evento'}</p>
       <div className="mt-4 flex items-center gap-4 border-t border-base/15 pt-4">
         <span className="flex flex-col items-center leading-none">
-          <span className="font-display text-[40px] tabular-nums">{poses}</span>
+          <span key={poses} className="anim-troca font-display text-[40px] tabular-nums">
+            {poses}
+          </span>
           <span className="mt-1 text-xs opacity-60">poses</span>
         </span>
-        <p className="text-sm leading-snug">
+        <p key={revelacao?.getTime() ?? 'manual'} className="anim-troca text-sm leading-snug">
           Ninguém vê as fotos até a revelação.
           <br />
           {revelacao ? `Revelação ${quando(revelacao.toISOString())}.` : 'Revelação quando o anfitrião decidir.'}
