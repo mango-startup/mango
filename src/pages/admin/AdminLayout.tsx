@@ -113,7 +113,7 @@ export function AdminLayout() {
   return (
     <Contexto.Provider value={{ admin: estado.admin, sair }}>
       <SidebarProvider className="bg-base text-paper">
-        <Sidebar className="[&_[data-slot=sidebar-container]]:border-line/50 [&_[data-slot=sidebar-inner]]:bg-surface/40">
+        <Sidebar>
           <SidebarHeader className="px-4 pt-5">{marca}</SidebarHeader>
           <div className="px-3 pt-3">
             <BotaoBusca aoAbrir={() => setBuscando(true)} />

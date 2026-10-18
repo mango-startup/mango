@@ -53,7 +53,7 @@
   --input: var(--color-line);
   --ring: var(--color-muted);
   --radius: 0.75rem;
-  --sidebar: var(--color-base);
+  --sidebar: color-mix(in oklab, var(--color-base) 70%, var(--color-surface));
   --sidebar-foreground: var(--color-paper);
   --sidebar-primary: var(--color-paper);
   --sidebar-primary-foreground: var(--color-base);
