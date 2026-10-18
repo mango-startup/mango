@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, formatarReais, type Analise as Dados } from '../../lib/admin.ts'
 import { Indicador } from './Indicador'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { campoTexto, decimal, porcento } from './util'
 
 const ETAPAS = [
@@ -39,7 +39,7 @@ export function Analise() {
         <option value={365}>Último ano</option>
       </select>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <div className="flex flex-col gap-8">
           <section aria-label="Período" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -100,7 +100,7 @@ export function Analise() {
 
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Desempenho por pacote</h2>
-            <table className="mt-3 w-full min-w-[720px] text-left text-[14px]">
+            <table className="tabela-cards mt-3 w-full sm:min-w-[720px] text-left text-[14px]">
               <thead className="border-y border-line text-muted">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Pacote</th>
@@ -111,7 +111,7 @@ export function Analise() {
                   <th className="px-5 py-3 text-right font-semibold">Armazenamento</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                 {dados.pacotes.map((p) => (
                   <tr key={p.id}>
                     <td className="px-5 py-3">{p.nome}</td>
@@ -129,9 +129,9 @@ export function Analise() {
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Maiores eventos em armazenamento</h2>
             {dados.maiores_eventos.length === 0 ? (
-              <p className="p-5 text-muted">Nenhum evento ainda.</p>
+              <EstadoVazio>Nenhum evento ainda.</EstadoVazio>
             ) : (
-              <table className="mt-3 w-full min-w-[720px] text-left text-[14px]">
+              <table className="tabela-cards mt-3 w-full sm:min-w-[720px] text-left text-[14px]">
                 <thead className="border-y border-line text-muted">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Evento</th>
@@ -141,7 +141,7 @@ export function Analise() {
                     <th className="px-5 py-3 text-right font-semibold">Armazenamento</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                   {dados.maiores_eventos.map((e) => (
                     <tr key={e.id}>
                       <td className="px-5 py-3">

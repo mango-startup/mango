@@ -256,3 +256,13 @@ body {
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
 }
+
+/* Admin: no celular cada linha da tabela vira um cartão; o rótulo vem de data-rotulo (copiado do <th> pelo AdminLayout). */
+@media (max-width: 639px) {
+  .tabela-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .tabela-cards, .tabela-cards tbody, .tabela-cards tr, .tabela-cards td { display: block; width: 100%; }
+  .tabela-cards tr { padding: 0.75rem 1rem; }
+  .tabela-cards td { display: flex; justify-content: space-between; gap: 1rem; padding: 0.25rem 0 !important; text-align: right !important; }
+  .tabela-cards td::before { content: attr(data-rotulo); flex-shrink: 0; text-align: left; color: var(--color-muted); }
+  .tabela-cards td:not([data-rotulo])::before { content: none; }
+}

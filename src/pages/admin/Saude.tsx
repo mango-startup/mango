@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type SaudeAdmin } from '../../lib/admin.ts'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando } from './ui'
 import { dataHora } from './util'
 
 function Indicador({ rotulo, valor, alerta, detalhe }: { rotulo: string; valor: string | number; alerta?: boolean; detalhe?: string }) {
@@ -41,7 +41,7 @@ export function Saude() {
         </Button>
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Indicador rotulo="Banco de dados" valor={dados.banco.ok ? 'OK' : 'Fora'} detalhe={`Respondeu em ${dados.banco.latencia_ms} ms`} alerta={!dados.banco.ok} />

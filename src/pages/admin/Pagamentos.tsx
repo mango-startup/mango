@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarReais, urlCsv, type PaginaPagamentos } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { campoTexto, dataHora } from './util'
 
 const STATUS: Record<string, string> = {
@@ -35,7 +35,7 @@ export function Pagamentos() {
     <>
       <Titulo detalhe="Receita e situação dos pagamentos do Stripe. Os valores são os que o servidor cobrou de cada evento.">Pagamentos</Titulo>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <div className="flex flex-col gap-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -76,10 +76,10 @@ export function Pagamentos() {
             </div>
             <Cartao className="overflow-x-auto p-0">
               {dados.pagamentos.length === 0 ? (
-                <p className="p-5 text-muted">Nenhum pagamento{status ? ' com esse status' : ' ainda'}.</p>
+                <EstadoVazio>Nenhum pagamento{status ? ' com esse status' : ' ainda'}.</EstadoVazio>
               ) : (
-                <table className="w-full min-w-[640px] text-left text-[14px]">
-                  <thead className="border-b border-line text-muted">
+                <table className="tabela-cards w-full sm:min-w-[640px] text-left text-[14px]">
+                  <thead className="sticky top-0 border-b border-line bg-surface text-muted">
                     <tr>
                       <th className="px-4 py-3 font-semibold">Quando</th>
                       <th className="px-4 py-3 font-semibold">Evento</th>
@@ -88,7 +88,7 @@ export function Pagamentos() {
                       <th className="px-4 py-3 text-right font-semibold">Valor</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-line">
+                  <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                     {dados.pagamentos.map((p) => (
                       <tr key={p.id}>
                         <td className="whitespace-nowrap px-4 py-3 text-muted">{dataHora(p.criado_em)}</td>

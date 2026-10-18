@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, formatarReais, type EventoDetalhe as Dados } from '../../lib/admin.ts'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { dataHora, ESTADOS_EVENTO } from './util'
 
 const STATUS_PAGAMENTO: Record<string, string> = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado', expirado: 'Expirado', estornado: 'Estornado', aprovado_orfao: 'Aprovado sem evento' }
@@ -40,7 +40,7 @@ export function EventoDetalhe() {
         Voltar para os eventos
       </Link>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && e && (
         <div className="flex flex-col gap-6">
           <Titulo detalhe={`${e.anfitriao_email} · ${ESTADOS_EVENTO[e.estado] ?? e.estado}${e.excluido_em ? ' · apagado' : ''}`}>{e.nome}</Titulo>
@@ -76,12 +76,37 @@ export function EventoDetalhe() {
             </Cartao>
           </div>
 
+          <Cartao>
+            <h2 className="mb-3 text-sm font-semibold">Linha do tempo</h2>
+            <ol className="flex flex-col gap-3 border-l border-line pl-4 text-[15px]">
+              {[
+                ['Evento criado', e.criado_em],
+                ...dados.pagamentos.map((p): [string, string | null] => [`Pagamento ${p.status}`, p.criado_em]),
+                ['Câmera abre', e.captura_inicio],
+                ['Primeira foto', dados.fotos.primeira_em],
+                ['Última foto', dados.fotos.ultima_em],
+                ['Câmera fecha', e.captura_fim],
+                [e.revelado_em ? 'Revelado' : 'Revelação prevista', e.revelado_em ?? e.revelacao_em],
+                ['Álbum some', e.expira_em],
+                ['Apagado', e.excluido_em],
+              ]
+                .filter((x): x is [string, string] => !!x[1])
+                .sort((a, b) => a[1].localeCompare(b[1]))
+                .map(([rotulo, quando]) => (
+                  <li key={rotulo + quando} className="flex flex-wrap justify-between gap-x-4">
+                    <span>{rotulo}</span>
+                    <span className="text-muted">{dataHora(quando)}</span>
+                  </li>
+                ))}
+            </ol>
+          </Cartao>
+
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Pagamentos</h2>
             {dados.pagamentos.length === 0 ? (
-              <p className="p-5 text-muted">Nenhum pagamento neste evento.</p>
+              <EstadoVazio>Nenhum pagamento neste evento.</EstadoVazio>
             ) : (
-              <table className="mt-3 w-full min-w-[480px] text-left text-[14px]">
+              <table className="tabela-cards mt-3 w-full sm:min-w-[480px] text-left text-[14px]">
                 <tbody className="divide-y divide-line border-t border-line">
                   {dados.pagamentos.map((p) => (
                     <tr key={p.id}>
@@ -98,9 +123,9 @@ export function EventoDetalhe() {
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Pedidos de remoção</h2>
             {dados.pedidos_de_remocao.length === 0 ? (
-              <p className="p-5 text-muted">Nenhum pedido neste evento.</p>
+              <EstadoVazio>Nenhum pedido neste evento.</EstadoVazio>
             ) : (
-              <table className="mt-3 w-full min-w-[560px] text-left text-[14px]">
+              <table className="tabela-cards mt-3 w-full sm:min-w-[560px] text-left text-[14px]">
                 <tbody className="divide-y divide-line border-t border-line">
                   {dados.pedidos_de_remocao.map((p) => (
                     <tr key={p.id} className="align-top">
@@ -119,7 +144,7 @@ export function EventoDetalhe() {
             {dados.convidados.length === 0 ? (
               <p className="p-5 text-muted">Ninguém entrou ainda.</p>
             ) : (
-              <table className="mt-3 w-full min-w-[480px] text-left text-[14px]">
+              <table className="tabela-cards mt-3 w-full sm:min-w-[480px] text-left text-[14px]">
                 <thead className="border-y border-line text-muted">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Apelido</th>
@@ -127,7 +152,7 @@ export function EventoDetalhe() {
                     <th className="px-5 py-3 text-right font-semibold">Fotos</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                   {dados.convidados.map((c) => (
                     <tr key={c.id}>
                       <td className="px-5 py-3">{c.apelido || <span className="text-muted">sem apelido</span>}</td>
