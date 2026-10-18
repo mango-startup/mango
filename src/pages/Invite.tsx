@@ -1,3 +1,4 @@
+import { useTitulo } from '../lib/useTitulo'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { BlocoEstado } from '../components/BlocoEstado'
@@ -48,6 +49,7 @@ const CONSULTA_REVELACAO_MANUAL_MS = 60_000
 
 // /c/:codigo — um link por evento, do convite ao álbum. A vista muda conforme o estado do evento.
 export function InvitePage() {
+  useTitulo('Convite')
   const { codigo = '' } = useParams()
   const [carga, setCarga] = useState<Carga>({ tipo: 'carregando' })
 
@@ -95,6 +97,7 @@ export function InvitePage() {
             className="flex-1"
             titulo="Convite não encontrado"
             texto="Confira o link. Se o anfitrião trocou o link do evento, peça o novo a quem te convidou."
+            acao={<Botao para="/">Ir para o início</Botao>}
           />
         ) : (
           <BlocoEstado

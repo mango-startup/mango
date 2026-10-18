@@ -42,7 +42,7 @@ export function Espera({ codigo, evento, eu }: EsperaProps) {
   return (
     <CascaConvite evento={evento.nome}>
       <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-5 pb-6">
-        <div className="my-auto py-10">
+        <div className="anim-in my-auto py-10">
           {alvo !== null ? (
             <>
               <p className="text-[15px] text-muted">Revelação em</p>

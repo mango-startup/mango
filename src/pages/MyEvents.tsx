@@ -1,3 +1,4 @@
+import { useTitulo } from '../lib/useTitulo'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BlocoEstado } from '../components/BlocoEstado'
@@ -20,6 +21,7 @@ function proximaAcao({ evento: e }: PainelEvento): { para: string; rotulo: strin
 
 // /eventos — as fichas dos eventos que este aparelho administra, mais o rascunho da criação.
 export function MyEventsPage() {
+  useTitulo('Meus eventos')
   const [eventos, setEventos] = useState<PainelEvento[] | null>(null)
   const [falhou, setFalhou] = useState(false)
   const [rascunho] = useState(() => lerRascunho<{ nome: string }>())
