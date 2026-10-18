@@ -195,6 +195,13 @@ export interface Armazenamento {
   semanas: { semana: string; bytes: number; fotos: number }[]
 }
 
+export interface SessaoAdmin {
+  id: string
+  atual: boolean
+  criado_em: string
+  expira_em: string
+}
+
 export interface Dupla {
   atual: number
   anterior: number
@@ -236,7 +243,7 @@ export interface EventoDetalhe {
   pedidos_de_remocao: { id: string; foto_id: string; motivo: string | null; resolucao: string | null; resolvido_em: string | null; criado_em: string }[]
 }
 
-async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH', caminho: string, corpo?: unknown): Promise<T> {
+async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH' | 'DELETE', caminho: string, corpo?: unknown): Promise<T> {
   const cabecalhos: Record<string, string> = {}
   if (metodo !== 'GET') cabecalhos['X-Mango-Admin'] = '1'
   if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json'
@@ -288,6 +295,9 @@ export const admin = {
   armazenamento: () => chamar<Armazenamento>('GET', '/api/admin/armazenamento'),
   estenderCamera: (id: string, minutos: number) => chamar<{ captura_fim: string; revelacao_em: string | null }>('POST', `/api/admin/eventos/${encodeURIComponent(id)}/estender-camera`, { minutos }),
   resolverPedidos: (ids: string[], resolucao: 'removida' | 'mantida') => chamar<{ resolvidos: number }>('POST', '/api/admin/moderacao/resolver', { ids, resolucao }),
+  reverterAuditoria: (id: string) => chamar<{ ok: boolean; chave: string }>('POST', `/api/admin/auditoria/${encodeURIComponent(id)}/reverter`),
+  sessoes: () => chamar<{ sessoes: SessaoAdmin[] }>('GET', '/api/admin/sessoes').then((r) => r.sessoes),
+  encerrarSessao: (id: string) => chamar<void>('DELETE', `/api/admin/sessoes/${encodeURIComponent(id)}`),
   saude: () => chamar<SaudeAdmin>('GET', '/api/admin/saude'),
   pagamentos: (status = '', pagina = 1) => chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?pagina=${pagina}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
   administradores: () => chamar<{ administradores: Administrador[] }>('GET', '/api/admin/administradores').then((r) => r.administradores),

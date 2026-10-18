@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type PaginaAuditoria } from '../../lib/admin.ts'
-import { Aviso, Cartao, Titulo, Carregando } from './ui'
+import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { campoTexto, dataHora } from './util'
 
 const ACOES: Record<string, string> = {
@@ -32,6 +32,22 @@ export function Auditoria() {
   const [usuarios, setUsuarios] = useState<string[]>([])
   const [dados, setDados] = useState<PaginaAuditoria | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [revertendo, setRevertendo] = useState<string | null>(null)
+  const [versaoLista, setVersaoLista] = useState(0)
+
+  const reverter = async (id: string, alvo: string | null) => {
+    if (!window.confirm(`Voltar "${alvo ?? 'configuração'}" ao valor de antes desta alteração? A reversão também fica registrada.`)) return
+    setRevertendo(id)
+    try {
+      await admin.reverterAuditoria(id)
+      setErro(null)
+      setVersaoLista((v) => v + 1)
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Sem conexão com o servidor.')
+    } finally {
+      setRevertendo(null)
+    }
+  }
 
   useEffect(() => {
     let ativo = true
@@ -42,7 +58,7 @@ export function Auditoria() {
     return () => {
       ativo = false
     }
-  }, [pagina, usuario, acao])
+  }, [pagina, usuario, acao, versaoLista])
 
   useEffect(() => {
     admin.administradores().then((l) => setUsuarios(l.map((a) => a.usuario))).catch(() => {})
@@ -76,7 +92,7 @@ export function Auditoria() {
       {dados && (
         <Cartao className="overflow-x-auto p-0">
           {dados.registros.length === 0 ? (
-            <p className="p-5 text-muted">Nada registrado com esses filtros.</p>
+            <EstadoVazio>Nada registrado com esses filtros.</EstadoVazio>
           ) : (
             <table className="tabela-cards w-full sm:min-w-[720px] text-left text-[14px]">
               <thead className="sticky top-0 border-b border-line bg-surface text-muted">
@@ -85,6 +101,7 @@ export function Auditoria() {
                   <th className="px-4 py-3 font-semibold">Quem</th>
                   <th className="px-4 py-3 font-semibold">O quê</th>
                   <th className="px-4 py-3 font-semibold">Antes → depois</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
@@ -97,6 +114,13 @@ export function Auditoria() {
                       {r.alvo && <code className="ml-2 rounded-md bg-base px-1.5 py-0.5 text-xs text-muted">{r.alvo}</code>}
                     </td>
                     <td className="px-4 py-3 text-muted">{r.antes === null && r.depois === null ? '' : `${resumo(r.antes)} → ${resumo(r.depois)}`}</td>
+                    <td className="px-4 py-3 text-right">
+                      {(r.acao === 'config.alterar' || r.acao === 'config.restaurar') && (
+                        <Button type="button" variant="outline" disabled={revertendo === r.id} onClick={() => void reverter(r.id, r.alvo)}>
+                          Reverter
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

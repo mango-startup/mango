@@ -3996,6 +3996,271 @@
           }
         }
       }
+    },
+    "/api/admin/sessoes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Minhas sessões",
+        "description": "Sessões ativas do admin logado; a atual vem marcada.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessoes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "atual": {
+                            "type": "boolean"
+                          },
+                          "criado_em": {
+                            "type": "string"
+                          },
+                          "expira_em": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/sessoes/{id}": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Encerrar sessão",
+        "description": "Encerra uma das outras sessões do próprio admin.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Encerrada."
+          },
+          "400": {
+            "description": "Id inválido. Códigos: `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sessão não encontrada. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "É a sessão atual. Códigos: `sessao_atual`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/auditoria/{id}/reverter": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Reverter configuração",
+        "description": "Volta uma configuração ao valor anterior a uma alteração registrada na auditoria. Também é auditado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revertida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "chave": {
+                      "type": "string"
+                    },
+                    "valor": {}
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido ou valor antigo fora das regras atuais. Códigos: `id_invalido`, `validacao`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Registro não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "O registro não é de configuração. Códigos: `nao_reversivel`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
     }
   },
   "components": {

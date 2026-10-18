@@ -575,3 +575,32 @@ test('onda 2: ao vivo, retenção, armazenamento, estender a câmera e moderaç�
   const aud = await chamar('GET', '/api/admin/auditoria?acao=moderacao.resolver_lote', { cookie: raziel })
   assert.ok(aud.json.total >= 1)
 })
+
+test('onda 3: aviso global, reverter configuração e sessões do admin', opcoes, async () => {
+  const raziel = await adminLiberado()
+  const aviso = await config(raziel, { aviso_global: 'Manutenção hoje às 22h' })
+  assert.equal(aviso.status, 200, JSON.stringify(aviso.json))
+  assert.equal((await chamar('GET', '/api/config')).json.aviso_global, 'Manutenção hoje às 22h')
+
+  const trilha = await chamar('GET', '/api/admin/auditoria?acao=config.alterar', { cookie: raziel })
+  const registro = trilha.json.registros.find((r: { alvo: string }) => r.alvo === 'aviso_global')
+  assert.ok(registro)
+  assert.equal((await chamar('POST', `/api/admin/auditoria/${registro.id}/reverter`, { cookie: raziel })).status, 200)
+  assert.equal((await chamar('GET', '/api/config')).json.aviso_global, '')
+  assert.equal((await chamar('POST', '/api/admin/auditoria/999999999/reverter', { cookie: raziel })).status, 404)
+  const login = await trilha.json.registros.length // há registros de config
+  assert.ok(login >= 1)
+  const outros = await chamar('GET', '/api/admin/auditoria?acao=admin.entrar', { cookie: raziel })
+  assert.equal((await chamar('POST', `/api/admin/auditoria/${outros.json.registros[0].id}/reverter`, { cookie: raziel })).status, 409)
+
+  const segunda = await entrar('raziel', 'Definitiva-Segura-2026', '10.0.0.9')
+  const lista = await chamar('GET', '/api/admin/sessoes', { cookie: raziel })
+  assert.equal(lista.status, 200)
+  assert.equal(lista.json.sessoes.filter((s: { atual: boolean }) => s.atual).length, 1)
+  const atual = lista.json.sessoes.find((s: { atual: boolean }) => s.atual)
+  assert.equal((await chamar('DELETE', `/api/admin/sessoes/${atual.id}`, { cookie: raziel })).status, 409)
+  const outras = lista.json.sessoes.filter((s: { atual: boolean }) => !s.atual)
+  assert.ok(outras.length >= 1 && segunda.cookie)
+  for (const o of outras) assert.equal((await chamar('DELETE', `/api/admin/sessoes/${o.id}`, { cookie: raziel })).status, 204)
+  assert.equal((await chamar('GET', '/api/admin/eu', { cookie: segunda.cookie })).status, 401) // a sessão encerrada caiu
+})

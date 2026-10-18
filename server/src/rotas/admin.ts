@@ -5,6 +5,7 @@ import type { Pool } from 'pg'
 import { ServicoAdmin } from '../admin/autenticacao.ts'
 import type { Admin } from '../admin/autenticacao.ts'
 import type { Servicos } from '../servicos.ts'
+import { hashToken } from '../tokens.ts'
 import { erro } from './util.ts'
 
 const COOKIE = 'mango_admin'
@@ -601,6 +602,36 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
       [limite, (pagina - 1) * limite, usuario, acao],
     )
     return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, registros: r.rows.map(({ total: _t, ...linha }) => linha) })
+  })
+
+  // --- Reverter uma alteração de configuração registrada na auditoria (volta ao valor de antes; também é auditado).
+  app.post('/api/admin/auditoria/:id/reverter', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!/^\d{1,18}$/.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const r = await pool.query<{ acao: string; alvo: string | null; antes: unknown }>('select acao, alvo, antes from auditoria_admin where id = $1', [id])
+    const l = r.rows[0]
+    if (!l) return erro(c, 404, 'nao_encontrado', 'Registro não encontrado.')
+    if (!['config.alterar', 'config.restaurar'].includes(l.acao) || !l.alvo) return erro(c, 409, 'nao_reversivel', 'Só alterações de configuração podem ser revertidas.')
+    const resultado = await servicos.config.atualizar({ [l.alvo]: l.antes }, c.get('admin'))
+    if (!resultado.ok) return erro(c, 400, 'validacao', 'O valor antigo não vale mais com as regras atuais.', { erros: resultado.erros })
+    return c.json({ ok: true, chave: l.alvo, valor: l.antes })
+  })
+
+  // --- Sessões do próprio admin: onde está logado e encerrar as outras.
+  app.get('/api/admin/sessoes', exigirAdmin, async (c) => {
+    const atual = hashToken(c.get('token'))
+    const r = await pool.query<{ token_hash: string; criado_em: Date; expira_em: Date }>('select token_hash, criado_em, expira_em from admin_sessoes where admin_id = $1 and expira_em > $2 order by criado_em desc', [c.get('admin').id, agora()])
+    return c.json({ sessoes: r.rows.map((l) => ({ id: l.token_hash.slice(0, 16), atual: l.token_hash === atual, criado_em: l.criado_em, expira_em: l.expira_em })) })
+  })
+
+  app.delete('/api/admin/sessoes/:id', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!/^[0-9a-f]{16}$/.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const atual = hashToken(c.get('token'))
+    if (atual.startsWith(id)) return erro(c, 409, 'sessao_atual', 'Para encerrar esta sessão, use Sair.')
+    const r = await pool.query('delete from admin_sessoes where admin_id = $1 and starts_with(token_hash, $2)', [c.get('admin').id, id])
+    if (!r.rowCount) return erro(c, 404, 'nao_encontrado', 'Sessão não encontrada.')
+    return c.body(null, 204)
   })
 
   // --- Administradores

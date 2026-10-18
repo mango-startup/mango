@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { CampoCopiavel } from '../../components/CampoCopiavel'
 import { Confirmacao } from '../../components/Confirmacao'
 import { ErroApi } from '../../lib/api/tipos.ts'
-import { admin, type Administrador } from '../../lib/admin.ts'
+import { admin, type Administrador, type SessaoAdmin } from '../../lib/admin.ts'
 import { useAdmin } from './useAdmin'
 import { Aviso, Cartao, Titulo, Carregando } from './ui'
 import { dataHora } from './util'
@@ -17,6 +17,28 @@ export function Administradores() {
   const [temporaria, setTemporaria] = useState<{ usuario: string; senha: string } | null>(null)
 
   const [versao, setVersao] = useState(0)
+  const [sessoes, setSessoes] = useState<SessaoAdmin[] | null>(null)
+  const [versaoSessoes, setVersaoSessoes] = useState(0)
+
+  useEffect(() => {
+    let ativo = true
+    admin
+      .sessoes()
+      .then((l) => ativo && setSessoes(l))
+      .catch(() => ativo && setSessoes([]))
+    return () => {
+      ativo = false
+    }
+  }, [versaoSessoes])
+
+  const encerrar = async (id: string) => {
+    try {
+      await admin.encerrarSessao(id)
+      setVersaoSessoes((v) => v + 1)
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Sem conexão com o servidor.')
+    }
+  }
 
   useEffect(() => {
     let ativo = true
@@ -95,6 +117,29 @@ export function Administradores() {
           </Cartao>
         ))}
       </div>
+      <Cartao className="mt-6">
+        <h2 className="mb-1 text-[18px] font-semibold">Suas sessões</h2>
+        <p className="mb-3 text-sm text-muted">Lugares onde você está logado. Encerre os que não reconhece.</p>
+        {!sessoes ? (
+          <p className="text-sm text-muted">Carregando...</p>
+        ) : (
+          <ul className="divide-y divide-line text-[15px]">
+            {sessoes.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <span>
+                  Entrou em {dataHora(s.criado_em)} <span className="text-muted">· vale até {dataHora(s.expira_em)}</span>
+                  {s.atual && <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-xs text-muted">esta sessão</span>}
+                </span>
+                {!s.atual && (
+                  <Button type="button" variant="outline" onClick={() => void encerrar(s.id)}>
+                    Encerrar
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Cartao>
       <p className="mt-6 text-sm text-muted">
         Para trocar a sua própria senha, use o seu nome no topo da página.
       </p>

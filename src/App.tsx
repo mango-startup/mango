@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { carregarConfig } from './lib/configPublica'
+import { AvisoGlobal } from './components/AvisoGlobal'
 import { NavegacaoAnimada } from './components/NavegacaoAnimada'
 import { RequireHost } from './components/RequireHost'
 import { CreateEventPage } from './pages/CreateEvent'
@@ -26,6 +27,7 @@ export default function App() {
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <AvisoGlobal />
       <NavegacaoAnimada>
       <Routes>
         {/* Públicas */}

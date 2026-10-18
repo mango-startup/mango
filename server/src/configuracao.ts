@@ -37,6 +37,8 @@ export interface Config {
   rl_pedido_remocao_hora: number
   // Contato
   contato_suporte: string
+  // Aviso
+  aviso_global: string
 }
 
 export type Chave = keyof Config
@@ -60,6 +62,7 @@ const d = (def: Definicao): Definicao => def
 
 export const DEFINICOES: Definicao[] = [
   d({ chave: 'criacao_aberta', grupo: 'Operação', rotulo: 'Criação de eventos aberta', descricao: 'Desligue para pausar a criação de eventos novos (manutenção). Eventos existentes seguem funcionando.', tipo: 'booleano', padrao: true, publica: true }),
+  d({ chave: 'aviso_global', grupo: 'Operação', rotulo: 'Aviso para todos os visitantes', descricao: 'Faixa no topo do site (ex.: manutenção programada). Deixe vazio para não mostrar nada.', tipo: 'texto', padrao: '', publica: true }),
   d({ chave: 'pacotes_pagos_disponiveis', grupo: 'Operação', rotulo: 'Pacotes pagos disponíveis', descricao: 'Ligue só quando o pagamento estiver funcionando. Desligado, só pacotes grátis podem ser criados.', tipo: 'booleano', padrao: false, publica: true }),
   d({ chave: 'contato_suporte', grupo: 'Operação', rotulo: 'Contato de suporte', descricao: 'E-mail ou WhatsApp mostrado ao público (termos, ajuda).', tipo: 'texto', padrao: '', publica: true }),
 

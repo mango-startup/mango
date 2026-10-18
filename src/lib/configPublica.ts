@@ -7,6 +7,7 @@ export interface ConfigPublica {
   criacao_aberta: boolean
   pacotes_pagos_disponiveis: boolean
   contato_suporte: string
+  aviso_global: string
   captura_max_horas: number
   revelacao_max_dias: number
   revelacao_padrao_horas: number
@@ -26,6 +27,7 @@ export const CONFIG_PADRAO: Readonly<ConfigPublica> = {
   criacao_aberta: true,
   pacotes_pagos_disponiveis: false,
   contato_suporte: '',
+  aviso_global: '',
   captura_max_horas: 48,
   revelacao_max_dias: 7,
   revelacao_padrao_horas: 12,
