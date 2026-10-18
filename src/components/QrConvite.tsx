@@ -54,7 +54,7 @@ export function QrConvite({ valor, arquivo }: QrConviteProps) {
     }, 'image/png')
   }
 
-  if (!matriz) return <p className="text-sm text-muted">Não foi possível gerar o QR para este link.</p>
+  if (!matriz) return <p className="text-sm text-muted">Não deu para gerar o QR para este link.</p>
 
   return (
     <div className="flex flex-col gap-3">
@@ -71,7 +71,7 @@ export function QrConvite({ valor, arquivo }: QrConviteProps) {
           <Icone nome="baixar" className="h-5 w-5" />
           Baixar o QR (PNG)
         </Botao>
-        {falha && <p className="text-sm text-danger-ink">Não foi possível baixar. Tente de novo.</p>}
+        {falha && <p className="text-sm text-danger-ink">Não deu para baixar. Tente de novo.</p>}
         <p className="text-sm text-muted">Imprima com pelo menos 4 cm de lado. A imagem já tem margem clara.</p>
       </div>
     </div>

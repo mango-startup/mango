@@ -38,7 +38,7 @@ export function ModerationPage() {
       ? 'O álbum deste evento expirou e as fotos foram apagadas.'
       : e instanceof ErroApi && e.erro === 'nao_autorizado'
         ? 'Este aparelho não tem acesso a este evento.'
-        : 'Não foi possível carregar as fotos.'
+        : 'Não deu para carregar as fotos.'
 
   useEffect(() => {
     let ativo = true
@@ -66,7 +66,7 @@ export function ModerationPage() {
       const r = await api.albumDoAnfitriao(id, { pagina: dados.pagina + 1, limite: POR_PAGINA })
       setDados({ ...dados, fotos: [...dados.fotos, ...r.fotos], total: r.total, pagina: dados.pagina + 1 })
     } catch {
-      setAviso('Não foi possível carregar mais fotos.')
+      setAviso('Não deu para carregar mais fotos.')
     } finally {
       setCarregandoMais(false)
     }
@@ -81,7 +81,7 @@ export function ModerationPage() {
       setAviso('Foto apagada.')
       await recarregar()
     } catch (e) {
-      setAviso(e instanceof ErroApi ? e.message : 'Não foi possível apagar a foto.')
+      setAviso(e instanceof ErroApi ? e.message : 'Não deu para apagar a foto.')
     } finally {
       setOcupado(false)
     }
@@ -93,7 +93,7 @@ export function ModerationPage() {
       setAviso('Pedido respondido: a foto continua no álbum.')
       await recarregar()
     } catch (e) {
-      setAviso(e instanceof ErroApi ? e.message : 'Não foi possível responder o pedido.')
+      setAviso(e instanceof ErroApi ? e.message : 'Não deu para responder o pedido.')
     }
   }
 

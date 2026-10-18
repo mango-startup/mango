@@ -102,7 +102,7 @@ export function InvitePage() {
         ) : (
           <BlocoEstado
             className="flex-1"
-            titulo="Não foi possível abrir o convite"
+            titulo="Não deu para abrir o convite"
             texto="Confira sua conexão e tente de novo."
             acao={<Botao onClick={() => void carregar()}>Tentar de novo</Botao>}
           />
@@ -130,7 +130,7 @@ export function InvitePage() {
         <BlocoEstado
           className="flex-1"
           titulo={e.captura_inicio ? `A câmera abre ${quando(e.captura_inicio)}` : 'A câmera ainda não abriu'}
-          texto={`Cada convidado leva ${e.poses_por_convidado} poses. Volte neste mesmo link na hora da festa.`}
+          texto={`Cada convidado leva ${e.poses_por_convidado} fotos. Volte neste mesmo link na hora da festa.`}
         />,
       )
 

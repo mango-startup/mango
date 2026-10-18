@@ -111,7 +111,7 @@ export function CreateEventPage() {
       window.scrollTo(0, 0)
     } catch (err) {
       if (err instanceof ErroApi) setErro({ campo: CAMPO_DO_ERRO[err.erro] ?? 'geral', mensagem: err.message })
-      else setErro({ campo: 'geral', mensagem: 'Não foi possível criar a câmera. Confira sua conexão e tente de novo.' })
+      else setErro({ campo: 'geral', mensagem: 'Não deu para criar a câmera. Confira sua conexão e tente de novo.' })
     } finally {
       setEnviando(false)
     }
@@ -135,7 +135,7 @@ export function CreateEventPage() {
       <form onSubmit={criar} noValidate className="mt-10 flex flex-col gap-9">
         <div className="flex flex-col gap-2">
           <label htmlFor={ids.nome} className="text-sm font-semibold">
-            Nome do evento
+            Nome da festa
           </label>
           <input id={ids.nome} value={form.nome} onChange={(e) => mudar('nome', e.target.value)} maxLength={cfg.nome_evento_max} placeholder="Casamento da Ana e do Léo" className={`${campoTexto} placeholder:text-muted/60`} />
           {erroDe('nome')}
@@ -163,7 +163,7 @@ export function CreateEventPage() {
         </fieldset>
 
         <fieldset>
-          <legend className="mb-3 text-sm font-semibold">Poses por convidado</legend>
+          <legend className="mb-3 text-sm font-semibold">Fotos por convidado</legend>
           <Opcoes>
             {cfg.poses_validas.map((n) => (
               <Opcao key={n} nome="poses" marcada={poses === n} desabilitada={n > posesMax} onEscolher={() => mudar('poses', n)}>
@@ -172,7 +172,7 @@ export function CreateEventPage() {
             ))}
           </Opcoes>
           {posesMax < maiorPose && (
-            <p className="mt-2 text-sm text-muted">{pacote?.gratis ? 'O teste grátis' : `O pacote ${pacote?.nome ?? ''}`.trim()} vai até {posesMax} poses.</p>
+            <p className="mt-2 text-sm text-muted">{pacote?.gratis ? 'O teste grátis' : `O pacote ${pacote?.nome ?? ''}`.trim()} vai até {posesMax} fotos.</p>
           )}
           {erroDe('poses')}
         </fieldset>
@@ -288,13 +288,13 @@ function PreviaConvite({ nome, poses, revelacao }: { nome: string; poses: number
   return (
     <section aria-label="Prévia do convite" className="sobre-creme rounded-[20px] bg-paper p-5 text-base">
       <p className="text-xs font-semibold opacity-60">Prévia do convite</p>
-      <p className="mt-3 font-display text-[30px] leading-[1.05] [text-wrap:balance]">{nome.trim() || 'Nome do evento'}</p>
+      <p className="mt-3 font-display text-[30px] leading-[1.05] [text-wrap:balance]">{nome.trim() || 'Nome da festa'}</p>
       <div className="mt-4 flex items-center gap-4 border-t border-base/15 pt-4">
         <span className="flex flex-col items-center leading-none">
           <span key={poses} className="anim-troca font-display text-[40px] tabular-nums">
             {poses}
           </span>
-          <span className="mt-1 text-xs opacity-60">poses</span>
+          <span className="mt-1 text-xs opacity-60">fotos</span>
         </span>
         <p key={revelacao?.getTime() ?? 'manual'} className="anim-troca text-sm leading-snug">
           Ninguém vê as fotos até a revelação.

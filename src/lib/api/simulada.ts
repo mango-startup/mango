@@ -538,7 +538,7 @@ export function criarApiSimulada(opcoes: OpcoesSimulada): ApiSimulada {
       }
       const doEvento = ativas(banco, evento.id)
       if (doEvento.filter((f) => f.convidado_id === convidado.id).length >= evento.poses_por_convidado) {
-        falhar(409, 'sem_poses', 'Você usou todas as suas poses.')
+        falhar(409, 'sem_poses', 'Você usou todas as suas fotos.')
       }
       if (evento.limite_fotos !== null && doEvento.length >= evento.limite_fotos) {
         falhar(409, 'evento_cheio', 'O evento atingiu o limite de fotos.')

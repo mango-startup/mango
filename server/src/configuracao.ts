@@ -66,8 +66,8 @@ export const DEFINICOES: Definicao[] = [
   d({ chave: 'captura_max_horas', grupo: 'Eventos', rotulo: 'Câmera aberta, no máximo', descricao: 'Maior intervalo entre abrir e fechar a câmera de um evento.', tipo: 'inteiro', padrao: 48, min: 1, max: 168, unidade: 'horas', publica: true }),
   d({ chave: 'revelacao_max_dias', grupo: 'Eventos', rotulo: 'Revelação, no máximo depois do fim', descricao: 'Quantos dias depois de a câmera fechar a revelação pode ser agendada.', tipo: 'inteiro', padrao: 7, min: 1, max: 60, unidade: 'dias', publica: true }),
   d({ chave: 'revelacao_padrao_horas', grupo: 'Eventos', rotulo: 'Revelação padrão depois do fim', descricao: 'Usada quando o evento não informa o horário da revelação.', tipo: 'inteiro', padrao: 12, min: 0, max: 168, unidade: 'horas', publica: true }),
-  d({ chave: 'poses_validas', grupo: 'Eventos', rotulo: 'Poses por convidado (opções)', descricao: 'As opções que o anfitrião pode escolher; cada pacote limita pelo seu máximo de poses. Ex.: 12, 24, 36.', tipo: 'lista_inteiros', padrao: [12, 24, 36], min: 1, max: 100, publica: true }),
-  d({ chave: 'poses_padrao', grupo: 'Eventos', rotulo: 'Poses padrão', descricao: 'Sugestão inicial. Precisa estar entre as opções acima.', tipo: 'inteiro', padrao: 24, min: 1, max: 100, publica: true }),
+  d({ chave: 'poses_validas', grupo: 'Eventos', rotulo: 'Fotos por convidado (opções)', descricao: 'As opções que o anfitrião pode escolher; cada pacote limita pelo seu máximo de fotos. Ex.: 12, 24, 36.', tipo: 'lista_inteiros', padrao: [12, 24, 36], min: 1, max: 100, publica: true }),
+  d({ chave: 'poses_padrao', grupo: 'Eventos', rotulo: 'Fotos por convidado (padrão)', descricao: 'Sugestão inicial. Precisa estar entre as opções acima.', tipo: 'inteiro', padrao: 24, min: 1, max: 100, publica: true }),
   d({ chave: 'nome_evento_max', grupo: 'Eventos', rotulo: 'Nome do evento, tamanho máximo', descricao: 'Caracteres.', tipo: 'inteiro', padrao: 80, min: 20, max: 200, unidade: 'caracteres', publica: true }),
   d({ chave: 'apelido_max', grupo: 'Eventos', rotulo: 'Apelido do convidado, tamanho máximo', descricao: 'Caracteres.', tipo: 'inteiro', padrao: 40, min: 10, max: 100, unidade: 'caracteres', publica: true }),
   d({ chave: 'rascunho_validade_dias', grupo: 'Eventos', rotulo: 'Pagamento não concluído some depois de', descricao: 'Evento em rascunho ou aguardando pagamento é excluído depois deste prazo.', tipo: 'inteiro', padrao: 7, min: 1, max: 60, unidade: 'dias', publica: false }),
@@ -141,7 +141,7 @@ export function validarValor(def: Definicao, valor: unknown): ResultadoValor {
 /** Regras que envolvem mais de uma chave. Devolve a mensagem de erro (por chave) ou null. */
 export function validarConjunto(c: Config): Partial<Record<Chave, string>> | null {
   const erros: Partial<Record<Chave, string>> = {}
-  if (!c.poses_validas.includes(c.poses_padrao)) erros.poses_padrao = 'Precisa estar entre as opções de poses.'
+  if (!c.poses_validas.includes(c.poses_padrao)) erros.poses_padrao = 'Precisa estar entre as opções de fotos.'
   if (c.album_pagina_padrao > c.album_pagina_max) erros.album_pagina_padrao = 'Não pode passar do máximo por página.'
   if (c.miniatura_max_kb > c.foto_max_kb) erros.miniatura_max_kb = 'Não pode passar do tamanho máximo da foto.'
   return Object.keys(erros).length ? erros : null

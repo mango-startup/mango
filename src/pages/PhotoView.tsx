@@ -29,7 +29,7 @@ async function lerAlbum(codigo: string): Promise<Carga> {
     }
     return { tipo: 'ok', fotos, nome }
   } catch (e) {
-    return { tipo: 'erro', mensagem: e instanceof ErroApi ? e.message : 'Não foi possível carregar a foto.' }
+    return { tipo: 'erro', mensagem: e instanceof ErroApi ? e.message : 'Não deu para carregar a foto.' }
   }
 }
 
@@ -123,7 +123,7 @@ export function PhotoViewPage() {
       setAviso('Pedido enviado ao anfitrião.')
       setPedindoRemocao(false)
     } catch {
-      setAviso('Não foi possível enviar o pedido. Tente de novo.')
+      setAviso('Não deu para enviar o pedido. Tente de novo.')
     } finally {
       setEnviandoPedido(false)
     }

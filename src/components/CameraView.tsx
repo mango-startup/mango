@@ -76,7 +76,7 @@ export function CameraView({ onCapture, disabled, caption, fallback }: CameraVie
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="font-display text-xl">Não foi possível acessar a câmera</p>
+        <p className="font-display text-xl">Não deu para acessar a câmera</p>
         <p className="max-w-[320px] text-sm text-muted">{error}</p>
         <button
           type="button"

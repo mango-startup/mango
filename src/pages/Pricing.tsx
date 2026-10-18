@@ -12,7 +12,7 @@ function retencao(dias: number): string {
 }
 
 function poses(opcoes: number[]): string {
-  return opcoes.length === 1 ? `${opcoes[0]} poses` : `${opcoes.slice(0, -1).join(', ')} ou ${opcoes.at(-1)} poses`
+  return opcoes.length === 1 ? `${opcoes[0]} fotos` : `${opcoes.slice(0, -1).join(', ')} ou ${opcoes.at(-1)} fotos`
 }
 
 // /precos — escolha pelo tamanho da festa. Os valores vêm da api, não ficam presos no componente.
@@ -54,7 +54,7 @@ export function PricingPage() {
         <h1 className="max-w-[640px] font-display text-[44px] leading-[1.02] [text-wrap:balance] sm:text-[56px]">Um preço por festa, pelo número de convidados</h1>
         <p className="mt-4 max-w-[520px] text-[17px] leading-normal text-muted">Pagamento único. Sem assinatura, sem app para ninguém instalar.</p>
 
-        {falhou && <p className="mt-10 text-[15px] text-danger-ink">Não foi possível carregar os preços. Confira sua conexão e recarregue a página.</p>}
+        {falhou && <p className="mt-10 text-[15px] text-danger-ink">Não deu para carregar os preços. Confira sua conexão e recarregue a página.</p>}
         {!pacotes && !falhou && (
           <p role="status" className="mt-10 text-[15px] text-muted">
             Carregando...

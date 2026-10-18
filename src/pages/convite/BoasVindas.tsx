@@ -32,7 +32,7 @@ export function BoasVindas({ codigo, evento, onEntrou, onMudou }: BoasVindasProp
         onMudou()
         return
       }
-      setErro('Não foi possível entrar agora. Confira sua conexão e tente de novo.')
+      setErro('Não deu para entrar agora. Confira sua conexão e tente de novo.')
       setEnviando(false)
     }
   }
@@ -49,7 +49,7 @@ export function BoasVindas({ codigo, evento, onEntrou, onMudou }: BoasVindasProp
       <div className="mt-10 flex items-center gap-5 border-y border-line py-5">
         <span className="flex flex-col items-center leading-none">
           <span className="font-display text-[56px] tabular-nums">{evento.poses_por_convidado}</span>
-          <span className="mt-1 text-xs text-muted">poses</span>
+          <span className="mt-1 text-xs text-muted">fotos</span>
         </span>
         <ul className="flex flex-col gap-1.5 text-[15px] leading-snug">
           <li>Você tem {evento.poses_por_convidado} fotos no seu rolo.</li>

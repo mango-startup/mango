@@ -107,7 +107,7 @@ export function PaymentStatusPage() {
       desde.current = Date.now()
       setDemorando(false)
     } catch (e) {
-      setErro(e instanceof ErroApi ? e.message : 'Não foi possível abrir o pagamento. Tente de novo.')
+      setErro(e instanceof ErroApi ? e.message : 'Não deu para abrir o pagamento. Tente de novo.')
       await consultar()
     }
     setTentando(false)
@@ -137,7 +137,7 @@ export function PaymentStatusPage() {
       {vista === 'erro' && (
         <BlocoEstado
           className="py-12"
-          titulo="Não foi possível consultar"
+          titulo="Não deu para consultar"
           texto="Confira sua conexão. Se você já pagou, o pagamento não se perde."
           acao={<Botao onClick={() => void consultar()}>Tentar de novo</Botao>}
         />

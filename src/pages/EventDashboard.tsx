@@ -33,7 +33,7 @@ export function EventDashboardPage() {
   const carregar = useCallback(
     () =>
       api.painel(id).then(setPainel, (e: unknown) => {
-        setFalha(e instanceof ErroApi && e.erro === 'nao_autorizado' ? 'Este aparelho não tem acesso a este evento.' : 'Não foi possível abrir o evento.')
+        setFalha(e instanceof ErroApi && e.erro === 'nao_autorizado' ? 'Este aparelho não tem acesso a este evento.' : 'Não deu para abrir o evento.')
       }),
     [id],
   )
@@ -43,7 +43,7 @@ export function EventDashboardPage() {
     api.painel(id).then(
       (p) => ativo && setPainel(p),
       (e: unknown) =>
-        ativo && setFalha(e instanceof ErroApi && e.erro === 'nao_autorizado' ? 'Este aparelho não tem acesso a este evento.' : 'Não foi possível abrir o evento.'),
+        ativo && setFalha(e instanceof ErroApi && e.erro === 'nao_autorizado' ? 'Este aparelho não tem acesso a este evento.' : 'Não deu para abrir o evento.'),
     )
     api.linkDoAnfitriao(id).then((l) => ativo && setLinkAnfitriao(l), () => {})
     return () => {
@@ -90,7 +90,7 @@ export function EventDashboardPage() {
       await api.editarEvento(id, { album_privado: privado })
       await carregar()
     } catch (e) {
-      setAviso(e instanceof ErroApi ? e.message : 'Não foi possível mudar o álbum agora.')
+      setAviso(e instanceof ErroApi ? e.message : 'Não deu para mudar o álbum agora.')
     }
   }
 
@@ -105,7 +105,7 @@ export function EventDashboardPage() {
       link.click()
       setTimeout(() => URL.revokeObjectURL(url), 10_000)
     } catch (e) {
-      setAviso(e instanceof ErroApi ? e.message : 'Não foi possível baixar o álbum agora.')
+      setAviso(e instanceof ErroApi ? e.message : 'Não deu para baixar o álbum agora.')
     }
   }
 

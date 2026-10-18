@@ -22,7 +22,7 @@ const PERGUNTAS: { pergunta: string; resposta: string; link?: { to: string; text
   },
   {
     pergunta: 'Quantas fotos cada convidado tira?',
-    resposta: 'Você escolhe ao criar a câmera: 12, 24 ou 36 poses, como um rolo de verdade. No teste grátis são 12. Não dá para apagar e tirar de novo.',
+    resposta: 'Você escolhe ao criar a câmera: 12, 24 ou 36 fotos, como um rolo de verdade. No teste grátis são 12. Não dá para apagar e tirar de novo.',
     link: { to: '/precos', texto: 'Ver os pacotes' },
   },
   {
@@ -127,8 +127,8 @@ export function LandingPage() {
             Ninguém vê.
           </h1>
           <p style={{ '--d': '160ms' } as React.CSSProperties} className="anim-up mt-5 max-w-[350px] px-6 text-[17px] leading-normal opacity-90 lg:mt-10 lg:max-w-[520px] lg:px-14 lg:text-[22px]">
-            Uma câmera descartável para a sua festa. Cada convidado leva um rolo, com 12, 24 ou 36
-            poses. As fotos só aparecem quando você revelar.
+            Uma câmera descartável para a sua festa. Cada convidado leva um rolo de 12, 24 ou 36
+            fotos. Elas só aparecem quando você revelar.
           </p>
           <div style={{ '--d': '240ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
             <Link

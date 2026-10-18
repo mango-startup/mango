@@ -138,7 +138,7 @@ export function rotasFotos(pool: Pool, storage: Storage, agora: () => Date = () 
       )
       if (Number(contagem.rows[0].do_convidado) >= ctx.poses_por_convidado) {
         await cliente.query('rollback')
-        return erro(c, 409, 'sem_poses', 'Você usou todas as suas poses.')
+        return erro(c, 409, 'sem_poses', 'Você usou todas as suas fotos.')
       }
       if (ctx.limite_fotos !== null && Number(contagem.rows[0].do_evento) >= ctx.limite_fotos) {
         await cliente.query('rollback')
