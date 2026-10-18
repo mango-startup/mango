@@ -8,6 +8,8 @@ const ICONES: Record<string, ReactNode> = {
   analise: <path d="M5 20V10M12 20V4M19 20v-7" />,
   resumo: <path d="M4 5h7v7H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 14h7v5H4z" />,
   crescimento: <path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7" />,
+  aovivo: <path d="M12 12m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9" />,
+  uso: <path d="M4 6c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2zM4 6v6c0 1.1 3.6 2 8 2s8-.9 8-2V6M4 12v6c0 1.1 3.6 2 8 2s8-.9 8-2v-6" />,
   eventos: <path d="M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />,
   anfitrioes: <path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.5c1.9.8 3 2.6 3 5.5" />,
   moderacao: <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6zM9 12l2 2 4-4" />,
@@ -34,11 +36,13 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
       { para: '/admin', rotulo: 'Resumo', icone: 'resumo', fim: true },
       { para: '/admin/analise', rotulo: 'Análise', icone: 'analise' },
       { para: '/admin/crescimento', rotulo: 'Crescimento', icone: 'crescimento' },
+      { para: '/admin/uso', rotulo: 'Uso e retenção', icone: 'uso' },
     ],
   },
   {
     nome: 'Operação',
     itens: [
+      { para: '/admin/ao-vivo', rotulo: 'Ao vivo', icone: 'aovivo' },
       { para: '/admin/eventos', rotulo: 'Eventos', icone: 'eventos' },
       { para: '/admin/anfitrioes', rotulo: 'Anfitriões', icone: 'anfitrioes' },
       { para: '/admin/moderacao', rotulo: 'Moderação', icone: 'moderacao' },

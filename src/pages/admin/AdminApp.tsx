@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import { AoVivo } from './AoVivo'
 import { Administradores } from './Administradores'
 import { Analise } from './Analise'
 import { Anfitrioes } from './Anfitrioes'
@@ -14,6 +15,7 @@ import { Pagamentos } from './Pagamentos'
 import { Resumo } from './Resumo'
 import { Saude } from './Saude'
 import { TrocarSenha } from './TrocarSenha'
+import { Uso } from './Uso'
 
 // Rotas de /admin/*, carregadas sob demanda pelo App.
 export default function AdminApp() {
@@ -26,6 +28,8 @@ export default function AdminApp() {
             <Route path="moderacao" element={<ModeracaoAdmin />} />
             <Route path="saude" element={<Saude />} />
             <Route path="analise" element={<Analise />} />
+            <Route path="ao-vivo" element={<AoVivo />} />
+            <Route path="uso" element={<Uso />} />
             <Route path="eventos" element={<Eventos />} />
             <Route path="eventos/:id" element={<EventoDetalhe />} />
             <Route path="pagamentos" element={<Pagamentos />} />

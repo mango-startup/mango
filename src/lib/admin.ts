@@ -177,6 +177,24 @@ export interface SaudeAdmin {
   pedidos_de_remocao_pendentes_ha_mais_de_2_dias: number
 }
 
+export interface AoVivo {
+  eventos: { id: string; nome: string; anfitriao_email: string; captura_fim: string; limite_convidados: number; convidados: number; fotos: number; fotos_ultima_hora: number }[]
+}
+
+export interface Retencao {
+  anfitrioes: number
+  recorrentes: number
+  taxa_recorrencia: number | null
+  dias_medios_entre_eventos: number | null
+}
+
+export interface Armazenamento {
+  total_bytes: number
+  bytes_por_evento: number
+  bytes_por_semana_recente: number
+  semanas: { semana: string; bytes: number; fotos: number }[]
+}
+
 export interface Dupla {
   atual: number
   anterior: number
@@ -265,6 +283,11 @@ export const admin = {
   crescimento: (dias: number) => chamar<Crescimento>('GET', `/api/admin/crescimento?dias=${dias}`),
   moderacao: () => chamar<ModeracaoAdmin>('GET', '/api/admin/moderacao'),
   anfitrioes: (busca = '', pagina = 1) => chamar<PaginaAnfitrioes>('GET', `/api/admin/anfitrioes?pagina=${pagina}${busca ? `&busca=${encodeURIComponent(busca)}` : ''}`),
+  aoVivo: () => chamar<AoVivo>('GET', '/api/admin/ao-vivo'),
+  retencao: () => chamar<Retencao>('GET', '/api/admin/retencao'),
+  armazenamento: () => chamar<Armazenamento>('GET', '/api/admin/armazenamento'),
+  estenderCamera: (id: string, minutos: number) => chamar<{ captura_fim: string; revelacao_em: string | null }>('POST', `/api/admin/eventos/${encodeURIComponent(id)}/estender-camera`, { minutos }),
+  resolverPedidos: (ids: string[], resolucao: 'removida' | 'mantida') => chamar<{ resolvidos: number }>('POST', '/api/admin/moderacao/resolver', { ids, resolucao }),
   saude: () => chamar<SaudeAdmin>('GET', '/api/admin/saude'),
   pagamentos: (status = '', pagina = 1) => chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?pagina=${pagina}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
   administradores: () => chamar<{ administradores: Administrador[] }>('GET', '/api/admin/administradores').then((r) => r.administradores),
