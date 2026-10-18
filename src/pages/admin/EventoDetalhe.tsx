@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, formatarReais, type EventoDetalhe as Dados } from '../../lib/admin.ts'
+import { Button } from '@/components/ui/button'
+import { EmailAnfitriao } from './EmailAnfitriao'
 import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { dataHora, ESTADOS_EVENTO } from './util'
 
@@ -33,7 +35,25 @@ export function EventoDetalhe() {
     }
   }, [id])
 
+  const [estendendo, setEstendendo] = useState(false)
+  const [aviso, setAviso] = useState<{ tipo: 'erro' | 'ok'; texto: string } | null>(null)
+
+  const estender = async (minutos: number) => {
+    setEstendendo(true)
+    setAviso(null)
+    try {
+      const r = await admin.estenderCamera(id, minutos)
+      setDados((d) => (d ? { ...d, evento: { ...d.evento, captura_fim: r.captura_fim, revelacao_em: r.revelacao_em } } : d))
+      setAviso({ tipo: 'ok', texto: `Câmera estendida em ${minutos} minutos.` })
+    } catch (err) {
+      setAviso({ tipo: 'erro', texto: err instanceof ErroApi ? err.message : 'Sem conexão com o servidor.' })
+    } finally {
+      setEstendendo(false)
+    }
+  }
+
   const e = dados?.evento
+  const podeEstender = !!e && !e.excluido_em && (e.estado === 'pronto' || e.estado === 'captura_aberta')
   return (
     <>
       <Link to="/admin/eventos" className="mb-4 inline-flex min-h-11 items-center text-sm text-muted underline-offset-4 hover:text-paper hover:underline">
@@ -44,6 +64,25 @@ export function EventoDetalhe() {
       {dados && e && (
         <div className="flex flex-col gap-6">
           <Titulo detalhe={`${e.anfitriao_email} · ${ESTADOS_EVENTO[e.estado] ?? e.estado}${e.excluido_em ? ' · apagado' : ''}`}>{e.nome}</Titulo>
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/admin/eventos/${e.id}/anfitriao`} className="inline-flex min-h-11 items-center rounded-[12px] border border-line px-4 text-sm font-semibold hover:bg-surface">
+              Ver como o anfitrião (leitura)
+            </Link>
+          </div>
+          {podeEstender && (
+            <Cartao>
+              <h2 className="text-sm font-semibold">Estender a câmera</h2>
+              <p className="mt-1 text-sm text-muted">Soma tempo ao fim da captura (a revelação é adiada se cair antes). Fica registrado na auditoria.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[30, 60, 180, 720].map((m) => (
+                  <Button key={m} type="button" variant="outline" disabled={estendendo} onClick={() => void estender(m)}>
+                    +{m >= 60 ? `${m / 60} h` : `${m} min`}
+                  </Button>
+                ))}
+              </div>
+              {aviso && <div className="mt-3"><Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso></div>}
+            </Cartao>
+          )}
           <div className="grid gap-4 lg:grid-cols-2">
             <Cartao>
               <h2 className="text-sm font-semibold">Evento</h2>
@@ -100,6 +139,8 @@ export function EventoDetalhe() {
                 ))}
             </ol>
           </Cartao>
+
+          <EmailAnfitriao eventoId={e.id} para={e.anfitriao_email || null} />
 
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Pagamentos</h2>

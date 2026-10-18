@@ -5,6 +5,8 @@ import type { Pool } from 'pg'
 import { ServicoAdmin } from '../admin/autenticacao.ts'
 import type { Admin } from '../admin/autenticacao.ts'
 import type { Servicos } from '../servicos.ts'
+import type { Storage } from '../storage/storage.ts'
+import { hashToken } from '../tokens.ts'
 import { erro } from './util.ts'
 
 const COOKIE = 'mango_admin'
@@ -25,7 +27,7 @@ async function lerCorpo(c: Context): Promise<Record<string, unknown> | null> {
 }
 
 /** Área de admin: login, troca de senha e gestão de pacotes, configurações e auditoria. Tudo sob /api/admin. */
-export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = () => new Date()): Hono<Variaveis> {
+export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = () => new Date(), storage?: Storage): Hono<Variaveis> {
   const app = new Hono<Variaveis>()
   const admins = new ServicoAdmin(pool, agora)
 
@@ -273,6 +275,215 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     return c.json({ pendentes: pendentes.rows, resolvidos: { removida: por.removida ?? 0, mantida: por.mantida ?? 0 } })
   })
 
+  // --- Ao vivo: eventos com a câmera aberta agora e o ritmo de fotos na última hora.
+  app.get('/api/admin/ao-vivo', exigirAdmin, async (c) => {
+    const r = await pool.query(
+      `select e.id::text, e.nome, e.anfitriao_email, e.captura_fim, e.limite_convidados,
+              (select count(*) from convidados v where v.evento_id = e.id)::int as convidados,
+              (select count(*) from fotos f where f.evento_id = e.id and f.removida_em is null)::int as fotos,
+              (select count(*) from fotos f where f.evento_id = e.id and f.criado_em > $1::timestamptz - interval '1 hour')::int as fotos_ultima_hora
+         from eventos e where e.estado = 'captura_aberta' and e.excluido_em is null
+        order by fotos_ultima_hora desc, e.captura_fim asc limit 50`,
+      [agora()],
+    )
+    return c.json({ eventos: r.rows })
+  })
+
+  // --- Retenção: quantos anfitriões voltam para um segundo evento e em quanto tempo.
+  app.get('/api/admin/retencao', exigirAdmin, async (c) => {
+    const r = await pool.query<{ anfitrioes: string; recorrentes: string; dias_medios: string | null }>(
+      `with por as (
+         select anfitriao_email, count(*) as n, min(criado_em) as primeiro, max(criado_em) as ultimo
+           from eventos where excluido_em is null group by anfitriao_email)
+       select count(*) as anfitrioes, count(*) filter (where n >= 2) as recorrentes,
+              avg(extract(epoch from (ultimo - primeiro)) / 86400 / nullif(n - 1, 0)) filter (where n >= 2) as dias_medios
+         from por`,
+    )
+    const l = r.rows[0]
+    const total = Number(l.anfitrioes)
+    const recorrentes = Number(l.recorrentes)
+    return c.json({
+      anfitrioes: total,
+      recorrentes,
+      taxa_recorrencia: total > 0 ? recorrentes / total : null,
+      dias_medios_entre_eventos: l.dias_medios === null ? null : Number(Number(l.dias_medios).toFixed(1)),
+    })
+  })
+
+  // --- Armazenamento: bytes por semana (12 semanas), média por evento e ritmo recente.
+  app.get('/api/admin/armazenamento', exigirAdmin, async (c) => {
+    const [semanas, totais] = await Promise.all([
+      pool.query<{ semana: string; bytes: string; fotos: string }>(
+        `select to_char(date_trunc('week', criado_em at time zone 'America/Sao_Paulo'), 'YYYY-MM-DD') as semana,
+                coalesce(sum(tamanho_bytes), 0) as bytes, count(*) as fotos
+           from fotos where criado_em > $1::timestamptz - interval '12 weeks' group by 1 order by 1`,
+        [agora()],
+      ),
+      pool.query<{ bytes: string; eventos: string }>(
+        `select coalesce(sum(tamanho_bytes), 0) as bytes,
+                (select count(*) from eventos e where e.excluido_em is null and exists (select 1 from fotos f where f.evento_id = e.id)) as eventos
+           from fotos where arquivo_apagado_em is null`,
+      ),
+    ])
+    const bytes = Number(totais.rows[0].bytes)
+    const eventosComFoto = Number(totais.rows[0].eventos)
+    const recentes = semanas.rows.slice(-4)
+    return c.json({
+      total_bytes: bytes,
+      bytes_por_evento: eventosComFoto > 0 ? Math.round(bytes / eventosComFoto) : 0,
+      bytes_por_semana_recente: recentes.length > 0 ? Math.round(recentes.reduce((a, l) => a + Number(l.bytes), 0) / recentes.length) : 0,
+      semanas: semanas.rows.map((l) => ({ semana: l.semana, bytes: Number(l.bytes), fotos: Number(l.fotos) })),
+    })
+  })
+
+  // --- Estender a câmera de um evento que ainda não foi revelado (até 24 horas por vez).
+  app.post('/api/admin/eventos/:id/estender-camera', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const corpo = await lerCorpo(c)
+    const minutos = corpo ? Number(corpo.minutos) : NaN
+    if (!Number.isInteger(minutos) || minutos < 1 || minutos > 1440) return erro(c, 400, 'validacao', 'Informe de 1 a 1440 minutos.', { erros: { minutos: 'Informe de 1 a 1440 minutos.' } })
+    const ev = await pool.query<{ estado: string; captura_fim: Date | null; revelacao_em: Date | null }>('select estado, captura_fim, revelacao_em from eventos where id = $1 and excluido_em is null', [id])
+    const e = ev.rows[0]
+    if (!e) return erro(c, 404, 'nao_encontrado', 'Evento não encontrado.')
+    if (!['pronto', 'captura_aberta'].includes(e.estado) || !e.captura_fim) return erro(c, 409, 'estado_invalido', 'Só dá para estender a câmera de um evento pronto ou com a câmera aberta.')
+    const novoFim = new Date(Math.max(e.captura_fim.getTime(), agora().getTime()) + minutos * 60_000)
+    const novaRevelacao = e.revelacao_em && e.revelacao_em < novoFim ? novoFim : e.revelacao_em
+    await pool.query('update eventos set captura_fim = $2, revelacao_em = $3, atualizado_em = $4 where id = $1', [id, novoFim, novaRevelacao, agora()])
+    const a = c.get('admin')
+    await pool.query(`insert into auditoria_admin (admin_id, usuario, acao, alvo, antes, depois, criado_em) values ($1,$2,'evento.estender_camera',$3,$4::jsonb,$5::jsonb,$6)`, [
+      a.id, a.usuario, id, JSON.stringify({ captura_fim: e.captura_fim }), JSON.stringify({ captura_fim: novoFim, minutos }), agora(),
+    ])
+    return c.json({ captura_fim: novoFim, revelacao_em: novaRevelacao })
+  })
+
+  // --- Moderação em lote: resolve vários pedidos de remoção de uma vez (remover a foto ou manter).
+  app.post('/api/admin/moderacao/resolver', exigirAdmin, async (c) => {
+    const corpo = await lerCorpo(c)
+    const ids = corpo && Array.isArray(corpo.ids) ? corpo.ids.filter((x): x is string => typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x)) : []
+    const resolucao = corpo?.resolucao
+    if (ids.length === 0 || ids.length > 100 || (resolucao !== 'removida' && resolucao !== 'mantida')) {
+      return erro(c, 400, 'validacao', 'Envie de 1 a 100 pedidos e a resolução (removida ou mantida).')
+    }
+    const cliente = await pool.connect()
+    try {
+      await cliente.query('begin')
+      const pedidos = await cliente.query<{ id: string; foto_id: string }>(
+        `update pedidos_remocao set resolucao = $2, resolvido_em = $3 where id = any($1::uuid[]) and resolvido_em is null returning id::text, foto_id::text`,
+        [ids, resolucao, agora()],
+      )
+      if (resolucao === 'removida' && pedidos.rows.length > 0) {
+        const fotos = pedidos.rows.map((p) => p.foto_id)
+        await cliente.query('update fotos set removida_em = $2 where id = any($1::uuid[]) and removida_em is null', [fotos, agora()])
+        // Outros pedidos da mesma foto ficam resolvidos junto.
+        await cliente.query(`update pedidos_remocao set resolucao = 'removida', resolvido_em = $2 where foto_id = any($1::uuid[]) and resolvido_em is null`, [fotos, agora()])
+      }
+      const a = c.get('admin')
+      await cliente.query(`insert into auditoria_admin (admin_id, usuario, acao, alvo, depois, criado_em) values ($1,$2,'moderacao.resolver_lote',null,$3::jsonb,$4)`, [
+        a.id, a.usuario, JSON.stringify({ resolucao, pedidos: pedidos.rows.map((p) => p.id) }), agora(),
+      ])
+      await cliente.query('commit')
+      return c.json({ resolvidos: pedidos.rows.length })
+    } catch (e) {
+      await cliente.query('rollback')
+      throw e
+    } finally {
+      cliente.release()
+    }
+  })
+
+  const UUID_OK = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+  const auditar = (c: Context<Variaveis>, acao: string, alvo: string, depois?: unknown) => {
+    const a = c.get('admin')
+    return pool.query(`insert into auditoria_admin (admin_id, usuario, acao, alvo, depois, criado_em) values ($1,$2,$3,$4,$5::jsonb,$6)`, [a.id, a.usuario, acao, alvo, depois === undefined ? null : JSON.stringify(depois), agora()])
+  }
+
+  // --- Ver como o anfitrião (só leitura): o que ele vê no painel do evento. Não usa nem revela o token do anfitrião.
+  app.get('/api/admin/eventos/:id/como-anfitriao', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    await servicos.avancar()
+    const ev = await pool.query(
+      `select id::text, codigo, nome, estado, anfitriao_email, album_privado, captura_inicio, captura_fim, revelacao_em, revelado_em, expira_em, poses_por_convidado, limite_convidados,
+              (select count(*) from convidados v where v.evento_id = e.id)::int as convidados,
+              (select count(*) from fotos f where f.evento_id = e.id and f.removida_em is null)::int as fotos
+         from eventos e where id = $1 and excluido_em is null`,
+      [id],
+    )
+    if (!ev.rows[0]) return erro(c, 404, 'nao_encontrado', 'Evento não encontrado.')
+    const pedidos = await pool.query(
+      `select p.id::text, t.numero::int as numero, p.motivo, p.criado_em
+         from pedidos_remocao p
+         left join (select id, row_number() over (order by coalesce(tirada_em, criado_em), id) as numero from fotos where evento_id = $1 and removida_em is null) t on t.id = p.foto_id
+        where p.evento_id = $1 and p.resolvido_em is null order by p.criado_em`,
+      [id],
+    )
+    await auditar(c, 'evento.ver_como_anfitriao', id)
+    return c.json({ evento: ev.rows[0], pedidos_de_remocao: pedidos.rows })
+  })
+
+  app.get('/api/admin/eventos/:id/album', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const { limite, pagina, deslocamento } = paginar(c)
+    const r = await pool.query(
+      `with todas as (
+         select f.id, c.apelido, f.tirada_em, f.miniatura_chave is not null as tem_miniatura,
+                row_number() over (order by coalesce(f.tirada_em, f.criado_em), f.id) as numero
+           from fotos f join convidados c on c.id = f.convidado_id where f.evento_id = $1 and f.removida_em is null)
+       select id::text, numero::int, apelido, tirada_em, tem_miniatura, count(*) over () as total from todas order by numero limit $2 offset $3`,
+      [id, limite, deslocamento],
+    )
+    return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, fotos: r.rows.map(({ total: _t, ...f }) => f) })
+  })
+
+  app.get('/api/admin/eventos/:id/fotos/:fotoId/miniatura', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    const fotoId = c.req.param('fotoId').toLowerCase()
+    if (!UUID_OK.test(id) || !UUID_OK.test(fotoId)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    if (!storage) return erro(c, 404, 'nao_encontrada', 'Arquivo da foto não encontrado.')
+    const r = await pool.query<{ chave_storage: string; miniatura_chave: string | null }>('select chave_storage, miniatura_chave from fotos where id = $1 and evento_id = $2 and removida_em is null', [fotoId, id])
+    const foto = r.rows[0]
+    if (!foto) return erro(c, 404, 'nao_encontrada', 'Foto não encontrada.')
+    const dados = await storage.ler(foto.miniatura_chave ?? foto.chave_storage)
+    if (!dados) return erro(c, 404, 'nao_encontrada', 'Arquivo da foto não encontrado.')
+    return new Response(dados as BodyInit, { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': String(dados.length), 'x-content-type-options': 'nosniff' } })
+  })
+
+  // --- E-mail ao anfitrião de um evento, com histórico. Sem RESEND_API_KEY no servidor, avisa em vez de fingir que enviou.
+  app.get('/api/admin/eventos/:id/emails', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const r = await pool.query('select id::text, usuario, destinatario, assunto, corpo, status, erro, criado_em from emails_admin where evento_id = $1 order by criado_em desc limit 50', [id])
+    return c.json({ configurado: !!servicos.email, emails: r.rows })
+  })
+
+  app.post('/api/admin/eventos/:id/emails', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    if (!servicos.email) return erro(c, 503, 'email_nao_configurado', 'O envio de e-mail ainda não está configurado no servidor (RESEND_API_KEY).')
+    const corpo = await lerCorpo(c)
+    const assunto = typeof corpo?.assunto === 'string' ? corpo.assunto.trim() : ''
+    const texto = typeof corpo?.texto === 'string' ? corpo.texto.trim() : ''
+    const erros: Record<string, string> = {}
+    if (assunto.length < 3 || assunto.length > 150) erros.assunto = 'Use de 3 a 150 caracteres.'
+    if (texto.length < 3 || texto.length > 5000) erros.texto = 'Use de 3 a 5000 caracteres.'
+    if (Object.keys(erros).length) return erro(c, 400, 'validacao', 'Confira os campos.', { erros })
+    const ev = await pool.query<{ anfitriao_email: string | null }>('select anfitriao_email from eventos where id = $1 and excluido_em is null', [id])
+    if (!ev.rows[0]) return erro(c, 404, 'nao_encontrado', 'Evento não encontrado.')
+    const para = ev.rows[0].anfitriao_email
+    if (!para) return erro(c, 409, 'sem_email', 'Este evento não tem e-mail de anfitrião cadastrado.')
+    const r = await servicos.email.enviar({ para, assunto, texto })
+    const a = c.get('admin')
+    await pool.query(`insert into emails_admin (evento_id, admin_id, usuario, destinatario, assunto, corpo, status, erro, criado_em) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [
+      id, a.id, a.usuario, para, assunto, texto, r.ok ? 'enviado' : 'falhou', r.ok ? null : r.erro, agora(),
+    ])
+    await auditar(c, 'evento.enviar_email', id, { destinatario: para, assunto, status: r.ok ? 'enviado' : 'falhou' })
+    if (!r.ok) return erro(c, 503, 'email_falhou', 'O provedor de e-mail recusou o envio. Tente de novo em instantes.')
+    return c.json({ ok: true, destinatario: para }, 201)
+  })
+
   // --- Anfitriões: um por e-mail, com eventos, fotos e quanto já pagou.
   app.get('/api/admin/anfitrioes', exigirAdmin, async (c) => {
     const { limite, pagina, deslocamento } = paginar(c)
@@ -484,6 +695,36 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
       [limite, (pagina - 1) * limite, usuario, acao],
     )
     return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, registros: r.rows.map(({ total: _t, ...linha }) => linha) })
+  })
+
+  // --- Reverter uma alteração de configuração registrada na auditoria (volta ao valor de antes; também é auditado).
+  app.post('/api/admin/auditoria/:id/reverter', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!/^\d{1,18}$/.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const r = await pool.query<{ acao: string; alvo: string | null; antes: unknown }>('select acao, alvo, antes from auditoria_admin where id = $1', [id])
+    const l = r.rows[0]
+    if (!l) return erro(c, 404, 'nao_encontrado', 'Registro não encontrado.')
+    if (!['config.alterar', 'config.restaurar'].includes(l.acao) || !l.alvo) return erro(c, 409, 'nao_reversivel', 'Só alterações de configuração podem ser revertidas.')
+    const resultado = await servicos.config.atualizar({ [l.alvo]: l.antes }, c.get('admin'))
+    if (!resultado.ok) return erro(c, 400, 'validacao', 'O valor antigo não vale mais com as regras atuais.', { erros: resultado.erros })
+    return c.json({ ok: true, chave: l.alvo, valor: l.antes })
+  })
+
+  // --- Sessões do próprio admin: onde está logado e encerrar as outras.
+  app.get('/api/admin/sessoes', exigirAdmin, async (c) => {
+    const atual = hashToken(c.get('token'))
+    const r = await pool.query<{ token_hash: string; criado_em: Date; expira_em: Date }>('select token_hash, criado_em, expira_em from admin_sessoes where admin_id = $1 and expira_em > $2 order by criado_em desc', [c.get('admin').id, agora()])
+    return c.json({ sessoes: r.rows.map((l) => ({ id: l.token_hash.slice(0, 16), atual: l.token_hash === atual, criado_em: l.criado_em, expira_em: l.expira_em })) })
+  })
+
+  app.delete('/api/admin/sessoes/:id', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!/^[0-9a-f]{16}$/.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const atual = hashToken(c.get('token'))
+    if (atual.startsWith(id)) return erro(c, 409, 'sessao_atual', 'Para encerrar esta sessão, use Sair.')
+    const r = await pool.query('delete from admin_sessoes where admin_id = $1 and starts_with(token_hash, $2)', [c.get('admin').id, id])
+    if (!r.rowCount) return erro(c, 404, 'nao_encontrado', 'Sessão não encontrada.')
+    return c.body(null, 204)
   })
 
   // --- Administradores

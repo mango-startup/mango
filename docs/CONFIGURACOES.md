@@ -17,6 +17,7 @@ Auditoria dos valores de negócio que estavam fixos no código e agora são geri
 | Chave | O que controla | Padrão | Faixa | Aparece no front |
 |---|---|---|---|---|
 | `criacao_aberta` | **Criação de eventos aberta.** Desligue para pausar a criação de eventos novos (manutenção). Eventos existentes seguem funcionando. | ligado | — | sim (`GET /api/config`) |
+| `aviso_global` | **Aviso para todos os visitantes.** Faixa no topo do site (ex.: manutenção programada). Deixe vazio para não mostrar nada. | (vazio) | — | sim (`GET /api/config`) |
 | `pacotes_pagos_disponiveis` | **Pacotes pagos disponíveis.** Ligue só quando o pagamento estiver funcionando. Desligado, só pacotes grátis podem ser criados. | desligado | — | sim (`GET /api/config`) |
 | `contato_suporte` | **Contato de suporte.** E-mail ou WhatsApp mostrado ao público (termos, ajuda). | (vazio) | — | sim (`GET /api/config`) |
 

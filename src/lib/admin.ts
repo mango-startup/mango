@@ -177,6 +177,71 @@ export interface SaudeAdmin {
   pedidos_de_remocao_pendentes_ha_mais_de_2_dias: number
 }
 
+export interface AoVivo {
+  eventos: { id: string; nome: string; anfitriao_email: string; captura_fim: string; limite_convidados: number; convidados: number; fotos: number; fotos_ultima_hora: number }[]
+}
+
+export interface Retencao {
+  anfitrioes: number
+  recorrentes: number
+  taxa_recorrencia: number | null
+  dias_medios_entre_eventos: number | null
+}
+
+export interface Armazenamento {
+  total_bytes: number
+  bytes_por_evento: number
+  bytes_por_semana_recente: number
+  semanas: { semana: string; bytes: number; fotos: number }[]
+}
+
+export interface VistaAnfitriao {
+  evento: {
+    id: string
+    codigo: string
+    nome: string
+    estado: string
+    anfitriao_email: string | null
+    album_privado: boolean
+    captura_inicio: string | null
+    captura_fim: string | null
+    revelacao_em: string | null
+    revelado_em: string | null
+    expira_em: string | null
+    poses_por_convidado: number
+    limite_convidados: number
+    convidados: number
+    fotos: number
+  }
+  pedidos_de_remocao: { id: string; numero: number | null; motivo: string | null; criado_em: string }[]
+}
+
+export interface FotoAlbumAdmin {
+  id: string
+  numero: number
+  apelido: string | null
+  tirada_em: string | null
+  tem_miniatura: boolean
+}
+
+export interface EmailEnviado {
+  id: string
+  usuario: string
+  destinatario: string
+  assunto: string
+  corpo: string
+  status: 'enviado' | 'falhou'
+  erro: string | null
+  criado_em: string
+}
+
+export interface SessaoAdmin {
+  id: string
+  atual: boolean
+  criado_em: string
+  expira_em: string
+}
+
 export interface Dupla {
   atual: number
   anterior: number
@@ -218,7 +283,7 @@ export interface EventoDetalhe {
   pedidos_de_remocao: { id: string; foto_id: string; motivo: string | null; resolucao: string | null; resolvido_em: string | null; criado_em: string }[]
 }
 
-async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH', caminho: string, corpo?: unknown): Promise<T> {
+async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH' | 'DELETE', caminho: string, corpo?: unknown): Promise<T> {
   const cabecalhos: Record<string, string> = {}
   if (metodo !== 'GET') cabecalhos['X-Mango-Admin'] = '1'
   if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json'
@@ -265,6 +330,18 @@ export const admin = {
   crescimento: (dias: number) => chamar<Crescimento>('GET', `/api/admin/crescimento?dias=${dias}`),
   moderacao: () => chamar<ModeracaoAdmin>('GET', '/api/admin/moderacao'),
   anfitrioes: (busca = '', pagina = 1) => chamar<PaginaAnfitrioes>('GET', `/api/admin/anfitrioes?pagina=${pagina}${busca ? `&busca=${encodeURIComponent(busca)}` : ''}`),
+  aoVivo: () => chamar<AoVivo>('GET', '/api/admin/ao-vivo'),
+  retencao: () => chamar<Retencao>('GET', '/api/admin/retencao'),
+  armazenamento: () => chamar<Armazenamento>('GET', '/api/admin/armazenamento'),
+  estenderCamera: (id: string, minutos: number) => chamar<{ captura_fim: string; revelacao_em: string | null }>('POST', `/api/admin/eventos/${encodeURIComponent(id)}/estender-camera`, { minutos }),
+  resolverPedidos: (ids: string[], resolucao: 'removida' | 'mantida') => chamar<{ resolvidos: number }>('POST', '/api/admin/moderacao/resolver', { ids, resolucao }),
+  reverterAuditoria: (id: string) => chamar<{ ok: boolean; chave: string }>('POST', `/api/admin/auditoria/${encodeURIComponent(id)}/reverter`),
+  sessoes: () => chamar<{ sessoes: SessaoAdmin[] }>('GET', '/api/admin/sessoes').then((r) => r.sessoes),
+  encerrarSessao: (id: string) => chamar<void>('DELETE', `/api/admin/sessoes/${encodeURIComponent(id)}`),
+  comoAnfitriao: (id: string) => chamar<VistaAnfitriao>('GET', `/api/admin/eventos/${encodeURIComponent(id)}/como-anfitriao`),
+  albumDoEvento: (id: string, pagina = 1) => chamar<{ pagina: number; limite: number; total: number; fotos: FotoAlbumAdmin[] }>('GET', `/api/admin/eventos/${encodeURIComponent(id)}/album?pagina=${pagina}&limite=48`),
+  emails: (id: string) => chamar<{ configurado: boolean; emails: EmailEnviado[] }>('GET', `/api/admin/eventos/${encodeURIComponent(id)}/emails`),
+  enviarEmail: (id: string, assunto: string, texto: string) => chamar<{ ok: boolean; destinatario: string }>('POST', `/api/admin/eventos/${encodeURIComponent(id)}/emails`, { assunto, texto }),
   saude: () => chamar<SaudeAdmin>('GET', '/api/admin/saude'),
   pagamentos: (status = '', pagina = 1) => chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?pagina=${pagina}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
   administradores: () => chamar<{ administradores: Administrador[] }>('GET', '/api/admin/administradores').then((r) => r.administradores),
@@ -272,6 +349,9 @@ export const admin = {
 }
 
 /** Endereço da planilha (o navegador manda o cookie de sessão sozinho). */
+/** Miniatura de uma foto do álbum, só para admin (o cookie de sessão vai sozinho). */
+export const urlMiniaturaAdmin = (eventoId: string, fotoId: string) => `/api/admin/eventos/${eventoId}/fotos/${fotoId}/miniatura`
+
 export function urlCsv(recurso: 'eventos' | 'pagamentos', filtro: Record<string, string | undefined> = {}): string {
   const q = new URLSearchParams({ formato: 'csv' })
   for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)

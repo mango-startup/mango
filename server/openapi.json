@@ -3548,6 +3548,1206 @@
         },
         "security": []
       }
+    },
+    "/api/admin/ao-vivo": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Eventos ao vivo",
+        "description": "Eventos com a câmera aberta agora e fotos na última hora.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "eventos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "nome": {
+                            "type": "string"
+                          },
+                          "anfitriao_email": {
+                            "type": "string"
+                          },
+                          "captura_fim": {
+                            "type": "string"
+                          },
+                          "limite_convidados": {
+                            "type": "integer"
+                          },
+                          "convidados": {
+                            "type": "integer"
+                          },
+                          "fotos": {
+                            "type": "integer"
+                          },
+                          "fotos_ultima_hora": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/retencao": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Retenção de anfitriões",
+        "description": "Quantos anfitriões criaram mais de um evento e o intervalo médio entre eventos.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "anfitrioes": {
+                      "type": "integer"
+                    },
+                    "recorrentes": {
+                      "type": "integer"
+                    },
+                    "taxa_recorrencia": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "dias_medios_entre_eventos": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/armazenamento": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Uso de armazenamento",
+        "description": "Bytes guardados, média por evento e fotos por semana nas últimas 12 semanas.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_bytes": {
+                      "type": "integer"
+                    },
+                    "bytes_por_evento": {
+                      "type": "integer"
+                    },
+                    "bytes_por_semana_recente": {
+                      "type": "integer"
+                    },
+                    "semanas": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "semana": {
+                            "type": "string"
+                          },
+                          "bytes": {
+                            "type": "integer"
+                          },
+                          "fotos": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/eventos/{id}/estender-camera": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Estender a câmera",
+        "description": "Soma minutos ao fim da captura de um evento pronto ou com a câmera aberta; adia a revelação se ela cairia antes. Vai para a auditoria.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estendida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "captura_fim": {
+                      "type": "string"
+                    },
+                    "revelacao_em": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validação ou id inválido. Códigos: `validacao`, `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Evento fora do estado permitido. Códigos: `estado_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "minutos": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1440
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/moderacao/resolver": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Resolver pedidos em lote",
+        "description": "Resolve até 100 pedidos de remoção: `removida` apaga a foto do álbum, `mantida` fecha o pedido. Vai para a auditoria.",
+        "parameters": [
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolvidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resolvidos": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validação. Códigos: `validacao`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  },
+                  "resolucao": {
+                    "type": "string",
+                    "enum": [
+                      "removida",
+                      "mantida"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/sessoes": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Minhas sessões",
+        "description": "Sessões ativas do admin logado; a atual vem marcada.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessoes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "atual": {
+                            "type": "boolean"
+                          },
+                          "criado_em": {
+                            "type": "string"
+                          },
+                          "expira_em": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/sessoes/{id}": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Encerrar sessão",
+        "description": "Encerra uma das outras sessões do próprio admin.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Encerrada."
+          },
+          "400": {
+            "description": "Id inválido. Códigos: `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sessão não encontrada. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "É a sessão atual. Códigos: `sessao_atual`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/auditoria/{id}/reverter": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Reverter configuração",
+        "description": "Volta uma configuração ao valor anterior a uma alteração registrada na auditoria. Também é auditado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revertida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "chave": {
+                      "type": "string"
+                    },
+                    "valor": {}
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido ou valor antigo fora das regras atuais. Códigos: `id_invalido`, `validacao`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Registro não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "O registro não é de configuração. Códigos: `nao_reversivel`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/eventos/{id}/como-anfitriao": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Ver como o anfitrião",
+        "description": "Somente leitura: o que o anfitrião vê no painel (estado, contagens, pedidos de remoção). Não usa o token dele. Fica na auditoria.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "evento": {
+                      "type": "object"
+                    },
+                    "pedidos_de_remocao": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido. Códigos: `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/eventos/{id}/album": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Álbum do evento (admin)",
+        "description": "Folha de contato paginada, só leitura.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "limite": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "fotos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido. Códigos: `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/eventos/{id}/fotos/{fotoId}/miniatura": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Miniatura da foto (admin)",
+        "description": "JPEG da miniatura (ou da foto original, se não houver miniatura).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fotoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imagem JPEG.",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido. Códigos: `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      }
+    },
+    "/api/admin/eventos/{id}/emails": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "E-mails enviados ao anfitrião",
+        "description": "Histórico (50 mais recentes) e se o servidor tem provedor de e-mail configurado.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configurado": {
+                      "type": "boolean"
+                    },
+                    "emails": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido. Códigos: `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Enviar e-mail ao anfitrião",
+        "description": "Escreve ao e-mail do anfitrião do evento pelo Resend e registra no histórico e na auditoria.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Mango-Admin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Enviado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "destinatario": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validação ou id inválido. Códigos: `validacao`, `id_invalido`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Não encontrado. Códigos: `nao_encontrado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Sem provedor configurado ou provedor recusou. Códigos: `email_nao_configurado`, `email_falhou`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Evento sem e-mail de anfitrião. Códigos: `sem_email`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assunto": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 150
+                  },
+                  "texto": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 5000
+                  }
+                },
+                "required": [
+                  "assunto",
+                  "texto"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

@@ -64,7 +64,7 @@ export function criarApp(
   app.route('/', rotasAlbum(pool, storage, agora, servicos))
   app.route('/', rotasModeracao(pool, agora, servicos))
   app.route('/', rotasPagamento(pool, servicos))
-  app.route('/', rotasAdmin(pool, servicos, agora))
+  app.route('/', rotasAdmin(pool, servicos, agora, storage))
 
   return app
 }

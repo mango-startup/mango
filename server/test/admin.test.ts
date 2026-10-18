@@ -27,11 +27,15 @@ class StorageMemoria implements Storage {
   }
 }
 
+const storageTeste = new StorageMemoria()
 const SENHA_INICIAL = 'Inicial-Teste-2026'
 const inicio = new Date('2026-11-14T18:00:00Z')
 let agora = inicio
-const servicos = pool ? criarServicos(pool, () => agora) : undefined
-const app = pool && servicos ? criarApp(pool, new StorageMemoria(), () => agora, undefined, servicos) : undefined
+const enviados: { para: string; assunto: string; texto: string }[] = []
+let emailFalha = false
+const emailFalso = { async enviar(e: { para: string; assunto: string; texto: string }) { if (emailFalha) return { ok: false as const, erro: 'Resend 422: teste' }; enviados.push(e); return { ok: true as const } } }
+const servicos = pool ? criarServicos(pool, () => agora, null, emailFalso) : undefined
+const app = pool && servicos ? criarApp(pool, storageTeste, () => agora, undefined, servicos) : undefined
 const h = (horas: number) => new Date(inicio.getTime() + horas * 3600_000).toISOString()
 
 before(async () => {
@@ -200,7 +204,7 @@ test('configurações: lista com padrão, valida tudo ou nada, restaura e audita
   const aindaPadrao = (await chamar('GET', '/api/admin/configuracoes', { cookie })).json.grupos.flatMap((g: { itens: { chave: string; valor: unknown }[] }) => g.itens)
   assert.equal(aindaPadrao.find((i: { chave: string }) => i.chave === 'captura_max_horas').valor, 48) // nada foi aplicado
 
-  assert.equal((await config(cookie, { poses_validas: [12, 36] })).json.erros.poses_padrao, 'Precisa estar entre as opções de poses.') // regra entre chaves
+  assert.equal((await config(cookie, { poses_validas: [12, 36] })).json.erros.poses_padrao, 'Precisa estar entre as opções de fotos.') // regra entre chaves
   assert.equal((await config(cookie, { miniatura_max_kb: 4000 })).status, 400)
   assert.equal((await chamar('PATCH', '/api/admin/configuracoes', { cookie, corpo: {} })).status, 400)
 
@@ -519,4 +523,133 @@ test('valor inválido guardado no banco cai no padrão sem derrubar nada', opcoe
   assert.equal(v.captura_max_horas, 48)
   await pool!.query("delete from configuracoes where chave in ('captura_max_horas', 'chave_antiga')")
   servicos!.config.invalidar()
+})
+
+test('onda 2: ao vivo, retenção, armazenamento, estender a câmera e moderação em lote', opcoes, async () => {
+  assert.ok(pool)
+  const raziel = await adminLiberado()
+  const ev = await pool.query<{ id: string }>('select id::text from eventos where excluido_em is null order by criado_em limit 1')
+  assert.ok(ev.rows[0], 'os testes anteriores criam eventos')
+  const id = ev.rows[0].id
+  await pool.query(`update eventos set estado = 'captura_aberta', captura_fim = $2, revelacao_em = $2 where id = $1`, [id, new Date(agora.getTime() + 3600_000)])
+  const conv = await pool.query<{ id: string }>(`insert into convidados (evento_id, token_hash) values ($1, $2) returning id::text`, [id, randomUUID()])
+  const fotoIds: string[] = []
+  for (let i = 0; i < 2; i++) {
+    const f = await pool.query<{ id: string }>(
+      `insert into fotos (evento_id, convidado_id, chave_storage, tipo_mime, tamanho_bytes, criado_em) values ($1,$2,$3,'image/jpeg',1000,$4) returning id::text`,
+      [id, conv.rows[0].id, randomUUID(), agora],
+    )
+    fotoIds.push(f.rows[0].id)
+  }
+
+  const vivo = await chamar('GET', '/api/admin/ao-vivo', { cookie: raziel })
+  assert.equal(vivo.status, 200)
+  const meu = vivo.json.eventos.find((e: { id: string }) => e.id === id)
+  assert.ok(meu && meu.fotos_ultima_hora >= 2)
+  assert.equal((await chamar('GET', '/api/admin/ao-vivo')).status, 401)
+
+  const retencao = await chamar('GET', '/api/admin/retencao', { cookie: raziel })
+  assert.equal(retencao.status, 200)
+  assert.ok(retencao.json.anfitrioes >= 1 && retencao.json.recorrentes <= retencao.json.anfitrioes)
+
+  const arm = await chamar('GET', '/api/admin/armazenamento', { cookie: raziel })
+  assert.equal(arm.status, 200)
+  assert.ok(arm.json.total_bytes >= 2000 && arm.json.bytes_por_evento > 0)
+  assert.ok(Array.isArray(arm.json.semanas))
+
+  const antes = new Date((await pool.query<{ captura_fim: Date }>('select captura_fim from eventos where id = $1', [id])).rows[0].captura_fim)
+  assert.equal((await chamar('POST', `/api/admin/eventos/${id}/estender-camera`, { cookie: raziel, corpo: { minutos: 0 } })).status, 400)
+  assert.equal((await chamar('POST', `/api/admin/eventos/${randomUUID()}/estender-camera`, { cookie: raziel, corpo: { minutos: 30 } })).status, 404)
+  const ext = await chamar('POST', `/api/admin/eventos/${id}/estender-camera`, { cookie: raziel, corpo: { minutos: 30 } })
+  assert.equal(ext.status, 200, JSON.stringify(ext.json))
+  assert.equal(new Date(ext.json.captura_fim).getTime(), antes.getTime() + 30 * 60_000)
+  assert.equal(new Date(ext.json.revelacao_em).getTime(), new Date(ext.json.captura_fim).getTime()) // revelação não fica antes do fim
+
+  await pool.query(`insert into pedidos_remocao (evento_id, foto_id, solicitante) values ($1,$2,'ip:a'), ($1,$3,'ip:b')`, [id, fotoIds[0], fotoIds[1]])
+  const pend = await chamar('GET', '/api/admin/moderacao', { cookie: raziel })
+  const ids = pend.json.pendentes.filter((p: { evento_id: string }) => p.evento_id === id).map((p: { id: string }) => p.id)
+  assert.equal(ids.length, 2)
+  assert.equal((await chamar('POST', '/api/admin/moderacao/resolver', { cookie: raziel, corpo: { ids, resolucao: 'apagar' } })).status, 400)
+  const lote = await chamar('POST', '/api/admin/moderacao/resolver', { cookie: raziel, corpo: { ids, resolucao: 'removida' } })
+  assert.equal(lote.status, 200)
+  assert.equal(lote.json.resolvidos, 2)
+  const removidas = await pool.query('select count(*)::int as n from fotos where id = any($1::uuid[]) and removida_em is not null', [fotoIds])
+  assert.equal(removidas.rows[0].n, 2)
+  assert.equal((await chamar('POST', '/api/admin/moderacao/resolver', { cookie: raziel, corpo: { ids, resolucao: 'removida' } })).json.resolvidos, 0) // repetir não faz nada
+  const aud = await chamar('GET', '/api/admin/auditoria?acao=moderacao.resolver_lote', { cookie: raziel })
+  assert.ok(aud.json.total >= 1)
+})
+
+test('onda 3: aviso global, reverter configuração e sessões do admin', opcoes, async () => {
+  const raziel = await adminLiberado()
+  const aviso = await config(raziel, { aviso_global: 'Manutenção hoje às 22h' })
+  assert.equal(aviso.status, 200, JSON.stringify(aviso.json))
+  assert.equal((await chamar('GET', '/api/config')).json.aviso_global, 'Manutenção hoje às 22h')
+
+  const trilha = await chamar('GET', '/api/admin/auditoria?acao=config.alterar', { cookie: raziel })
+  const registro = trilha.json.registros.find((r: { alvo: string }) => r.alvo === 'aviso_global')
+  assert.ok(registro)
+  assert.equal((await chamar('POST', `/api/admin/auditoria/${registro.id}/reverter`, { cookie: raziel })).status, 200)
+  assert.equal((await chamar('GET', '/api/config')).json.aviso_global, '')
+  assert.equal((await chamar('POST', '/api/admin/auditoria/999999999/reverter', { cookie: raziel })).status, 404)
+  const login = await trilha.json.registros.length // há registros de config
+  assert.ok(login >= 1)
+  const outros = await chamar('GET', '/api/admin/auditoria?acao=admin.entrar', { cookie: raziel })
+  assert.equal((await chamar('POST', `/api/admin/auditoria/${outros.json.registros[0].id}/reverter`, { cookie: raziel })).status, 409)
+
+  const segunda = await entrar('raziel', 'Definitiva-Segura-2026', '10.0.0.9')
+  const lista = await chamar('GET', '/api/admin/sessoes', { cookie: raziel })
+  assert.equal(lista.status, 200)
+  assert.equal(lista.json.sessoes.filter((s: { atual: boolean }) => s.atual).length, 1)
+  const atual = lista.json.sessoes.find((s: { atual: boolean }) => s.atual)
+  assert.equal((await chamar('DELETE', `/api/admin/sessoes/${atual.id}`, { cookie: raziel })).status, 409)
+  const outras = lista.json.sessoes.filter((s: { atual: boolean }) => !s.atual)
+  assert.ok(outras.length >= 1 && segunda.cookie)
+  for (const o of outras) assert.equal((await chamar('DELETE', `/api/admin/sessoes/${o.id}`, { cookie: raziel })).status, 204)
+  assert.equal((await chamar('GET', '/api/admin/eu', { cookie: segunda.cookie })).status, 401) // a sessão encerrada caiu
+})
+
+test('ver como anfitrião (leitura) e e-mail ao anfitrião', opcoes, async () => {
+  assert.ok(pool)
+  const raziel = await adminLiberado()
+  const ev = await pool.query<{ id: string; anfitriao_email: string }>('select id::text, anfitriao_email from eventos where excluido_em is null order by criado_em limit 1')
+  const { id } = ev.rows[0]
+  const email = 'anfitriao@example.com'
+  await pool.query('update eventos set anfitriao_email = $2 where id = $1', [id, email])
+  const conv = await pool.query<{ id: string }>(`insert into convidados (evento_id, token_hash, apelido) values ($1,$2,'Ana') returning id::text`, [id, randomUUID()])
+  const chave = `fotos/${randomUUID()}.jpg`
+  await storageTeste.salvar(chave, new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))
+  const foto = await pool.query<{ id: string }>(`insert into fotos (evento_id, convidado_id, chave_storage, tipo_mime, tamanho_bytes) values ($1,$2,$3,'image/jpeg',4) returning id::text`, [id, conv.rows[0].id, chave])
+
+  const como = await chamar('GET', `/api/admin/eventos/${id}/como-anfitriao`, { cookie: raziel })
+  assert.equal(como.status, 200)
+  assert.equal(como.json.evento.id, id)
+  assert.ok(!JSON.stringify(como.json).includes('token'))
+  assert.equal((await chamar('GET', `/api/admin/eventos/${id}/como-anfitriao`)).status, 401)
+  assert.equal((await chamar('GET', `/api/admin/eventos/${randomUUID()}/como-anfitriao`, { cookie: raziel })).status, 404)
+  assert.equal((await chamar('GET', '/api/admin/eventos/x/como-anfitriao', { cookie: raziel })).status, 400)
+  assert.ok((await chamar('GET', '/api/admin/auditoria?acao=evento.ver_como_anfitriao', { cookie: raziel })).json.total >= 1)
+
+  const album = await chamar('GET', `/api/admin/eventos/${id}/album`, { cookie: raziel })
+  assert.equal(album.status, 200)
+  assert.ok(album.json.fotos.some((f: { id: string }) => f.id === foto.rows[0].id))
+  const mini = await app!.request(`/api/admin/eventos/${id}/fotos/${foto.rows[0].id}/miniatura`, { headers: { cookie: raziel } })
+  assert.equal(mini.status, 200)
+  assert.equal(mini.headers.get('content-type'), 'image/jpeg')
+  assert.equal((await app!.request(`/api/admin/eventos/${id}/fotos/${foto.rows[0].id}/miniatura`)).status, 401)
+
+  const ruim = await chamar('POST', `/api/admin/eventos/${id}/emails`, { cookie: raziel, corpo: { assunto: 'a', texto: '' } })
+  assert.equal(ruim.status, 400)
+  const ok = await chamar('POST', `/api/admin/eventos/${id}/emails`, { cookie: raziel, corpo: { assunto: 'Seu evento', texto: 'Olá, tudo certo por aí?' } })
+  assert.equal(ok.status, 201, JSON.stringify(ok.json))
+  assert.equal(enviados.at(-1)?.para, email)
+  emailFalha = true
+  const falhou = await chamar('POST', `/api/admin/eventos/${id}/emails`, { cookie: raziel, corpo: { assunto: 'Seu evento', texto: 'De novo' } })
+  emailFalha = false
+  assert.equal(falhou.status, 503)
+  assert.equal(falhou.json.erro, 'email_falhou')
+  const hist = await chamar('GET', `/api/admin/eventos/${id}/emails`, { cookie: raziel })
+  assert.equal(hist.json.configurado, true)
+  assert.deepEqual(hist.json.emails.map((e: { status: string }) => e.status).sort(), ['enviado', 'falhou'])
+  assert.equal((await chamar('POST', `/api/admin/eventos/${id}/emails`, { corpo: { assunto: 'abc', texto: 'abc' } })).status, 401)
 })

@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server'
 import { criarApp } from './app.ts'
+import { criarResend } from './email.ts'
 import { limparArquivos } from './limpeza.ts'
 import { lerConfig } from './config.ts'
 import { ServicoAdmin } from './admin/autenticacao.ts'
@@ -19,7 +20,10 @@ if (aplicadas.length) console.log(`Migrações aplicadas: ${aplicadas.join(', ')
 // Pagamento: só liga com a chave do Stripe no ambiente. Sem ela, só pacotes grátis funcionam.
 const gateway = config.stripeSecretKey ? { provedor: criarProvedorStripe(config.stripeSecretKey, config.stripeWebhookSecret!), appUrl: config.appUrl! } : null
 if (!gateway) console.warn('STRIPE_SECRET_KEY não definida: pagamento desligado.')
-const servicos = criarServicos(pool, undefined, gateway)
+const resendKey = process.env.RESEND_API_KEY || null
+const email = resendKey ? criarResend(resendKey, process.env.EMAIL_REMETENTE || 'Mango <contato@mango.razielhub.cloud>') : null
+if (!email) console.warn('RESEND_API_KEY não definida: o admin não envia e-mail aos anfitriões.')
+const servicos = criarServicos(pool, undefined, gateway, email)
 
 // Admins iniciais: criados uma vez, com a senha inicial do ambiente e troca obrigatória no primeiro login.
 if (config.adminSenhaInicial) {
