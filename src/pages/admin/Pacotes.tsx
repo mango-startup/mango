@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Botao } from '../../components/Botao'
+import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, centavosParaCampo, errosDeCampo, reaisParaCentavos, type EdicaoPacote, type NovoPacote, type PacoteAdmin } from '../../lib/admin.ts'
 import { precoEmReais } from '../../lib/formato'
 import {Aviso, Campo, Cartao, Interruptor, Titulo} from './ui'
-import { campoTexto } from './util'
+import { Input } from '@/components/ui/input'
 
 interface Formulario {
   id: string
@@ -56,26 +56,26 @@ function CamposDoPacote({ f, mudar, erros, protegido, novo }: { f: Formulario; m
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {novo && (
         <Campo rotulo="Id" erro={erros.id} ajuda="Letras minúsculas, números e _. Não muda depois.">
-          {(id) => <input id={id} value={f.id} onChange={(e) => mudar({ id: e.target.value })} className={campoTexto} placeholder="vip" autoCapitalize="none" />}
+          {(id) => <Input id={id} value={f.id} onChange={(e) => mudar({ id: e.target.value })} placeholder="vip" autoCapitalize="none" />}
         </Campo>
       )}
       <Campo rotulo="Nome" erro={erros.nome}>
-        {(id) => <input id={id} value={f.nome} onChange={(e) => mudar({ nome: e.target.value })} className={campoTexto} maxLength={40} />}
+        {(id) => <Input id={id} value={f.nome} onChange={(e) => mudar({ nome: e.target.value })} maxLength={40} />}
       </Campo>
       <Campo rotulo="Convidados" erro={erros.convidados} ajuda="Só vale para eventos novos.">
-        {(id) => <input id={id} inputMode="numeric" value={f.convidados} onChange={(e) => mudar({ convidados: e.target.value })} className={campoTexto} />}
+        {(id) => <Input id={id} inputMode="numeric" value={f.convidados} onChange={(e) => mudar({ convidados: e.target.value })} />}
       </Campo>
       <Campo rotulo="Preço (R$)" erro={erros.preco_centavos} ajuda={protegido ? 'O teste é sempre grátis.' : 'Só vale para a próxima compra. 0 = grátis.'}>
-        {(id) => <input id={id} inputMode="decimal" value={f.preco} onChange={(e) => mudar({ preco: e.target.value })} className={campoTexto} disabled={protegido} />}
+        {(id) => <Input id={id} inputMode="decimal" value={f.preco} onChange={(e) => mudar({ preco: e.target.value })} disabled={protegido} />}
       </Campo>
       <Campo rotulo="Álbum no ar (dias)" erro={erros.retencao_dias} ajuda="Depois da revelação. Só vale para eventos novos: os existentes mantêm o prazo prometido.">
-        {(id) => <input id={id} inputMode="numeric" value={f.retencao} onChange={(e) => mudar({ retencao: e.target.value })} className={campoTexto} />}
+        {(id) => <Input id={id} inputMode="numeric" value={f.retencao} onChange={(e) => mudar({ retencao: e.target.value })} />}
       </Campo>
       <Campo rotulo="Poses (máximo)" erro={erros.poses_max} ajuda="Não passa da maior opção de poses (aba Configurações).">
-        {(id) => <input id={id} inputMode="numeric" value={f.posesMax} onChange={(e) => mudar({ posesMax: e.target.value })} className={campoTexto} />}
+        {(id) => <Input id={id} inputMode="numeric" value={f.posesMax} onChange={(e) => mudar({ posesMax: e.target.value })} />}
       </Campo>
       <Campo rotulo="Ordem" erro={erros.ordem} ajuda="Posição na tela de preços (menor primeiro).">
-        {(id) => <input id={id} inputMode="numeric" value={f.ordem} onChange={(e) => mudar({ ordem: e.target.value })} className={campoTexto} placeholder={novo ? 'depois do último' : ''} />}
+        {(id) => <Input id={id} inputMode="numeric" value={f.ordem} onChange={(e) => mudar({ ordem: e.target.value })} placeholder={novo ? 'depois do último' : ''} />}
       </Campo>
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold">Disponível para venda</span>
@@ -145,8 +145,8 @@ function LinhaPacote({ p, aoSalvar }: { p: PacoteAdmin; aoSalvar: () => void }) 
           </p>
         </div>
         {!aberto && (
-          <Botao
-            variante="secundario"
+          <Button
+            variant="outline"
             onClick={() => {
               setF(doPacote(p))
               setErros({})
@@ -154,7 +154,7 @@ function LinhaPacote({ p, aoSalvar }: { p: PacoteAdmin; aoSalvar: () => void }) 
             }}
           >
             Editar
-          </Botao>
+          </Button>
         )}
       </div>
       {aberto && (
@@ -162,12 +162,12 @@ function LinhaPacote({ p, aoSalvar }: { p: PacoteAdmin; aoSalvar: () => void }) 
           <CamposDoPacote f={f} mudar={(parte) => setF((x) => ({ ...x, ...parte }))} erros={erros} protegido={p.id === 'teste'} />
           {geral && <Aviso tipo="erro">{geral}</Aviso>}
           <div className="flex gap-2">
-            <Botao type="submit" disabled={enviando}>
+            <Button type="submit" disabled={enviando}>
               {enviando ? 'Salvando...' : 'Salvar'}
-            </Botao>
-            <Botao variante="discreto" onClick={() => setAberto(false)} disabled={enviando}>
+            </Button>
+            <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
               Cancelar
-            </Botao>
+            </Button>
           </div>
         </form>
       )}
@@ -207,12 +207,12 @@ function NovoPacoteForm({ aoCriar, aoFechar }: { aoCriar: () => void; aoFechar: 
         <CamposDoPacote f={f} mudar={(parte) => setF((x) => ({ ...x, ...parte }))} erros={erros} novo />
         {geral && <Aviso tipo="erro">{geral}</Aviso>}
         <div className="flex gap-2">
-          <Botao type="submit" disabled={enviando}>
+          <Button type="submit" disabled={enviando}>
             {enviando ? 'Criando...' : 'Criar pacote'}
-          </Botao>
-          <Botao variante="discreto" onClick={aoFechar} disabled={enviando}>
+          </Button>
+          <Button variant="ghost" onClick={aoFechar} disabled={enviando}>
             Cancelar
-          </Botao>
+          </Button>
         </div>
       </form>
     </Cartao>
@@ -256,7 +256,7 @@ export function Pacotes() {
         {lista?.map((p) => (
           <LinhaPacote key={`${p.id}-${p.nome}-${p.preco_centavos}-${p.convidados}-${p.retencao_dias}-${p.poses_max}-${p.ativo}-${p.ordem}`} p={p} aoSalvar={depoisDeSalvar} />
         ))}
-        {lista && (criando ? <NovoPacoteForm aoCriar={depoisDeSalvar} aoFechar={() => setCriando(false)} /> : <Botao variante="secundario" onClick={() => setCriando(true)} className="self-start">Novo pacote</Botao>)}
+        {lista && (criando ? <NovoPacoteForm aoCriar={depoisDeSalvar} aoFechar={() => setCriando(false)} /> : <Button variant="outline" onClick={() => setCriando(true)} className="self-start">Novo pacote</Button>)}
       </div>
     </>
   )

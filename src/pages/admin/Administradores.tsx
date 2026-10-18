@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Botao } from '../../components/Botao'
+import { Button } from '@/components/ui/button'
 import { CampoCopiavel } from '../../components/CampoCopiavel'
 import { Confirmacao } from '../../components/Confirmacao'
 import { ErroApi } from '../../lib/api/tipos.ts'
@@ -54,9 +54,9 @@ export function Administradores() {
           <h2 className="mb-1 text-[18px] font-semibold">Senha temporária de {temporaria.usuario}</h2>
           <p className="mb-4 text-sm text-muted">Mostrada só agora. Passe para a pessoa por um canal seguro; as sessões dela foram encerradas e ela precisa trocar a senha ao entrar.</p>
           <CampoCopiavel rotulo="Senha temporária" valor={temporaria.senha} />
-          <Botao variante="discreto" onClick={() => setTemporaria(null)} className="mt-3">
+          <Button variant="ghost" onClick={() => setTemporaria(null)} className="mt-3">
             Já anotei
-          </Botao>
+          </Button>
         </Cartao>
       )}
       {!lista && !erro && <p className="text-muted">Carregando...</p>}
@@ -74,9 +74,9 @@ export function Administradores() {
                 <p className="mt-1 text-[15px] text-muted">Último acesso: {dataHora(a.ultimo_login_em)}</p>
               </div>
               {a.usuario !== eu.usuario && !alvo && (
-                <Botao variante="secundario" onClick={() => setAlvo(a)}>
+                <Button variant="outline" onClick={() => setAlvo(a)}>
                   Redefinir senha
-                </Botao>
+                </Button>
               )}
             </div>
             {alvo?.id === a.id && (

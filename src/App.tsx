@@ -1,23 +1,8 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { carregarConfig } from './lib/configPublica'
 import { NavegacaoAnimada } from './components/NavegacaoAnimada'
 import { RequireHost } from './components/RequireHost'
-import { Administradores } from './pages/admin/Administradores'
-import { Analise } from './pages/admin/Analise'
-import { Anfitrioes } from './pages/admin/Anfitrioes'
-import { AdminLayout } from './pages/admin/AdminLayout'
-import { Auditoria } from './pages/admin/Auditoria'
-import { Configuracoes } from './pages/admin/Configuracoes'
-import { Crescimento } from './pages/admin/Crescimento'
-import { EventoDetalhe } from './pages/admin/EventoDetalhe'
-import { Eventos } from './pages/admin/Eventos'
-import { Moderacao as ModeracaoAdmin } from './pages/admin/Moderacao'
-import { Pacotes } from './pages/admin/Pacotes'
-import { Pagamentos } from './pages/admin/Pagamentos'
-import { Resumo } from './pages/admin/Resumo'
-import { Saude } from './pages/admin/Saude'
-import { TrocarSenha } from './pages/admin/TrocarSenha'
 import { CreateEventPage } from './pages/CreateEvent'
 import { EventDashboardPage } from './pages/EventDashboard'
 import { HostLinkPage, HostSignInPage } from './pages/HostAccess'
@@ -30,6 +15,9 @@ import { NotFoundPage } from './pages/NotFound'
 import { PaymentStatusPage } from './pages/PaymentStatus'
 import { PhotoViewPage } from './pages/PhotoView'
 import { PricingPage } from './pages/Pricing'
+
+// O admin (e o shadcn/ui que ele usa) vira um chunk à parte: a landing e a câmera não pagam por ele.
+const AdminApp = lazy(() => import('./pages/admin/AdminApp'))
 
 export default function App() {
   useEffect(() => {
@@ -61,22 +49,7 @@ export default function App() {
         <Route path="/c/:codigo/f/:foto" element={<PhotoViewPage />} />
 
         {/* Admin dos donos do Mango: fora da navegação do site e dos buscadores */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Resumo />} />
-          <Route path="crescimento" element={<Crescimento />} />
-          <Route path="anfitrioes" element={<Anfitrioes />} />
-          <Route path="moderacao" element={<ModeracaoAdmin />} />
-          <Route path="saude" element={<Saude />} />
-          <Route path="analise" element={<Analise />} />
-          <Route path="eventos" element={<Eventos />} />
-          <Route path="eventos/:id" element={<EventoDetalhe />} />
-          <Route path="pagamentos" element={<Pagamentos />} />
-          <Route path="pacotes" element={<Pacotes />} />
-          <Route path="configuracoes" element={<Configuracoes />} />
-          <Route path="auditoria" element={<Auditoria />} />
-          <Route path="administradores" element={<Administradores />} />
-          <Route path="senha" element={<TrocarSenha />} />
-        </Route>
+        <Route path="/admin/*" element={<Suspense fallback={null}><AdminApp /></Suspense>} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

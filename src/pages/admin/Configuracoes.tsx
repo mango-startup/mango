@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Botao } from '../../components/Botao'
+import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, errosDeCampo, type GrupoConfig, type ItemConfig, type ValorConfig } from '../../lib/admin.ts'
 import {Aviso, Cartao, Interruptor, Titulo} from './ui'
-import { campoTexto, dataHora } from './util'
+import { Input } from '@/components/ui/input'
+import { dataHora } from './util'
 
 type Rascunho = string | boolean
 
@@ -167,12 +168,12 @@ export function Configuracoes() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <input
+                          <Input
                             id={idCampo}
                             value={String(campo ?? '')}
                             onChange={(e) => setCampos((c) => ({ ...c, [item.chave]: e.target.value }))}
                             inputMode={item.tipo === 'texto' ? 'text' : item.tipo === 'lista_inteiros' ? 'text' : 'decimal'}
-                            className={campoTexto}
+                           
                             aria-describedby={erros[item.chave] ? `${idCampo}-erro` : undefined}
                           />
                           {item.unidade && <span className="shrink-0 text-sm text-muted">{item.unidade}</span>}
@@ -203,12 +204,12 @@ export function Configuracoes() {
               {alterados.length} alteraç{alterados.length === 1 ? 'ão' : 'ões'} sem salvar
             </p>
             <div className="flex gap-2">
-              <Botao variante="discreto" onClick={() => setCampos(Object.fromEntries(itens.map((i) => [i.chave, paraCampo(i, i.valor)])))} disabled={enviando}>
+              <Button variant="ghost" onClick={() => setCampos(Object.fromEntries(itens.map((i) => [i.chave, paraCampo(i, i.valor)])))} disabled={enviando}>
                 Descartar
-              </Botao>
-              <Botao onClick={() => void salvar()} disabled={enviando}>
+              </Button>
+              <Button onClick={() => void salvar()} disabled={enviando}>
                 {enviando ? 'Salvando...' : 'Salvar alterações'}
-              </Botao>
+              </Button>
             </div>
           </div>
         </div>

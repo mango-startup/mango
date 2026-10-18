@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 
 // Só componentes aqui; os utilitários ficam em ./util.ts (o fast refresh exige isso).
 
@@ -28,18 +29,12 @@ interface CampoProps {
 export function Campo({ rotulo, erro, ajuda, children }: CampoProps) {
   const id = useId()
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-semibold">
-        {rotulo}
-      </label>
+    <Field data-invalid={erro ? true : undefined}>
+      <FieldLabel htmlFor={id}>{rotulo}</FieldLabel>
       {children(id)}
-      {ajuda && <p className="text-[13px] text-muted">{ajuda}</p>}
-      {erro && (
-        <p role="alert" className="text-sm text-danger-ink">
-          {erro}
-        </p>
-      )}
-    </div>
+      {ajuda && <FieldDescription>{ajuda}</FieldDescription>}
+      {erro && <FieldError>{erro}</FieldError>}
+    </Field>
   )
 }
 

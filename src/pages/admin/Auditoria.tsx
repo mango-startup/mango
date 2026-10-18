@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Botao } from '../../components/Botao'
+import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type PaginaAuditoria } from '../../lib/admin.ts'
 import {Aviso, Cartao, Titulo} from './ui'
@@ -106,15 +106,15 @@ export function Auditoria() {
       )}
       {dados && paginas > 1 && (
         <div className="mt-4 flex items-center justify-between">
-          <Botao variante="secundario" onClick={() => setPagina((p) => p - 1)} disabled={pagina <= 1}>
+          <Button variant="outline" onClick={() => setPagina((p) => p - 1)} disabled={pagina <= 1}>
             Anteriores
-          </Botao>
+          </Button>
           <span className="text-sm text-muted">
             Página {pagina} de {paginas}
           </span>
-          <Botao variante="secundario" onClick={() => setPagina((p) => p + 1)} disabled={pagina >= paginas}>
+          <Button variant="outline" onClick={() => setPagina((p) => p + 1)} disabled={pagina >= paginas}>
             Mais antigos
-          </Botao>
+          </Button>
         </div>
       )}
     </>

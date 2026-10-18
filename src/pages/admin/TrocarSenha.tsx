@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Botao } from '../../components/Botao'
+import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type AdminEu } from '../../lib/admin.ts'
 import { useAdminOpcional } from './useAdminOpcional'
 import {Aviso, Campo, Cartao, Titulo} from './ui'
-import { campoTexto } from './util'
+import { Input } from '@/components/ui/input'
 
 interface Props {
   /** Primeiro acesso: tela sozinha, sem abas, até trocar. */
@@ -49,24 +49,24 @@ export function TrocarSenha({ obrigatoria = false, admin: adminProp, aoTrocar, a
       {/* O navegador usa este campo para associar a senha nova ao usuário certo no gerenciador de senhas. */}
       <input type="text" name="username" value={eu?.usuario ?? ''} autoComplete="username" readOnly hidden />
       <Campo rotulo={obrigatoria ? 'Senha inicial' : 'Senha atual'}>
-        {(id) => <input id={id} type="password" value={atual} onChange={(e) => setAtual(e.target.value)} autoComplete="current-password" autoFocus className={campoTexto} />}
+        {(id) => <Input id={id} type="password" value={atual} onChange={(e) => setAtual(e.target.value)} autoComplete="current-password" autoFocus />}
       </Campo>
       <Campo rotulo="Senha nova" ajuda="Pelo menos 10 caracteres, com letras e números, diferente da atual e sem o seu usuário.">
-        {(id) => <input id={id} type="password" value={nova} onChange={(e) => setNova(e.target.value)} autoComplete="new-password" className={campoTexto} />}
+        {(id) => <Input id={id} type="password" value={nova} onChange={(e) => setNova(e.target.value)} autoComplete="new-password" />}
       </Campo>
       <Campo rotulo="Repita a senha nova">
-        {(id) => <input id={id} type="password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} autoComplete="new-password" className={campoTexto} />}
+        {(id) => <Input id={id} type="password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} autoComplete="new-password" />}
       </Campo>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {ok && !obrigatoria && <Aviso tipo="ok">Senha trocada. As suas outras sessões foram encerradas.</Aviso>}
       <div className="flex flex-wrap gap-2">
-        <Botao type="submit" disabled={enviando || !atual || !nova || !confirmacao}>
+        <Button type="submit" disabled={enviando || !atual || !nova || !confirmacao}>
           {enviando ? 'Salvando...' : 'Trocar senha'}
-        </Botao>
+        </Button>
         {obrigatoria && aoSair && (
-          <Botao variante="discreto" onClick={aoSair}>
+          <Button variant="ghost" onClick={aoSair}>
             Sair
-          </Botao>
+          </Button>
         )}
       </div>
     </form>
