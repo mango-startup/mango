@@ -3,6 +3,7 @@ import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarReais, type PaginaAnfitrioes } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
 import { Aviso, Cartao, Titulo } from './ui'
+import { Input } from '@/components/ui/input'
 import { campoTexto, dataHora } from './util'
 
 export function Anfitrioes() {
@@ -34,7 +35,7 @@ export function Anfitrioes() {
   return (
     <>
       <Titulo detalhe="Quem cria eventos no Mango, agrupado por e-mail: quantos eventos, quantas fotos e quanto já pagou.">Anfitriões</Titulo>
-      <input type="search" aria-label="Buscar anfitrião" placeholder="Buscar por e-mail" value={busca} onChange={(e) => setBusca(e.target.value)} className={`${campoTexto} mb-4 sm:max-w-[360px]`} />
+      <Input type="search" aria-label="Buscar anfitrião" placeholder="Buscar por e-mail" value={busca} onChange={(e) => setBusca(e.target.value)} className={`${campoTexto} mb-4 sm:max-w-[360px]`} />
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {!dados && !erro && <p className="text-muted">Carregando...</p>}
       {dados && (

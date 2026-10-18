@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { Botao } from '../../components/Botao'
+import { Button } from '@/components/ui/button'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import { MangoLogo } from '../../components/MangoLogo'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type AdminEu } from '../../lib/admin.ts'
-import {Aviso, Campo} from './ui'
-import { campoTexto } from './util'
+import { Aviso } from './ui'
 
 function mensagemDe(e: unknown): string {
   if (e instanceof ErroApi) {
@@ -47,16 +49,22 @@ export function Entrar({ aoEntrar }: { aoEntrar: (a: AdminEu) => void }) {
           <span className="ml-2 rounded-full border border-line px-2.5 py-1 font-sans text-xs font-semibold text-muted">admin</span>
         </span>
         <h1 className="font-display text-[34px] leading-none">Entrar</h1>
-        <Campo rotulo="Usuário">
-          {(id) => <input id={id} value={usuario} onChange={(e) => setUsuario(e.target.value)} autoComplete="username" autoCapitalize="none" autoFocus className={campoTexto} />}
-        </Campo>
-        <Campo rotulo="Senha" ajuda="No primeiro acesso, use a senha inicial que você recebeu. O sistema pede para trocá-la na hora.">
-          {(id) => <input id={id} type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password" className={campoTexto} />}
-        </Campo>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="usuario">Usuário</FieldLabel>
+            <Input id="usuario" value={usuario} onChange={(e) => setUsuario(e.target.value)} autoComplete="username" autoCapitalize="none" autoFocus />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="senha">Senha</FieldLabel>
+            <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password" />
+            <FieldDescription>No primeiro acesso, use a senha inicial que você recebeu. O sistema pede para trocá-la na hora.</FieldDescription>
+          </Field>
+        </FieldGroup>
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
-        <Botao type="submit" disabled={enviando}>
+        <Button type="submit" size="lg" disabled={enviando} className="h-12 text-base">
+          {enviando && <Spinner data-icon="inline-start" />}
           {enviando ? 'Entrando...' : 'Entrar'}
-        </Botao>
+        </Button>
       </form>
     </div>
   )

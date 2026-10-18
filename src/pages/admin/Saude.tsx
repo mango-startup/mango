@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Botao } from '../../components/Botao'
+import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type SaudeAdmin } from '../../lib/admin.ts'
 import { Aviso, Cartao, Titulo } from './ui'
@@ -36,9 +36,9 @@ export function Saude() {
     <>
       <Titulo detalhe="Sinais de que algo está parado ou fora do esperado. Atualize a página para medir de novo.">Saúde</Titulo>
       <div className="mb-4">
-        <Botao variante="secundario" onClick={() => setVersao((v) => v + 1)}>
+        <Button variant="outline" onClick={() => setVersao((v) => v + 1)}>
           Atualizar
-        </Botao>
+        </Button>
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {!dados && !erro && <p className="text-muted">Carregando...</p>}

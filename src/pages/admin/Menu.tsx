@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 import type { ReactNode } from 'react'
 
 // Ícones de traço simples (24x24), no mesmo peso do texto. Sem dependência nova.
@@ -60,8 +61,8 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
   },
 ]
 
-export function Icone({ nome, className = 'h-[18px] w-[18px]' }: { nome: keyof typeof ICONES | 'menu' | 'fechar'; className?: string }) {
-  const desenho = nome === 'menu' ? <path d="M4 7h16M4 12h16M4 17h16" /> : nome === 'fechar' ? <path d="M6 6l12 12M18 6L6 18" /> : ICONES[nome]
+export function Icone({ nome, className = 'size-[18px]' }: { nome: keyof typeof ICONES; className?: string }) {
+  const desenho = ICONES[nome]
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
       {desenho}
@@ -69,31 +70,28 @@ export function Icone({ nome, className = 'h-[18px] w-[18px]' }: { nome: keyof t
   )
 }
 
-export function Menu({ aoNavegar }: { aoNavegar?: () => void }) {
+export function Menu() {
+  const { pathname } = useLocation()
+  const { setOpenMobile } = useSidebar()
   return (
-    <nav aria-label="Seções do admin" className="flex flex-col gap-5">
+    <>
       {GRUPOS.map((g) => (
-        <div key={g.nome}>
-          <p className="mb-1.5 px-3 text-xs font-semibold text-muted/80">{g.nome}</p>
-          <ul className="flex flex-col gap-0.5">
+        <SidebarGroup key={g.nome}>
+          <SidebarGroupLabel>{g.nome}</SidebarGroupLabel>
+          <SidebarMenu>
             {g.itens.map((i) => (
-              <li key={i.para}>
-                <NavLink
-                  to={i.para}
-                  end={i.fim}
-                  onClick={aoNavegar}
-                  className={({ isActive }) =>
-                    `flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors ${isActive ? 'bg-surface font-semibold text-paper' : 'text-muted hover:bg-surface/60 hover:text-paper'}`
-                  }
-                >
-                  <Icone nome={i.icone} />
-                  {i.rotulo}
-                </NavLink>
-              </li>
+              <SidebarMenuItem key={i.para}>
+                <SidebarMenuButton asChild className="h-10" isActive={i.fim ? pathname === i.para : pathname.startsWith(i.para)}>
+                  <NavLink to={i.para} end={i.fim} onClick={() => setOpenMobile(false)}>
+                    <Icone nome={i.icone} />
+                    {i.rotulo}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             ))}
-          </ul>
-        </div>
+          </SidebarMenu>
+        </SidebarGroup>
       ))}
-    </nav>
+    </>
   )
 }

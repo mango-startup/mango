@@ -4,6 +4,7 @@ import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, urlCsv, type FiltroEventos, type PaginaEventos } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
 import { Aviso, Cartao, Titulo } from './ui'
+import { Input } from '@/components/ui/input'
 import { campoTexto, dataHora, ESTADOS_EVENTO } from './util'
 
 export function Eventos() {
@@ -53,7 +54,7 @@ export function Eventos() {
     <>
       <Titulo detalhe="Todos os eventos criados, do mais novo para o mais antigo. Filtre por estado, pacote ou procure pelo nome do evento e e-mail do anfitrião.">Eventos</Titulo>
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <input type="search" aria-label="Buscar evento ou anfitrião" placeholder="Buscar evento ou e-mail" value={busca} onChange={(e) => setBusca(e.target.value)} className={campoTexto} />
+        <Input type="search" aria-label="Buscar evento ou anfitrião" placeholder="Buscar evento ou e-mail" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <select aria-label="Estado" value={estado} onChange={filtrar(setEstado)} className={campoTexto}>
           <option value="">Todos os estados</option>
           {Object.entries(ESTADOS_EVENTO).map(([id, rotulo]) => (
@@ -81,11 +82,11 @@ export function Eventos() {
         </select>
         <label className="flex items-center gap-2 text-sm text-muted">
           De
-          <input type="date" value={de} onChange={filtrar(setDe)} className={campoTexto} />
+          <Input type="date" value={de} onChange={filtrar(setDe)} />
         </label>
         <label className="flex items-center gap-2 text-sm text-muted">
           Até
-          <input type="date" value={ate} onChange={filtrar(setAte)} className={campoTexto} />
+          <Input type="date" value={ate} onChange={filtrar(setAte)} />
         </label>
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
