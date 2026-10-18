@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BlocoEstado } from '../../components/BlocoEstado'
@@ -112,6 +113,7 @@ export function AdminLayout() {
 
   return (
     <Contexto.Provider value={{ admin: estado.admin, sair }}>
+      <TooltipProvider>
       <SidebarProvider className="bg-base text-paper">
         <Sidebar collapsible="icon">
           <SidebarHeader className="px-4 pt-5 group-data-[collapsible=icon]:px-3">{marca}</SidebarHeader>
@@ -147,6 +149,7 @@ export function AdminLayout() {
         </SidebarInset>
         <BuscaGlobal aberta={buscando} aoFechar={() => setBuscando(false)} />
       </SidebarProvider>
+      </TooltipProvider>
     </Contexto.Provider>
   )
 }
