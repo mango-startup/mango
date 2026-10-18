@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { admin } from '../../lib/admin.ts'
 
 // Ícones de traço simples (24x24), no mesmo peso do texto. Sem dependência nova.
 const ICONES: Record<string, ReactNode> = {
@@ -73,6 +74,11 @@ export function Icone({ nome, className = 'size-[18px]' }: { nome: keyof typeof 
 export function Menu() {
   const { pathname } = useLocation()
   const { setOpenMobile } = useSidebar()
+  // Contador no menu: pedidos de remoção esperando alguém. Falhar aqui não atrapalha a navegação.
+  const [pendentes, setPendentes] = useState(0)
+  useEffect(() => {
+    admin.resumo().then((r) => setPendentes(r.pedidos_de_remocao_pendentes)).catch(() => {})
+  }, [pathname])
   return (
     <>
       {GRUPOS.map((g) => (
@@ -85,6 +91,7 @@ export function Menu() {
                   <NavLink to={i.para} end={i.fim} onClick={() => setOpenMobile(false)}>
                     <Icone nome={i.icone} />
                     {i.rotulo}
+                    {i.icone === 'moderacao' && pendentes > 0 && <span className="ml-auto rounded-full bg-danger/20 px-2 py-0.5 text-xs font-semibold text-danger-ink">{pendentes}</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

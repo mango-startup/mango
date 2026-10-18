@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type ModeracaoAdmin } from '../../lib/admin.ts'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { dataHora } from './util'
 
 export function Moderacao() {
@@ -23,7 +23,7 @@ export function Moderacao() {
     <>
       <Titulo detalhe="Pedidos de remoção de foto feitos por convidados. Quem decide é o anfitrião do evento; aqui você acompanha o que está parado.">Moderação</Titulo>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <div className="flex flex-col gap-6">
           <div className="grid gap-4 sm:grid-cols-3">
@@ -42,10 +42,10 @@ export function Moderacao() {
           </div>
           <Cartao className="overflow-x-auto p-0">
             {dados.pendentes.length === 0 ? (
-              <p className="p-5 text-muted">Nenhum pedido pendente.</p>
+              <EstadoVazio>Nenhum pedido pendente.</EstadoVazio>
             ) : (
-              <table className="w-full min-w-[720px] text-left text-[14px]">
-                <thead className="border-b border-line text-muted">
+              <table className="tabela-cards w-full sm:min-w-[720px] text-left text-[14px]">
+                <thead className="sticky top-0 border-b border-line bg-surface text-muted">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Pedido em</th>
                     <th className="px-4 py-3 font-semibold">Evento</th>
@@ -53,7 +53,7 @@ export function Moderacao() {
                     <th className="px-4 py-3 font-semibold">Motivo</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                   {dados.pendentes.map((p) => (
                     <tr key={p.id} className="align-top">
                       <td className="whitespace-nowrap px-4 py-3 text-muted">{dataHora(p.criado_em)}</td>

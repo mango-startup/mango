@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, errosDeCampo, type GrupoConfig, type ItemConfig, type ValorConfig } from '../../lib/admin.ts'
-import {Aviso, Cartao, Interruptor, Titulo} from './ui'
+import { Aviso, Cartao, Interruptor, Titulo, Carregando } from './ui'
 import { Input } from '@/components/ui/input'
 import { dataHora } from './util'
 
@@ -135,7 +135,7 @@ export function Configuracoes() {
       <Titulo detalhe="Valores de negócio e limites do site. Cada mudança vale na hora (em até 10 segundos), é validada pelo servidor e fica registrada na auditoria. Salvar aplica tudo ou nada.">Configurações</Titulo>
       {geral && <Aviso tipo="erro">{geral}</Aviso>}
       {salvo && <Aviso tipo="ok">Salvo. Já vale no site.</Aviso>}
-      {!grupos && !geral && <p className="text-muted">Carregando...</p>}
+      {!grupos && !geral && <Carregando />}
       <div className="flex flex-col gap-6 pb-28">
         {grupos?.map((grupo) => (
           <Cartao key={grupo.nome}>

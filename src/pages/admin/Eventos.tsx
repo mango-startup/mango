@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, urlCsv, type FiltroEventos, type PaginaEventos } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { Input } from '@/components/ui/input'
 import { campoTexto, dataHora, ESTADOS_EVENTO } from './util'
 
@@ -13,8 +13,10 @@ export function Eventos() {
   const [ordem, setOrdem] = useState('recentes')
   const [de, setDe] = useState('')
   const [ate, setAte] = useState('')
-  const [busca, setBusca] = useState('')
-  const [buscaAplicada, setBuscaAplicada] = useState('')
+  const [params] = useSearchParams()
+  const inicial = params.get('busca') ?? ''
+  const [busca, setBusca] = useState(inicial)
+  const [buscaAplicada, setBuscaAplicada] = useState(inicial)
   const [pagina, setPagina] = useState(1)
   const [pacotes, setPacotes] = useState<string[]>([])
   const [dados, setDados] = useState<PaginaEventos | null>(null)
@@ -90,7 +92,7 @@ export function Eventos() {
         </label>
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <>
           <div className="mb-2 flex items-center justify-between gap-3">
@@ -101,10 +103,10 @@ export function Eventos() {
           </div>
           <Cartao className="overflow-x-auto p-0">
             {dados.eventos.length === 0 ? (
-              <p className="p-5 text-muted">Nenhum evento com esses filtros.</p>
+              <EstadoVazio>Nenhum evento com esses filtros.</EstadoVazio>
             ) : (
-              <table className="w-full min-w-[920px] text-left text-[14px]">
-                <thead className="border-b border-line text-muted">
+              <table className="tabela-cards w-full sm:min-w-[920px] text-left text-[14px]">
+                <thead className="sticky top-0 border-b border-line bg-surface text-muted">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Evento</th>
                     <th className="px-4 py-3 font-semibold">Anfitrião</th>
@@ -116,7 +118,7 @@ export function Eventos() {
                     <th className="px-4 py-3 font-semibold">Criado em</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                   {dados.eventos.map((e) => (
                     <tr key={e.id}>
                       <td className="px-4 py-3">

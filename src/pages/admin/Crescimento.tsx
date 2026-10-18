@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarReais, type Crescimento as Dados } from '../../lib/admin.ts'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando } from './ui'
 import { campoTexto } from './util'
 
 const METRICAS = { eventos: 'Eventos criados', convidados: 'Convidados', fotos: 'Fotos', receita_centavos: 'Receita' } as const
@@ -50,7 +50,7 @@ export function Crescimento() {
         </select>
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <div className="flex flex-col gap-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, centavosParaCampo, errosDeCampo, reaisParaCentavos, type EdicaoPacote, type NovoPacote, type PacoteAdmin } from '../../lib/admin.ts'
 import { precoEmReais } from '../../lib/formato'
-import {Aviso, Campo, Cartao, Interruptor, Titulo} from './ui'
+import { Aviso, Campo, Cartao, Interruptor, Titulo, Carregando } from './ui'
 import { Input } from '@/components/ui/input'
 
 interface Formulario {
@@ -252,7 +252,7 @@ export function Pacotes() {
       <div className="flex flex-col gap-4">
         {salvo && <Aviso tipo="ok">Salvo. Já vale no site.</Aviso>}
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
-        {!lista && !erro && <p className="text-muted">Carregando...</p>}
+        {!lista && !erro && <Carregando />}
         {lista?.map((p) => (
           <LinhaPacote key={`${p.id}-${p.nome}-${p.preco_centavos}-${p.convidados}-${p.retencao_dias}-${p.poses_max}-${p.ativo}-${p.ordem}`} p={p} aoSalvar={depoisDeSalvar} />
         ))}

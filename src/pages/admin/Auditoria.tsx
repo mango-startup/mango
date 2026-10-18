@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type PaginaAuditoria } from '../../lib/admin.ts'
-import {Aviso, Cartao, Titulo} from './ui'
+import { Aviso, Cartao, Titulo, Carregando } from './ui'
 import { campoTexto, dataHora } from './util'
 
 const ACOES: Record<string, string> = {
@@ -72,14 +72,14 @@ export function Auditoria() {
         </select>
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <Cartao className="overflow-x-auto p-0">
           {dados.registros.length === 0 ? (
             <p className="p-5 text-muted">Nada registrado com esses filtros.</p>
           ) : (
-            <table className="w-full min-w-[720px] text-left text-[14px]">
-              <thead className="border-b border-line text-muted">
+            <table className="tabela-cards w-full sm:min-w-[720px] text-left text-[14px]">
+              <thead className="sticky top-0 border-b border-line bg-surface text-muted">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Quando</th>
                   <th className="px-4 py-3 font-semibold">Quem</th>
@@ -87,7 +87,7 @@ export function Auditoria() {
                   <th className="px-4 py-3 font-semibold">Antes → depois</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                 {dados.registros.map((r) => (
                   <tr key={r.id} className="align-top">
                     <td className="whitespace-nowrap px-4 py-3 text-muted">{dataHora(r.criado_em)}</td>

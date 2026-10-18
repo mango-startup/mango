@@ -5,7 +5,7 @@ import { Confirmacao } from '../../components/Confirmacao'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type Administrador } from '../../lib/admin.ts'
 import { useAdmin } from './useAdmin'
-import {Aviso, Cartao, Titulo} from './ui'
+import { Aviso, Cartao, Titulo, Carregando } from './ui'
 import { dataHora } from './util'
 
 export function Administradores() {
@@ -59,7 +59,7 @@ export function Administradores() {
           </Button>
         </Cartao>
       )}
-      {!lista && !erro && <p className="text-muted">Carregando...</p>}
+      {!lista && !erro && <Carregando />}
       <div className="flex flex-col gap-4">
         {lista?.map((a) => (
           <Cartao key={a.id}>

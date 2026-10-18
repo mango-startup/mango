@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarReais, type PaginaAnfitrioes } from '../../lib/admin.ts'
 import { Paginacao } from './Paginacao'
-import { Aviso, Cartao, Titulo } from './ui'
+import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { Input } from '@/components/ui/input'
 import { campoTexto, dataHora } from './util'
 
@@ -37,16 +37,16 @@ export function Anfitrioes() {
       <Titulo detalhe="Quem cria eventos no Mango, agrupado por e-mail: quantos eventos, quantas fotos e quanto já pagou.">Anfitriões</Titulo>
       <Input type="search" aria-label="Buscar anfitrião" placeholder="Buscar por e-mail" value={busca} onChange={(e) => setBusca(e.target.value)} className={`${campoTexto} mb-4 sm:max-w-[360px]`} />
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
-      {!dados && !erro && <p className="text-muted">Carregando...</p>}
+      {!dados && !erro && <Carregando />}
       {dados && (
         <>
           <p className="mb-2 text-sm text-muted">{dados.total} {dados.total === 1 ? 'anfitrião' : 'anfitriões'}</p>
           <Cartao className="overflow-x-auto p-0">
             {dados.anfitrioes.length === 0 ? (
-              <p className="p-5 text-muted">Nenhum anfitrião encontrado.</p>
+              <EstadoVazio>Nenhum anfitrião encontrado.</EstadoVazio>
             ) : (
-              <table className="w-full min-w-[720px] text-left text-[14px]">
-                <thead className="border-b border-line text-muted">
+              <table className="tabela-cards w-full sm:min-w-[720px] text-left text-[14px]">
+                <thead className="sticky top-0 border-b border-line bg-surface text-muted">
                   <tr>
                     <th className="px-4 py-3 font-semibold">E-mail</th>
                     <th className="px-4 py-3 text-right font-semibold">Eventos</th>
@@ -55,7 +55,7 @@ export function Anfitrioes() {
                     <th className="px-4 py-3 font-semibold">Último evento</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                   {dados.anfitrioes.map((a) => (
                     <tr key={a.anfitriao_email}>
                       <td className="px-4 py-3">{a.anfitriao_email}</td>

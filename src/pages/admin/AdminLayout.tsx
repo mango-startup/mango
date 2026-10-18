@@ -6,6 +6,7 @@ import { BlocoEstado } from '../../components/BlocoEstado'
 import { MangoLogo } from '../../components/MangoLogo'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type AdminEu } from '../../lib/admin.ts'
+import { BotaoBusca, BuscaGlobal } from './BuscaGlobal'
 import { Contexto } from './contexto'
 import { Entrar } from './Entrar'
 import { Menu } from './Menu'
@@ -31,8 +32,36 @@ export function AdminLayout() {
     }
   }, [])
 
+  // Tabelas viram cartões no celular: copia o texto de cada <th> para o data-rotulo das células.
+  useEffect(() => {
+    const principal = document.querySelector('main')
+    if (!principal) return
+    const rotular = () => {
+      principal.querySelectorAll('table.tabela-cards').forEach((t) => {
+        const rotulos = Array.from(t.querySelectorAll('thead th')).map((th) => th.textContent ?? '')
+        t.querySelectorAll('tbody tr').forEach((tr) => tr.querySelectorAll('td').forEach((td, i) => rotulos[i] && td.dataset.rotulo !== rotulos[i] && (td.dataset.rotulo = rotulos[i])))
+      })
+    }
+    rotular()
+    const obs = new MutationObserver(rotular)
+    obs.observe(principal, { childList: true, subtree: true })
+    return () => obs.disconnect()
+  }, [estado.tipo])
+
   // Mudar `versao` pergunta de novo ao servidor quem está logado (tentar de novo, depois de trocar a senha).
   const [versao, setVersao] = useState(0)
+  const [buscando, setBuscando] = useState(false)
+
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setBuscando((b) => !b)
+      }
+    }
+    window.addEventListener('keydown', tecla)
+    return () => window.removeEventListener('keydown', tecla)
+  }, [])
 
   useEffect(() => {
     let ativo = true
@@ -84,8 +113,11 @@ export function AdminLayout() {
   return (
     <Contexto.Provider value={{ admin: estado.admin, sair }}>
       <SidebarProvider className="bg-base text-paper">
-        <Sidebar>
+        <Sidebar className="[&_[data-slot=sidebar-container]]:border-line/50 [&_[data-slot=sidebar-inner]]:bg-surface/40">
           <SidebarHeader className="px-4 pt-5">{marca}</SidebarHeader>
+          <div className="px-3 pt-3">
+            <BotaoBusca aoAbrir={() => setBuscando(true)} />
+          </div>
           <SidebarContent>
             <Menu />
           </SidebarContent>
@@ -107,12 +139,13 @@ export function AdminLayout() {
             {marca}
             <SidebarTrigger aria-label="Abrir o menu" className="size-11" />
           </header>
-          <main className="min-w-0 flex-1 px-5 pb-16 pt-8 lg:px-10 lg:pt-10">
-            <div className="mx-auto max-w-[1100px]">
+          <main className="min-w-0 flex-1 px-5 pb-16 pt-8 lg:px-8 lg:pt-8 xl:px-10">
+            <div className="max-w-[1680px]">
               <Outlet />
             </div>
           </main>
         </SidebarInset>
+        <BuscaGlobal aberta={buscando} aoFechar={() => setBuscando(false)} />
       </SidebarProvider>
     </Contexto.Provider>
   )

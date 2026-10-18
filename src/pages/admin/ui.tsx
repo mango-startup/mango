@@ -7,9 +7,9 @@ import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui
 
 export function Titulo({ children, detalhe }: { children: ReactNode; detalhe?: ReactNode }) {
   return (
-    <div className="mb-6">
+    <div className="mb-6 flex flex-col gap-1">
       <h1 className="font-display text-[34px] leading-none">{children}</h1>
-      {detalhe && <p className="mt-2 max-w-[640px] text-[15px] leading-normal text-muted">{detalhe}</p>}
+      {detalhe && <p className="mt-2 max-w-[760px] text-[15px] leading-normal text-muted">{detalhe}</p>}
     </div>
   )
 }
@@ -59,5 +59,26 @@ export function Interruptor({ marcado, onMudar, rotulo, desabilitado }: { marcad
     >
       <span className={`absolute top-1 h-6 w-6 rounded-full transition-all ${marcado ? 'left-7 bg-base' : 'left-1 bg-muted'}`} />
     </button>
+  )
+}
+
+/** Esqueleto de carregamento: mantém a altura da página em vez de piscar um texto solto. */
+export function Carregando() {
+  return (
+    <div role="status" aria-label="Carregando" className="space-y-3">
+      <div className="h-24 animate-pulse rounded-[20px] bg-surface/60" />
+      <div className="h-48 animate-pulse rounded-[20px] bg-surface/60" />
+    </div>
+  )
+}
+
+/** Estado vazio de tabelas e listas, com a próxima ação quando houver. */
+export function EstadoVazio({ children, acao }: { children: ReactNode; acao?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
+      <span aria-hidden className="text-3xl opacity-60">○</span>
+      <p className="max-w-[360px] text-[15px] leading-normal text-muted">{children}</p>
+      {acao}
+    </div>
   )
 }
