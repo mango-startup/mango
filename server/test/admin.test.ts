@@ -27,11 +27,15 @@ class StorageMemoria implements Storage {
   }
 }
 
+const storageTeste = new StorageMemoria()
 const SENHA_INICIAL = 'Inicial-Teste-2026'
 const inicio = new Date('2026-11-14T18:00:00Z')
 let agora = inicio
-const servicos = pool ? criarServicos(pool, () => agora) : undefined
-const app = pool && servicos ? criarApp(pool, new StorageMemoria(), () => agora, undefined, servicos) : undefined
+const enviados: { para: string; assunto: string; texto: string }[] = []
+let emailFalha = false
+const emailFalso = { async enviar(e: { para: string; assunto: string; texto: string }) { if (emailFalha) return { ok: false as const, erro: 'Resend 422: teste' }; enviados.push(e); return { ok: true as const } } }
+const servicos = pool ? criarServicos(pool, () => agora, null, emailFalso) : undefined
+const app = pool && servicos ? criarApp(pool, storageTeste, () => agora, undefined, servicos) : undefined
 const h = (horas: number) => new Date(inicio.getTime() + horas * 3600_000).toISOString()
 
 before(async () => {
@@ -603,4 +607,49 @@ test('onda 3: aviso global, reverter configuração e sessões do admin', opcoes
   assert.ok(outras.length >= 1 && segunda.cookie)
   for (const o of outras) assert.equal((await chamar('DELETE', `/api/admin/sessoes/${o.id}`, { cookie: raziel })).status, 204)
   assert.equal((await chamar('GET', '/api/admin/eu', { cookie: segunda.cookie })).status, 401) // a sessão encerrada caiu
+})
+
+test('ver como anfitrião (leitura) e e-mail ao anfitrião', opcoes, async () => {
+  assert.ok(pool)
+  const raziel = await adminLiberado()
+  const ev = await pool.query<{ id: string; anfitriao_email: string }>('select id::text, anfitriao_email from eventos where excluido_em is null order by criado_em limit 1')
+  const { id } = ev.rows[0]
+  const email = 'anfitriao@example.com'
+  await pool.query('update eventos set anfitriao_email = $2 where id = $1', [id, email])
+  const conv = await pool.query<{ id: string }>(`insert into convidados (evento_id, token_hash, apelido) values ($1,$2,'Ana') returning id::text`, [id, randomUUID()])
+  const chave = `fotos/${randomUUID()}.jpg`
+  await storageTeste.salvar(chave, new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))
+  const foto = await pool.query<{ id: string }>(`insert into fotos (evento_id, convidado_id, chave_storage, tipo_mime, tamanho_bytes) values ($1,$2,$3,'image/jpeg',4) returning id::text`, [id, conv.rows[0].id, chave])
+
+  const como = await chamar('GET', `/api/admin/eventos/${id}/como-anfitriao`, { cookie: raziel })
+  assert.equal(como.status, 200)
+  assert.equal(como.json.evento.id, id)
+  assert.ok(!JSON.stringify(como.json).includes('token'))
+  assert.equal((await chamar('GET', `/api/admin/eventos/${id}/como-anfitriao`)).status, 401)
+  assert.equal((await chamar('GET', `/api/admin/eventos/${randomUUID()}/como-anfitriao`, { cookie: raziel })).status, 404)
+  assert.equal((await chamar('GET', '/api/admin/eventos/x/como-anfitriao', { cookie: raziel })).status, 400)
+  assert.ok((await chamar('GET', '/api/admin/auditoria?acao=evento.ver_como_anfitriao', { cookie: raziel })).json.total >= 1)
+
+  const album = await chamar('GET', `/api/admin/eventos/${id}/album`, { cookie: raziel })
+  assert.equal(album.status, 200)
+  assert.ok(album.json.fotos.some((f: { id: string }) => f.id === foto.rows[0].id))
+  const mini = await app!.request(`/api/admin/eventos/${id}/fotos/${foto.rows[0].id}/miniatura`, { headers: { cookie: raziel } })
+  assert.equal(mini.status, 200)
+  assert.equal(mini.headers.get('content-type'), 'image/jpeg')
+  assert.equal((await app!.request(`/api/admin/eventos/${id}/fotos/${foto.rows[0].id}/miniatura`)).status, 401)
+
+  const ruim = await chamar('POST', `/api/admin/eventos/${id}/emails`, { cookie: raziel, corpo: { assunto: 'a', texto: '' } })
+  assert.equal(ruim.status, 400)
+  const ok = await chamar('POST', `/api/admin/eventos/${id}/emails`, { cookie: raziel, corpo: { assunto: 'Seu evento', texto: 'Olá, tudo certo por aí?' } })
+  assert.equal(ok.status, 201, JSON.stringify(ok.json))
+  assert.equal(enviados.at(-1)?.para, email)
+  emailFalha = true
+  const falhou = await chamar('POST', `/api/admin/eventos/${id}/emails`, { cookie: raziel, corpo: { assunto: 'Seu evento', texto: 'De novo' } })
+  emailFalha = false
+  assert.equal(falhou.status, 503)
+  assert.equal(falhou.json.erro, 'email_falhou')
+  const hist = await chamar('GET', `/api/admin/eventos/${id}/emails`, { cookie: raziel })
+  assert.equal(hist.json.configurado, true)
+  assert.deepEqual(hist.json.emails.map((e: { status: string }) => e.status).sort(), ['enviado', 'falhou'])
+  assert.equal((await chamar('POST', `/api/admin/eventos/${id}/emails`, { corpo: { assunto: 'abc', texto: 'abc' } })).status, 401)
 })

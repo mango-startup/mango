@@ -144,3 +144,14 @@ O preço sai do banco (tabela `pacotes`), nunca do cliente. Voltar da página do
 ## Variáveis
 
 `DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`), `RATE_LIMIT=off` (desliga os limites), `ADMIN_USUARIOS` e `ADMIN_SENHA_INICIAL` (admins iniciais). Pagamento: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e `APP_URL` (as três juntas; sem a chave o pagamento fica desligado). Nenhum segredo no repo.
+
+## E-mail ao anfitrião (admin)
+
+O admin escreve ao anfitrião de um evento pela tela do evento. O envio usa o [Resend](https://resend.com) e só liga com estas variáveis no servidor:
+
+| Variável | O que é |
+|---|---|
+| `RESEND_API_KEY` | chave da API (`re_...`). Sem ela, a tela avisa que o envio não está configurado |
+| `EMAIL_REMETENTE` | remetente, no formato `Mango <contato@seudominio>`; o domínio precisa estar verificado no Resend |
+
+Cada e-mail fica no histórico do evento (`emails_admin`) e na auditoria. A chave nunca vai para o repositório.

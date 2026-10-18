@@ -5,6 +5,7 @@ import type { Pool } from 'pg'
 import { ServicoAdmin } from '../admin/autenticacao.ts'
 import type { Admin } from '../admin/autenticacao.ts'
 import type { Servicos } from '../servicos.ts'
+import type { Storage } from '../storage/storage.ts'
 import { hashToken } from '../tokens.ts'
 import { erro } from './util.ts'
 
@@ -26,7 +27,7 @@ async function lerCorpo(c: Context): Promise<Record<string, unknown> | null> {
 }
 
 /** Área de admin: login, troca de senha e gestão de pacotes, configurações e auditoria. Tudo sob /api/admin. */
-export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = () => new Date()): Hono<Variaveis> {
+export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = () => new Date(), storage?: Storage): Hono<Variaveis> {
   const app = new Hono<Variaveis>()
   const admins = new ServicoAdmin(pool, agora)
 
@@ -389,6 +390,98 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     } finally {
       cliente.release()
     }
+  })
+
+  const UUID_OK = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+  const auditar = (c: Context<Variaveis>, acao: string, alvo: string, depois?: unknown) => {
+    const a = c.get('admin')
+    return pool.query(`insert into auditoria_admin (admin_id, usuario, acao, alvo, depois, criado_em) values ($1,$2,$3,$4,$5::jsonb,$6)`, [a.id, a.usuario, acao, alvo, depois === undefined ? null : JSON.stringify(depois), agora()])
+  }
+
+  // --- Ver como o anfitrião (só leitura): o que ele vê no painel do evento. Não usa nem revela o token do anfitrião.
+  app.get('/api/admin/eventos/:id/como-anfitriao', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    await servicos.avancar()
+    const ev = await pool.query(
+      `select id::text, codigo, nome, estado, anfitriao_email, album_privado, captura_inicio, captura_fim, revelacao_em, revelado_em, expira_em, poses_por_convidado, limite_convidados,
+              (select count(*) from convidados v where v.evento_id = e.id)::int as convidados,
+              (select count(*) from fotos f where f.evento_id = e.id and f.removida_em is null)::int as fotos
+         from eventos e where id = $1 and excluido_em is null`,
+      [id],
+    )
+    if (!ev.rows[0]) return erro(c, 404, 'nao_encontrado', 'Evento não encontrado.')
+    const pedidos = await pool.query(
+      `select p.id::text, t.numero::int as numero, p.motivo, p.criado_em
+         from pedidos_remocao p
+         left join (select id, row_number() over (order by coalesce(tirada_em, criado_em), id) as numero from fotos where evento_id = $1 and removida_em is null) t on t.id = p.foto_id
+        where p.evento_id = $1 and p.resolvido_em is null order by p.criado_em`,
+      [id],
+    )
+    await auditar(c, 'evento.ver_como_anfitriao', id)
+    return c.json({ evento: ev.rows[0], pedidos_de_remocao: pedidos.rows })
+  })
+
+  app.get('/api/admin/eventos/:id/album', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const { limite, pagina, deslocamento } = paginar(c)
+    const r = await pool.query(
+      `with todas as (
+         select f.id, c.apelido, f.tirada_em, f.miniatura_chave is not null as tem_miniatura,
+                row_number() over (order by coalesce(f.tirada_em, f.criado_em), f.id) as numero
+           from fotos f join convidados c on c.id = f.convidado_id where f.evento_id = $1 and f.removida_em is null)
+       select id::text, numero::int, apelido, tirada_em, tem_miniatura, count(*) over () as total from todas order by numero limit $2 offset $3`,
+      [id, limite, deslocamento],
+    )
+    return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, fotos: r.rows.map(({ total: _t, ...f }) => f) })
+  })
+
+  app.get('/api/admin/eventos/:id/fotos/:fotoId/miniatura', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    const fotoId = c.req.param('fotoId').toLowerCase()
+    if (!UUID_OK.test(id) || !UUID_OK.test(fotoId)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    if (!storage) return erro(c, 404, 'nao_encontrada', 'Arquivo da foto não encontrado.')
+    const r = await pool.query<{ chave_storage: string; miniatura_chave: string | null }>('select chave_storage, miniatura_chave from fotos where id = $1 and evento_id = $2 and removida_em is null', [fotoId, id])
+    const foto = r.rows[0]
+    if (!foto) return erro(c, 404, 'nao_encontrada', 'Foto não encontrada.')
+    const dados = await storage.ler(foto.miniatura_chave ?? foto.chave_storage)
+    if (!dados) return erro(c, 404, 'nao_encontrada', 'Arquivo da foto não encontrado.')
+    return new Response(dados as BodyInit, { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': String(dados.length), 'x-content-type-options': 'nosniff' } })
+  })
+
+  // --- E-mail ao anfitrião de um evento, com histórico. Sem RESEND_API_KEY no servidor, avisa em vez de fingir que enviou.
+  app.get('/api/admin/eventos/:id/emails', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    const r = await pool.query('select id::text, usuario, destinatario, assunto, corpo, status, erro, criado_em from emails_admin where evento_id = $1 order by criado_em desc limit 50', [id])
+    return c.json({ configurado: !!servicos.email, emails: r.rows })
+  })
+
+  app.post('/api/admin/eventos/:id/emails', exigirAdmin, async (c) => {
+    const id = c.req.param('id')
+    if (!UUID_OK.test(id)) return erro(c, 400, 'id_invalido', 'Id inválido.')
+    if (!servicos.email) return erro(c, 503, 'email_nao_configurado', 'O envio de e-mail ainda não está configurado no servidor (RESEND_API_KEY).')
+    const corpo = await lerCorpo(c)
+    const assunto = typeof corpo?.assunto === 'string' ? corpo.assunto.trim() : ''
+    const texto = typeof corpo?.texto === 'string' ? corpo.texto.trim() : ''
+    const erros: Record<string, string> = {}
+    if (assunto.length < 3 || assunto.length > 150) erros.assunto = 'Use de 3 a 150 caracteres.'
+    if (texto.length < 3 || texto.length > 5000) erros.texto = 'Use de 3 a 5000 caracteres.'
+    if (Object.keys(erros).length) return erro(c, 400, 'validacao', 'Confira os campos.', { erros })
+    const ev = await pool.query<{ anfitriao_email: string | null }>('select anfitriao_email from eventos where id = $1 and excluido_em is null', [id])
+    if (!ev.rows[0]) return erro(c, 404, 'nao_encontrado', 'Evento não encontrado.')
+    const para = ev.rows[0].anfitriao_email
+    if (!para) return erro(c, 409, 'sem_email', 'Este evento não tem e-mail de anfitrião cadastrado.')
+    const r = await servicos.email.enviar({ para, assunto, texto })
+    const a = c.get('admin')
+    await pool.query(`insert into emails_admin (evento_id, admin_id, usuario, destinatario, assunto, corpo, status, erro, criado_em) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [
+      id, a.id, a.usuario, para, assunto, texto, r.ok ? 'enviado' : 'falhou', r.ok ? null : r.erro, agora(),
+    ])
+    await auditar(c, 'evento.enviar_email', id, { destinatario: para, assunto, status: r.ok ? 'enviado' : 'falhou' })
+    if (!r.ok) return erro(c, 503, 'email_falhou', 'O provedor de e-mail recusou o envio. Tente de novo em instantes.')
+    return c.json({ ok: true, destinatario: para }, 201)
   })
 
   // --- Anfitriões: um por e-mail, com eventos, fotos e quanto já pagou.

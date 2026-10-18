@@ -5,6 +5,7 @@ import { Analise } from './Analise'
 import { Anfitrioes } from './Anfitrioes'
 import { AdminLayout } from './AdminLayout'
 import { Auditoria } from './Auditoria'
+import { ComoAnfitriao } from './ComoAnfitriao'
 import { Configuracoes } from './Configuracoes'
 import { Crescimento } from './Crescimento'
 import { EventoDetalhe } from './EventoDetalhe'
@@ -32,6 +33,7 @@ export default function AdminApp() {
             <Route path="uso" element={<Uso />} />
             <Route path="eventos" element={<Eventos />} />
             <Route path="eventos/:id" element={<EventoDetalhe />} />
+            <Route path="eventos/:id/anfitriao" element={<ComoAnfitriao />} />
             <Route path="pagamentos" element={<Pagamentos />} />
             <Route path="pacotes" element={<Pacotes />} />
             <Route path="configuracoes" element={<Configuracoes />} />

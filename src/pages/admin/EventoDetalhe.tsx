@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, formatarReais, type EventoDetalhe as Dados } from '../../lib/admin.ts'
 import { Button } from '@/components/ui/button'
+import { EmailAnfitriao } from './EmailAnfitriao'
 import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { dataHora, ESTADOS_EVENTO } from './util'
 
@@ -63,6 +64,11 @@ export function EventoDetalhe() {
       {dados && e && (
         <div className="flex flex-col gap-6">
           <Titulo detalhe={`${e.anfitriao_email} · ${ESTADOS_EVENTO[e.estado] ?? e.estado}${e.excluido_em ? ' · apagado' : ''}`}>{e.nome}</Titulo>
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/admin/eventos/${e.id}/anfitriao`} className="inline-flex min-h-11 items-center rounded-[12px] border border-line px-4 text-sm font-semibold hover:bg-surface">
+              Ver como o anfitrião (leitura)
+            </Link>
+          </div>
           {podeEstender && (
             <Cartao>
               <h2 className="text-sm font-semibold">Estender a câmera</h2>
@@ -133,6 +139,8 @@ export function EventoDetalhe() {
                 ))}
             </ol>
           </Cartao>
+
+          <EmailAnfitriao eventoId={e.id} para={e.anfitriao_email || null} />
 
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Pagamentos</h2>

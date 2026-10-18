@@ -195,6 +195,46 @@ export interface Armazenamento {
   semanas: { semana: string; bytes: number; fotos: number }[]
 }
 
+export interface VistaAnfitriao {
+  evento: {
+    id: string
+    codigo: string
+    nome: string
+    estado: string
+    anfitriao_email: string | null
+    album_privado: boolean
+    captura_inicio: string | null
+    captura_fim: string | null
+    revelacao_em: string | null
+    revelado_em: string | null
+    expira_em: string | null
+    poses_por_convidado: number
+    limite_convidados: number
+    convidados: number
+    fotos: number
+  }
+  pedidos_de_remocao: { id: string; numero: number | null; motivo: string | null; criado_em: string }[]
+}
+
+export interface FotoAlbumAdmin {
+  id: string
+  numero: number
+  apelido: string | null
+  tirada_em: string | null
+  tem_miniatura: boolean
+}
+
+export interface EmailEnviado {
+  id: string
+  usuario: string
+  destinatario: string
+  assunto: string
+  corpo: string
+  status: 'enviado' | 'falhou'
+  erro: string | null
+  criado_em: string
+}
+
 export interface SessaoAdmin {
   id: string
   atual: boolean
@@ -298,6 +338,10 @@ export const admin = {
   reverterAuditoria: (id: string) => chamar<{ ok: boolean; chave: string }>('POST', `/api/admin/auditoria/${encodeURIComponent(id)}/reverter`),
   sessoes: () => chamar<{ sessoes: SessaoAdmin[] }>('GET', '/api/admin/sessoes').then((r) => r.sessoes),
   encerrarSessao: (id: string) => chamar<void>('DELETE', `/api/admin/sessoes/${encodeURIComponent(id)}`),
+  comoAnfitriao: (id: string) => chamar<VistaAnfitriao>('GET', `/api/admin/eventos/${encodeURIComponent(id)}/como-anfitriao`),
+  albumDoEvento: (id: string, pagina = 1) => chamar<{ pagina: number; limite: number; total: number; fotos: FotoAlbumAdmin[] }>('GET', `/api/admin/eventos/${encodeURIComponent(id)}/album?pagina=${pagina}&limite=48`),
+  emails: (id: string) => chamar<{ configurado: boolean; emails: EmailEnviado[] }>('GET', `/api/admin/eventos/${encodeURIComponent(id)}/emails`),
+  enviarEmail: (id: string, assunto: string, texto: string) => chamar<{ ok: boolean; destinatario: string }>('POST', `/api/admin/eventos/${encodeURIComponent(id)}/emails`, { assunto, texto }),
   saude: () => chamar<SaudeAdmin>('GET', '/api/admin/saude'),
   pagamentos: (status = '', pagina = 1) => chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?pagina=${pagina}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
   administradores: () => chamar<{ administradores: Administrador[] }>('GET', '/api/admin/administradores').then((r) => r.administradores),
@@ -305,6 +349,9 @@ export const admin = {
 }
 
 /** Endereço da planilha (o navegador manda o cookie de sessão sozinho). */
+/** Miniatura de uma foto do álbum, só para admin (o cookie de sessão vai sozinho). */
+export const urlMiniaturaAdmin = (eventoId: string, fotoId: string) => `/api/admin/eventos/${eventoId}/fotos/${fotoId}/miniatura`
+
 export function urlCsv(recurso: 'eventos' | 'pagamentos', filtro: Record<string, string | undefined> = {}): string {
   const q = new URLSearchParams({ formato: 'csv' })
   for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)
