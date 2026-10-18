@@ -176,7 +176,7 @@ export function LandingPage() {
                   {item.link && (
                     <>
                       {' '}
-                      <Link to={item.link.to} className="font-semibold text-paper underline underline-offset-4">
+                      <Link to={item.link.to} className="relative font-semibold text-paper underline underline-offset-4 after:absolute after:inset-x-0 after:-inset-y-3.5 after:content-['']">
                         {item.link.texto}
                       </Link>
                       .
@@ -211,9 +211,9 @@ export function LandingPage() {
             mango
           </span>
           <nav aria-label="Rodapé" className="flex gap-4">
-            <Link to="/termos" className="flex min-h-11 items-center hover:text-paper">Termos</Link>
-            <Link to="/privacidade" className="flex min-h-11 items-center hover:text-paper">Privacidade</Link>
-            <Link to="/ajuda" className="flex min-h-11 items-center hover:text-paper">Ajuda</Link>
+            <Link to="/termos" className="flex min-h-11 min-w-11 items-center justify-center hover:text-paper">Termos</Link>
+            <Link to="/privacidade" className="flex min-h-11 min-w-11 items-center justify-center hover:text-paper">Privacidade</Link>
+            <Link to="/ajuda" className="flex min-h-11 min-w-11 items-center justify-center hover:text-paper">Ajuda</Link>
           </nav>
         </footer>
       </div>
