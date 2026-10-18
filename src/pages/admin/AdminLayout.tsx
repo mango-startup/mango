@@ -105,24 +105,24 @@ export function AdminLayout() {
   const marca = (
     <span className="flex items-center gap-2 font-display text-[22px] leading-none">
       <MangoLogo className="h-[21px] w-4" />
-      <span className="pb-0.5">mango</span>
-      <span className="ml-1 rounded-full border border-line px-2.5 py-1 font-sans text-xs font-semibold text-muted">admin</span>
+      <span className="pb-0.5 group-data-[collapsible=icon]:hidden">mango</span>
+      <span className="ml-1 rounded-full group-data-[collapsible=icon]:hidden border border-line px-2.5 py-1 font-sans text-xs font-semibold text-muted">admin</span>
     </span>
   )
 
   return (
     <Contexto.Provider value={{ admin: estado.admin, sair }}>
       <SidebarProvider className="bg-base text-paper">
-        <Sidebar>
-          <SidebarHeader className="px-4 pt-5">{marca}</SidebarHeader>
-          <div className="px-3 pt-3">
+        <Sidebar collapsible="icon">
+          <SidebarHeader className="px-4 pt-5 group-data-[collapsible=icon]:px-3">{marca}</SidebarHeader>
+          <div className="px-3 pt-3 group-data-[collapsible=icon]:px-1.5">
             <BotaoBusca aoAbrir={() => setBuscando(true)} />
           </div>
           <SidebarContent>
             <Menu />
           </SidebarContent>
           <SidebarFooter>
-            <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
+            <div className="flex items-center justify-between gap-2 border-t border-line pt-3 group-data-[collapsible=icon]:hidden">
               <NavLink to="/admin/senha" title="Trocar a senha" className="min-w-0 flex-1 truncate rounded-[10px] px-3 py-2.5 text-sm text-muted transition-colors hover:bg-surface hover:text-paper">
                 {estado.admin.nome}
               </NavLink>
@@ -134,10 +134,10 @@ export function AdminLayout() {
         </Sidebar>
 
         <SidebarInset className="bg-base">
-          {/* Celular: barra no topo; o botão abre a gaveta (Sheet) com foco preso e Esc. */}
-          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-base px-4 py-2 md:hidden">
-            {marca}
-            <SidebarTrigger aria-label="Abrir o menu" className="size-11" />
+          {/* Barra do topo: no celular abre a gaveta (Sheet, foco preso, Esc); no desktop recolhe e expande a sidebar (Ctrl+B). */}
+          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-base px-4 py-2 lg:px-6">
+            <span className="md:hidden">{marca}</span>
+            <SidebarTrigger aria-label="Abrir ou fechar o menu" title="Abrir ou fechar o menu (Ctrl+B)" className="size-11" />
           </header>
           <main className="min-w-0 flex-1 px-5 pb-16 pt-8 lg:px-8 lg:pt-8 xl:px-10">
             <div className="max-w-[1680px]">
