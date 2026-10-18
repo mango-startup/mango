@@ -9,6 +9,7 @@ import { ComoAnfitriao } from './ComoAnfitriao'
 import { Configuracoes } from './Configuracoes'
 import { Crescimento } from './Crescimento'
 import { EventoDetalhe } from './EventoDetalhe'
+import { Financeiro } from './Financeiro'
 import { Eventos } from './Eventos'
 import { Moderacao as ModeracaoAdmin } from './Moderacao'
 import { Pacotes } from './Pacotes'
@@ -34,6 +35,7 @@ export default function AdminApp() {
             <Route path="eventos" element={<Eventos />} />
             <Route path="eventos/:id" element={<EventoDetalhe />} />
             <Route path="eventos/:id/anfitriao" element={<ComoAnfitriao />} />
+            <Route path="financeiro" element={<Financeiro />} />
             <Route path="pagamentos" element={<Pagamentos />} />
             <Route path="pacotes" element={<Pacotes />} />
             <Route path="configuracoes" element={<Configuracoes />} />

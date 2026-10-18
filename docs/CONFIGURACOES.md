@@ -47,6 +47,14 @@ Auditoria dos valores de negócio que estavam fixos no código e agora são geri
 | `album_pagina_max` | **Álbum, fotos por página (máximo).** Teto que o front pode pedir. | 200 | 20 a 500 | não |
 | `zip_max_gb` | **ZIP do álbum, tamanho máximo.** Acima disso o anfitrião baixa as fotos pelo álbum. Limite técnico de 4 GB. | 4 GB | 0.5 a 4 GB | não |
 
+### Financeiro
+
+| Chave | O que controla | Padrão | Faixa | Aparece no front |
+|---|---|---|---|---|
+| `taxa_stripe_percentual` | **Taxa do Stripe (percentual).** Usada só para estimar a receita líquida no admin. Confira a taxa do seu contrato no Stripe. | 3,99 % | 0 a 20 % | não |
+| `taxa_stripe_fixa_centavos` | **Taxa do Stripe (fixa por pagamento).** Valor fixo cobrado em cada pagamento aprovado, em centavos (39 = R$ 0,39). | 39 centavos | 0 a 1000 centavos | não |
+| `meta_receita_mensal_centavos` | **Meta de receita do mês.** Em centavos (500000 = R$ 5.000,00). Zero desliga a barra de meta no admin. | 0 centavos | 0 a 1000000000 centavos | não |
+
 ### Retenção e moderação
 
 | Chave | O que controla | Padrão | Faixa | Aparece no front |

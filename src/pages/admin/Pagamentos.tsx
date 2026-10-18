@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarReais, urlCsv, type PaginaPagamentos } from '../../lib/admin.ts'
 import { useNomesPacotes } from './usePacotes'
 import { Paginacao } from './Paginacao'
 import { ExportarCsv, Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { campoTexto, dataHora } from './util'
+import { useFiltrosUrl } from './useFiltrosUrl'
 
 const STATUS: Record<string, string> = {
   pendente: 'Pendente',
@@ -17,21 +20,20 @@ const STATUS: Record<string, string> = {
 
 export function Pagamentos() {
   const nomePacote = useNomesPacotes()
-  const [status, setStatus] = useState('')
-  const [pagina, setPagina] = useState(1)
+  const { valores: f, definir, limpar, ativos } = useFiltrosUrl({ status: '', de: '', ate: '', limite: '25', pagina: '1' })
   const [dados, setDados] = useState<PaginaPagamentos | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
     let ativo = true
     admin
-      .pagamentos(status, pagina)
+      .pagamentos({ status: f.status, de: f.de, ate: f.ate, limite: f.limite }, Number(f.pagina) || 1)
       .then((r) => ativo && (setDados(r), setErro(null)))
       .catch((e: unknown) => ativo && setErro(e instanceof ErroApi ? e.message : 'Sem conexão com o servidor.'))
     return () => {
       ativo = false
     }
-  }, [status, pagina])
+  }, [f.status, f.de, f.ate, f.limite, f.pagina])
 
   return (
     <>
@@ -56,27 +58,41 @@ export function Pagamentos() {
           </div>
           <div>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <select
-              aria-label="Status"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value)
-                setPagina(1)
-              }}
-              className={`${campoTexto} sm:max-w-[260px]`}
-            >
-              <option value="">Todos os status</option>
-              {Object.entries(STATUS).map(([id, rotulo]) => (
-                <option key={id} value={id}>
-                  {rotulo}
-                </option>
-              ))}
-            </select>
-            <ExportarCsv href={urlCsv('pagamentos', { status })} />
+            <div className="flex flex-wrap items-center gap-3">
+              <select aria-label="Status" value={f.status} onChange={(e) => definir({ status: e.target.value })} className={`${campoTexto} sm:max-w-[220px]`}>
+                <option value="">Todos os status</option>
+                {Object.entries(STATUS).map(([id, rotulo]) => (
+                  <option key={id} value={id}>
+                    {rotulo}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 text-sm text-muted">
+                De
+                <Input type="date" value={f.de} onChange={(e) => definir({ de: e.target.value })} />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-muted">
+                Até
+                <Input type="date" value={f.ate} onChange={(e) => definir({ ate: e.target.value })} />
+              </label>
+              <select aria-label="Itens por página" value={f.limite} onChange={(e) => definir({ limite: e.target.value })} className={`${campoTexto} sm:max-w-[170px]`}>
+                {['25', '50', '100'].map((n) => (
+                  <option key={n} value={n}>
+                    {n} por página
+                  </option>
+                ))}
+              </select>
+              {ativos > 0 && (
+                <Button type="button" variant="ghost" onClick={limpar}>
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+            <ExportarCsv href={urlCsv('pagamentos', { status: f.status, de: f.de, ate: f.ate })} />
             </div>
             <Cartao className="overflow-x-auto p-0">
               {dados.pagamentos.length === 0 ? (
-                <EstadoVazio>Nenhum pagamento{status ? ' com esse status' : ' ainda'}.</EstadoVazio>
+                <EstadoVazio>Nenhum pagamento{ativos > 0 ? ' com esses filtros' : ' ainda'}.</EstadoVazio>
               ) : (
                 <table className="tabela-cards w-full sm:min-w-[640px] text-left text-[14px]">
                   <thead className="sticky top-0 border-b border-line bg-surface text-muted">
@@ -102,7 +118,7 @@ export function Pagamentos() {
                 </table>
               )}
             </Cartao>
-            <Paginacao pagina={dados.pagina} limite={dados.limite} total={dados.total} aoMudar={setPagina} />
+            <Paginacao pagina={dados.pagina} limite={dados.limite} total={dados.total} aoMudar={(n) => definir({ pagina: String(n) })} />
           </div>
         </div>
       )}

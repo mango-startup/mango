@@ -146,6 +146,7 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     fotos: 'fotos desc, e.criado_em desc',
     convidados: 'convidados desc, e.criado_em desc',
     armazenamento: 'armazenamento_bytes desc, e.criado_em desc',
+    camera: 'e.captura_inicio asc nulls last, e.criado_em desc',
   }
 
   app.get('/api/admin/eventos', exigirAdmin, async (c) => {
@@ -159,7 +160,7 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     if ((de && !DATA.test(de)) || (ate && !DATA.test(ate))) return erro(c, 400, 'periodo_invalido', 'Use datas no formato AAAA-MM-DD.')
     const ordem = ORDEM_EVENTOS[c.req.query('ordem') ?? ''] ?? ORDEM_EVENTOS.recentes
     const r = await pool.query(
-      `select e.id::text, e.codigo, e.nome, e.anfitriao_email, e.estado, e.pacote, e.limite_convidados, e.criado_em,
+      `select e.id::text, e.codigo, e.nome, e.anfitriao_email, e.estado, e.pacote, e.limite_convidados, e.criado_em, e.captura_inicio, e.captura_fim,
               (select count(*) from convidados where evento_id = e.id)::int as convidados,
               (select count(*) from fotos where evento_id = e.id and removida_em is null)::int as fotos,
               (select coalesce(sum(tamanho_bytes), 0) from fotos where evento_id = e.id and arquivo_apagado_em is null)::bigint::float8 as armazenamento_bytes,
@@ -175,7 +176,7 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
       [estado || null, pacote || null, busca.replace(/[\\%_]/g, '\\$&'), limite, deslocamento, de || null, ate || null],
     )
     const eventos = r.rows.map(({ total: _t, ...linha }) => linha)
-    if (exportar) return csv(c, 'eventos', ['id', 'codigo', 'nome', 'anfitriao_email', 'estado', 'pacote', 'limite_convidados', 'convidados', 'fotos', 'armazenamento_bytes', 'criado_em'], eventos)
+    if (exportar) return csv(c, 'eventos', ['id', 'codigo', 'nome', 'anfitriao_email', 'estado', 'pacote', 'limite_convidados', 'convidados', 'fotos', 'armazenamento_bytes', 'captura_inicio', 'captura_fim', 'criado_em'], eventos)
     return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, eventos })
   })
 
@@ -220,14 +221,18 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     const exportar = c.req.query('formato') === 'csv'
     const { limite, pagina, deslocamento } = exportar ? { limite: LIMITE_CSV, pagina: 1, deslocamento: 0 } : paginar(c)
     const status = c.req.query('status')
+    const de = c.req.query('de')
+    const ate = c.req.query('ate')
+    if ((de && !DATA.test(de)) || (ate && !DATA.test(ate))) return erro(c, 400, 'periodo_invalido', 'Use datas no formato AAAA-MM-DD.')
+    const periodo = (col: string, a = 4, b = 5) => `($${a}::date is null or (${col} at time zone 'America/Sao_Paulo')::date >= $${a}::date) and ($${b}::date is null or (${col} at time zone 'America/Sao_Paulo')::date <= $${b}::date)`
     const [totais, lista] = await Promise.all([
-      pool.query<{ status: string; n: string; soma: string }>('select status, count(*) as n, coalesce(sum(valor_centavos), 0) as soma from pagamentos group by status'),
+      pool.query<{ status: string; n: string; soma: string }>(`select status, count(*) as n, coalesce(sum(valor_centavos), 0) as soma from pagamentos p where ${periodo('p.criado_em', 1, 2)} group by status`, [de || null, ate || null]),
       pool.query(
         `select p.id::text, p.evento_id::text, e.nome as evento_nome, e.pacote, p.valor_centavos, p.status, p.criado_em, count(*) over () as total
            from pagamentos p join eventos e on e.id = p.evento_id
-          where ($1::text is null or p.status = $1)
+          where ($1::text is null or p.status = $1) and ${periodo('p.criado_em')}
           order by p.criado_em desc, p.id desc limit $2 offset $3`,
-        [status || null, limite, deslocamento],
+        [status || null, limite, deslocamento, de || null, ate || null],
       ),
     ])
     if (exportar) {
@@ -489,6 +494,102 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     return c.json({ ok: true, destinatario: para }, 201)
   })
 
+  // --- Agenda: o que acontece hoje e nos próximos 7 dias, e o que está parado e pede atenção.
+  app.get('/api/admin/agenda', exigirAdmin, async (c) => {
+    await servicos.avancar()
+    const [agenda, parados] = await Promise.all([
+      pool.query(
+        `select * from (
+           select e.id::text, e.nome, e.anfitriao_email, e.estado, e.pacote, 'abre' as tipo, e.captura_inicio as quando from eventos e where e.estado = 'pronto' and e.captura_inicio is not null
+           union all
+           select e.id::text, e.nome, e.anfitriao_email, e.estado, e.pacote, 'fecha', e.captura_fim from eventos e where e.estado in ('pronto', 'captura_aberta') and e.captura_fim is not null
+           union all
+           select e.id::text, e.nome, e.anfitriao_email, e.estado, e.pacote, 'revela', e.revelacao_em from eventos e where e.estado in ('pronto', 'captura_aberta', 'captura_encerrada') and e.revelacao_manual = false and e.revelacao_em is not null
+         ) x
+         join eventos ev on ev.id::text = x.id and ev.excluido_em is null
+        where x.quando >= $1::timestamptz - interval '12 hours' and x.quando < $1::timestamptz + interval '7 days'
+        order by x.quando asc limit 100`,
+        [agora()],
+      ),
+      pool.query(
+        `select e.id::text, e.nome, e.anfitriao_email, e.estado, e.criado_em,
+                case when e.estado = 'aguardando_pagamento' then 'aguardando_pagamento' else 'sem_convidados' end as motivo
+           from eventos e
+          where e.excluido_em is null and (
+                  (e.estado = 'aguardando_pagamento' and e.criado_em < $1::timestamptz - interval '1 day')
+               or (e.estado = 'pronto' and e.captura_inicio < $1::timestamptz + interval '24 hours' and not exists (select 1 from convidados v where v.evento_id = e.id)))
+          order by e.criado_em asc limit 50`,
+        [agora()],
+      ),
+    ])
+    return c.json({ proximos: agenda.rows.map(({ id, nome, anfitriao_email, estado, pacote, tipo, quando }) => ({ id, nome, anfitriao_email, estado, pacote, tipo, quando })), parados: parados.rows })
+  })
+
+  // --- Financeiro: receita bruta e líquida (estimada pela taxa configurada), funil de venda e quebra por pacote.
+  app.get('/api/admin/financeiro', exigirAdmin, async (c) => {
+    const dias = Math.min(365, Math.max(1, Number(c.req.query('dias') ?? 30) || 30))
+    const cfg = await servicos.config.valores()
+    const [periodos, pacotes, mes] = await Promise.all([
+      pool.query<{ janela: string; aprovados: string; bruta: string }>(
+        `select case when p.atualizado_em > $1::timestamptz - make_interval(days => $2) then 'atual' else 'anterior' end as janela,
+                count(*) as aprovados, coalesce(sum(p.valor_centavos), 0) as bruta
+           from pagamentos p
+          where p.status = 'aprovado' and p.atualizado_em > $1::timestamptz - make_interval(days => $2 * 2)
+          group by 1`,
+        [agora(), dias],
+      ),
+      pool.query(
+        `select pc.id, pc.nome, pc.preco_centavos,
+                count(distinct e.id) filter (where e.criado_em > $1::timestamptz - make_interval(days => $2)) as eventos,
+                count(distinct pg.evento_id) filter (where pg.criado_em > $1::timestamptz - make_interval(days => $2)) as checkouts,
+                count(pg.id) filter (where pg.status = 'aprovado' and pg.atualizado_em > $1::timestamptz - make_interval(days => $2)) as pagos,
+                count(pg.id) filter (where pg.status in ('pendente', 'expirado', 'recusado') and pg.criado_em > $1::timestamptz - make_interval(days => $2)) as abandonados,
+                coalesce(sum(pg.valor_centavos) filter (where pg.status = 'aprovado' and pg.atualizado_em > $1::timestamptz - make_interval(days => $2)), 0) as bruta,
+                count(distinct e.id) filter (where e.criado_em > $1::timestamptz - make_interval(days => $2) and exists (select 1 from fotos f where f.evento_id = e.id and f.removida_em is null)) as com_fotos,
+                count(distinct e.id) filter (where e.criado_em > $1::timestamptz - make_interval(days => $2) and e.revelado_em is not null) as revelados
+           from pacotes pc
+           left join eventos e on e.pacote = pc.id and e.excluido_em is null
+           left join pagamentos pg on pg.evento_id = e.id
+          group by pc.id, pc.nome, pc.preco_centavos, pc.ordem order by pc.ordem, pc.id`,
+        [agora(), dias],
+      ),
+      pool.query<{ bruta: string }>(
+        `select coalesce(sum(valor_centavos), 0) as bruta from pagamentos
+          where status = 'aprovado' and (atualizado_em at time zone 'America/Sao_Paulo') >= date_trunc('month', $1::timestamptz at time zone 'America/Sao_Paulo')`,
+        [agora()],
+      ),
+    ])
+    const taxa = (valor: number, n: number) => Math.round(valor * (cfg.taxa_stripe_percentual / 100) + n * cfg.taxa_stripe_fixa_centavos)
+    const por = (j: string) => periodos.rows.find((l) => l.janela === j)
+    const resumo = (j: string) => {
+      const aprovados = Number(por(j)?.aprovados ?? 0)
+      const bruta = Number(por(j)?.bruta ?? 0)
+      const taxas = taxa(bruta, aprovados)
+      return { pagamentos: aprovados, bruta_centavos: bruta, taxas_centavos: taxas, liquida_centavos: bruta - taxas, ticket_medio_centavos: aprovados > 0 ? Math.round(bruta / aprovados) : 0 }
+    }
+    const metaMes = cfg.meta_receita_mensal_centavos
+    const brutaMes = Number(mes.rows[0].bruta)
+    return c.json({
+      dias,
+      atual: resumo('atual'),
+      anterior: resumo('anterior'),
+      mes: { bruta_centavos: brutaMes, meta_centavos: metaMes > 0 ? metaMes : null },
+      taxa: { percentual: cfg.taxa_stripe_percentual, fixa_centavos: cfg.taxa_stripe_fixa_centavos },
+      pacotes: pacotes.rows.map((l) => {
+        const pagos = Number(l.pagos)
+        const bruta = Number(l.bruta)
+        const checkouts = Number(l.checkouts)
+        return {
+          id: l.id, nome: l.nome, preco_centavos: Number(l.preco_centavos),
+          eventos: Number(l.eventos), checkouts, pagos, abandonados: Number(l.abandonados),
+          conversao: checkouts > 0 ? pagos / checkouts : null,
+          com_fotos: Number(l.com_fotos), revelados: Number(l.revelados),
+          bruta_centavos: bruta, liquida_centavos: bruta - taxa(bruta, pagos),
+        }
+      }),
+    })
+  })
+
   // --- Anfitriões: um por e-mail, com eventos, fotos e quanto já pagou.
   app.get('/api/admin/anfitrioes', exigirAdmin, async (c) => {
     const { limite, pagina, deslocamento } = paginar(c)
@@ -527,6 +628,7 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
       pagamentos_aprovados_sem_evento: Number(l.orfaos),
       ultimo_webhook_do_stripe_em: l.ultimo_webhook,
       pedidos_de_remocao_pendentes_ha_mais_de_2_dias: Number(l.pendentes_antigos),
+      email_configurado: !!servicos.email,
     })
   })
 
@@ -693,11 +795,16 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     const pagina = Math.max(1, Number(c.req.query('pagina') ?? 1) || 1)
     const usuario = c.req.query('usuario') || null
     const acao = c.req.query('acao') || null
+    const de = c.req.query('de')
+    const ate = c.req.query('ate')
+    if ((de && !DATA.test(de)) || (ate && !DATA.test(ate))) return erro(c, 400, 'periodo_invalido', 'Use datas no formato AAAA-MM-DD.')
     const r = await pool.query(
       `select id::text, usuario, acao, alvo, antes, depois, criado_em, count(*) over () as total
          from auditoria_admin where ($3::text is null or usuario = $3) and ($4::text is null or acao = $4)
+          and ($5::date is null or (criado_em at time zone 'America/Sao_Paulo')::date >= $5::date)
+          and ($6::date is null or (criado_em at time zone 'America/Sao_Paulo')::date <= $6::date)
         order by criado_em desc, id desc limit $1 offset $2`,
-      [limite, (pagina - 1) * limite, usuario, acao],
+      [limite, (pagina - 1) * limite, usuario, acao, de || null, ate || null],
     )
     return c.json({ pagina, limite, total: r.rows[0] ? Number(r.rows[0].total) : 0, registros: r.rows.map(({ total: _t, ...linha }) => linha) })
   })
