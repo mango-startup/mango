@@ -54,6 +54,8 @@ export function Configuracoes() {
   const [geral, setGeral] = useState<string | null>(null)
   const [salvo, setSalvo] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [secao, setSecao] = useState<string | null>(null)
+  const [busca, setBusca] = useState('')
 
   // Mudar `versao` recarrega tudo do servidor (depois de salvar ou voltar ao padrão).
   const [versao, setVersao] = useState(0)
@@ -77,18 +79,38 @@ export function Configuracoes() {
   const itens = useMemo(() => (grupos ?? []).flatMap((g) => g.itens), [grupos])
   const alterados = useMemo(() => itens.filter((i) => campos[i.chave] !== undefined && !igual(campos[i.chave], paraCampo(i, i.valor))), [itens, campos])
 
+  // Uma seção por vez; com busca, mostra os itens que combinam em todas as seções.
+  const termo = busca.trim().toLowerCase()
+  const secaoAtual = grupos?.find((g) => g.nome === secao) ?? grupos?.[0]
+  const visiveis: GrupoConfig[] = !grupos
+    ? []
+    : termo
+      ? grupos
+          .map((g) => ({ ...g, itens: g.itens.filter((i) => `${i.rotulo} ${i.descricao} ${i.chave}`.toLowerCase().includes(termo)) }))
+          .filter((g) => g.itens.length > 0)
+      : secaoAtual
+        ? [secaoAtual]
+        : []
+  const pendentesDe = (g: GrupoConfig) => g.itens.filter((i) => alterados.some((a) => a.chave === i.chave)).length
+
   /** Lista no aviso quais campos têm problema e leva a tela até o primeiro (o aviso fica no topo, o campo pode estar longe). */
   function apontarErros(deCampo: Record<string, string>) {
     const chaves = Object.keys(deCampo)
     const nomes = chaves.map((k) => itens.find((i) => i.chave === k)?.rotulo ?? k)
     setGeral(`Nada foi salvo. Confira: ${nomes.join('; ')}.`)
-    const primeiro = chaves.find((k) => document.getElementById(`cfg-${k}`))
+    // O campo com erro pode estar em outra seção: abre a dele antes de rolar até ele.
+    const primeiro = chaves[0]
+    const dona = grupos?.find((g) => g.itens.some((i) => i.chave === primeiro))
+    if (dona) {
+      setSecao(dona.nome)
+      setBusca('')
+    }
     if (primeiro) {
       setTimeout(() => {
         const el = document.getElementById(`cfg-${primeiro}`)
         el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
         el?.focus({ preventScroll: true })
-      }, 50)
+      }, 150)
     }
   }
 
@@ -136,8 +158,37 @@ export function Configuracoes() {
       {geral && <Aviso tipo="erro">{geral}</Aviso>}
       {salvo && <Aviso tipo="ok">Salvo. Já vale no site.</Aviso>}
       {!grupos && !geral && <Carregando />}
-      <div className="flex flex-col gap-6 pb-28">
-        {grupos?.map((grupo) => (
+      {grupos && (
+        <div className="grid gap-6 pb-28 lg:grid-cols-[220px_1fr]">
+          <nav aria-label="Seções" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 lg:sticky lg:top-6 lg:mx-0 lg:flex-col lg:gap-1 lg:self-start lg:overflow-visible lg:px-0">
+            <Input type="search" aria-label="Buscar configuração" placeholder="Buscar configuração" value={busca} onChange={(e) => setBusca(e.target.value)} className="hidden lg:block" />
+            {grupos.map((g) => {
+              const ativa = !termo && g.nome === secaoAtual?.nome
+              const n = pendentesDe(g)
+              return (
+                <button
+                  key={g.nome}
+                  type="button"
+                  onClick={() => {
+                    setSecao(g.nome)
+                    setBusca('')
+                  }}
+                  aria-current={ativa ? 'true' : undefined}
+                  className={`flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-[12px] px-3 text-left text-[15px] transition-colors ${ativa ? 'bg-surface font-semibold text-paper' : 'text-muted hover:bg-surface/60 hover:text-paper'}`}
+                >
+                  <span>{g.nome}</span>
+                  <span className="flex items-center gap-2 text-xs">
+                    {n > 0 && <span className="rounded-full bg-paper px-1.5 font-semibold text-base">{n}</span>}
+                    <span className="tabular-nums text-muted">{g.itens.length}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+          <div className="flex min-w-0 flex-col gap-6">
+            <Input type="search" aria-label="Buscar configuração" placeholder="Buscar configuração" value={busca} onChange={(e) => setBusca(e.target.value)} className="lg:hidden" />
+            {termo && visiveis.length === 0 && <Cartao><p className="text-sm text-muted">Nenhuma configuração combina com "{busca.trim()}".</p></Cartao>}
+        {visiveis.map((grupo) => (
           <Cartao key={grupo.nome}>
             <h2 className="mb-1 font-display text-[24px] leading-none">{grupo.nome}</h2>
             <ul className="divide-y divide-line">
@@ -185,7 +236,10 @@ export function Configuracoes() {
                         </p>
                       )}
                       {item.personalizado && (
-                        <button type="button" disabled={enviando} onClick={() => void enviar({ [item.chave]: null })} className="self-start text-sm text-muted underline underline-offset-4 hover:text-paper disabled:opacity-40">
+                        <button type="button" disabled={enviando} onClick={() => {
+                            if (item.tipo === 'booleano' && !window.confirm(`Voltar "${item.rotulo}" ao padrão (${rotuloPadrao(item)})?`)) return
+                            void enviar({ [item.chave]: null })
+                          }} className="self-start text-sm text-muted underline underline-offset-4 hover:text-paper disabled:opacity-40">
                           Voltar ao padrão
                         </button>
                       )}
@@ -196,7 +250,9 @@ export function Configuracoes() {
             </ul>
           </Cartao>
         ))}
-      </div>
+          </div>
+        </div>
+      )}
       {alterados.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-base/95 px-5 py-3 backdrop-blur">
           <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3">

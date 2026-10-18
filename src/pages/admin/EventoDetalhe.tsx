@@ -19,6 +19,13 @@ function Linha({ rotulo, children }: { rotulo: string; children: React.ReactNode
   )
 }
 
+const ABAS = [
+  ['geral', 'Visão geral'],
+  ['pagamentos', 'Pagamentos e pedidos'],
+  ['convidados', 'Convidados'],
+  ['comunicacao', 'E-mail'],
+] as const
+
 export function EventoDetalhe() {
   const { id = '' } = useParams()
   const [dados, setDados] = useState<Dados | null>(null)
@@ -35,6 +42,7 @@ export function EventoDetalhe() {
     }
   }, [id])
 
+  const [aba, setAba] = useState<(typeof ABAS)[number][0]>('geral')
   const [estendendo, setEstendendo] = useState(false)
   const [aviso, setAviso] = useState<{ tipo: 'erro' | 'ok'; texto: string } | null>(null)
 
@@ -69,6 +77,15 @@ export function EventoDetalhe() {
               Ver como o anfitrião (leitura)
             </Link>
           </div>
+          <div role="tablist" aria-label="Seções do evento" className="-mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:px-0">
+            {ABAS.map(([id, rotulo]) => (
+              <button key={id} type="button" role="tab" aria-selected={aba === id} onClick={() => setAba(id)} className={`min-h-11 shrink-0 rounded-[12px] px-4 text-[15px] transition-colors ${aba === id ? 'bg-surface font-semibold text-paper' : 'text-muted hover:bg-surface/60 hover:text-paper'}`}>
+                {rotulo}
+              </button>
+            ))}
+          </div>
+          {aba === 'geral' && (
+            <>
           {podeEstender && (
             <Cartao>
               <h2 className="text-sm font-semibold">Estender a câmera</h2>
@@ -139,9 +156,11 @@ export function EventoDetalhe() {
                 ))}
             </ol>
           </Cartao>
+            </>
+          )}
 
-          <EmailAnfitriao eventoId={e.id} para={e.anfitriao_email || null} />
-
+          {aba === 'pagamentos' && (
+            <>
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Pagamentos</h2>
             {dados.pagamentos.length === 0 ? (
@@ -179,7 +198,11 @@ export function EventoDetalhe() {
               </table>
             )}
           </Cartao>
+            </>
+          )}
 
+          {aba === 'convidados' && (
+            <>
           <Cartao className="overflow-x-auto p-0">
             <h2 className="px-5 pt-5 text-sm font-semibold">Convidados ({dados.convidados.length})</h2>
             {dados.convidados.length === 0 ? (
@@ -205,6 +228,14 @@ export function EventoDetalhe() {
               </table>
             )}
           </Cartao>
+            </>
+          )}
+
+          {aba === 'comunicacao' && (
+            <>
+          <EmailAnfitriao eventoId={e.id} para={e.anfitriao_email || null} />
+            </>
+          )}
         </div>
       )}
     </>
