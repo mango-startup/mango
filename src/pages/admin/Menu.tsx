@@ -5,6 +5,7 @@ import { admin } from '../../lib/admin.ts'
 
 // Ícones de traço simples (24x24), no mesmo peso do texto. Sem dependência nova.
 const ICONES: Record<string, ReactNode> = {
+  buscar: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" />,
   analise: <path d="M5 20V10M12 20V4M19 20v-7" />,
   resumo: <path d="M4 5h7v7H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 14h7v5H4z" />,
   crescimento: <path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7" />,
@@ -94,7 +95,7 @@ export function Menu() {
                 <SidebarMenuButton asChild tooltip={i.rotulo} className="h-10 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center" isActive={i.fim ? pathname === i.para : pathname.startsWith(i.para)}>
                   <NavLink to={i.para} end={i.fim} onClick={() => setOpenMobile(false)}>
                     <Icone nome={i.icone} />
-                    {i.rotulo}
+                    <span className="group-data-[collapsible=icon]:hidden">{i.rotulo}</span>
                     {i.icone === 'moderacao' && pendentes > 0 && <span className="ml-auto rounded-full group-data-[collapsible=icon]:hidden bg-danger/20 px-2 py-0.5 text-xs font-semibold text-danger-ink">{pendentes}</span>}
                   </NavLink>
                 </SidebarMenuButton>

@@ -142,7 +142,7 @@ export function AdminLayout() {
             <SidebarTrigger aria-label="Abrir ou fechar o menu" title="Abrir ou fechar o menu (Ctrl+B)" className="size-11" />
           </header>
           <main className="min-w-0 flex-1 px-5 pb-16 pt-8 lg:px-8 lg:pt-8 xl:px-10">
-            <div className="max-w-[1680px]">
+            <div>
               <Outlet />
             </div>
           </main>
