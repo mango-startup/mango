@@ -56,7 +56,7 @@ export function rotasPagamento(pool: Pool, servicos: Servicos): Hono {
       } catch (falha) {
         // 500: o Stripe repete a entrega por até três dias. O id do evento não foi gravado (transação desfeita).
         console.error(JSON.stringify({ origem: 'pagamento', nivel: 'error', aviso: 'webhook_falhou', stripe_evento: evento.id, tipo: evento.tipo, mensagem: (falha as Error).message }))
-        return c.json({ erro: 'falha_ao_processar', mensagem: 'Não foi possível processar o evento agora.' }, 500)
+        return c.json({ erro: 'falha_ao_processar', mensagem: 'Não deu para processar o evento agora.' }, 500)
       }
     },
   )

@@ -210,7 +210,7 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
     const e = await eventoDoAnfitriao(c)
     if (!e) return erro(c, 401, 'nao_autorizado', 'Token do anfitrião inválido.')
     if (e.estado !== de || !podeTransicionar(e.estado, para)) {
-      return erro(c, 409, 'transicao_invalida', `Não dá para ir de ${e.estado} para ${para}.`, { estado: e.estado })
+      return erro(c, 409, 'transicao_invalida', 'Essa mudança não é possível no estado atual do evento.', { estado: e.estado })
     }
     const agoraData = agora()
     const r = await pool.query<EventoLinha>(
@@ -323,7 +323,7 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
     const e = await eventoDoAnfitriao(c)
     if (!e) return erro(c, 401, 'nao_autorizado', 'Token do anfitrião inválido.')
     if (!podeTransicionar(e.estado as never, 'cancelado')) {
-      return erro(c, 409, 'transicao_invalida', `Não dá para cancelar um evento em ${e.estado}.`, { estado: e.estado })
+      return erro(c, 409, 'transicao_invalida', 'Este evento não pode mais ser cancelado.', { estado: e.estado })
     }
     const fotos = await pool.query('select 1 from fotos where evento_id = $1 limit 1', [e.id])
     if (fotos.rowCount) return erro(c, 409, 'tem_fotos', 'O evento já tem fotos e não pode mais ser cancelado.')

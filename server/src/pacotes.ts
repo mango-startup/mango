@@ -54,7 +54,7 @@ export function validarPacote(dados: Record<string, unknown>, opcoes: { completo
   faixa('convidados', 1, 5000, 'Convidados')
   faixa('preco_centavos', 0, 10_000_000, 'Preço em centavos')
   faixa('retencao_dias', 1, 3650, 'Retenção em dias')
-  faixa('poses_max', 1, opcoes.maiorPose, `Poses máximas (não passa da maior opção de poses, ${opcoes.maiorPose})`)
+  faixa('poses_max', 1, opcoes.maiorPose, `Máximo de fotos por convidado (não passa da maior opção, ${opcoes.maiorPose})`)
   faixa('ordem', 0, 1000, 'Ordem', false)
   if (dados.ativo !== undefined && typeof dados.ativo !== 'boolean') erros.ativo = 'Use verdadeiro ou falso.'
   return erros

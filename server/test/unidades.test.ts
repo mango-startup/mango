@@ -63,7 +63,7 @@ test('validarValor: tipo, faixa e normalização', () => {
 })
 
 test('validarConjunto: regras entre chaves', () => {
-  assert.deepEqual(validarConjunto({ ...CONFIG_PADRAO, poses_validas: [12, 36], poses_padrao: 24 }), { poses_padrao: 'Precisa estar entre as opções de poses.' })
+  assert.deepEqual(validarConjunto({ ...CONFIG_PADRAO, poses_validas: [12, 36], poses_padrao: 24 }), { poses_padrao: 'Precisa estar entre as opções de fotos.' })
   assert.ok(validarConjunto({ ...CONFIG_PADRAO, album_pagina_padrao: 100, album_pagina_max: 50 })?.album_pagina_padrao)
   assert.ok(validarConjunto({ ...CONFIG_PADRAO, foto_max_kb: 512, miniatura_max_kb: 1024 })?.miniatura_max_kb)
 })

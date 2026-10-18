@@ -71,7 +71,7 @@ function CamposDoPacote({ f, mudar, erros, protegido, novo }: { f: Formulario; m
       <Campo rotulo="Álbum no ar (dias)" erro={erros.retencao_dias} ajuda="Depois da revelação. Só vale para eventos novos: os existentes mantêm o prazo prometido.">
         {(id) => <Input id={id} inputMode="numeric" value={f.retencao} onChange={(e) => mudar({ retencao: e.target.value })} />}
       </Campo>
-      <Campo rotulo="Poses (máximo)" erro={erros.poses_max} ajuda="Não passa da maior opção de poses (aba Configurações).">
+      <Campo rotulo="Fotos por convidado (máximo)" erro={erros.poses_max} ajuda="Não passa da maior opção de fotos (aba Configurações).">
         {(id) => <Input id={id} inputMode="numeric" value={f.posesMax} onChange={(e) => mudar({ posesMax: e.target.value })} />}
       </Campo>
       <Campo rotulo="Ordem" erro={erros.ordem} ajuda="Posição na tela de preços (menor primeiro).">
@@ -140,7 +140,7 @@ function LinhaPacote({ p, aoSalvar }: { p: PacoteAdmin; aoSalvar: () => void }) 
             {!p.ativo && <span className="rounded-full border border-line px-2 py-0.5 text-xs font-normal text-muted">escondido</span>}
           </h2>
           <p className="mt-1 text-[15px] text-muted">
-            {p.gratis ? 'Grátis' : precoEmReais(p.preco_centavos)} · até {p.convidados} convidados · até {p.poses_max} poses · álbum por {p.retencao_dias} dias ·{' '}
+            {p.gratis ? 'Grátis' : precoEmReais(p.preco_centavos)} · até {p.convidados} convidados · até {p.poses_max} fotos · álbum por {p.retencao_dias} dias ·{' '}
             {p.eventos ?? 0} evento{(p.eventos ?? 0) === 1 ? '' : 's'}
           </p>
         </div>

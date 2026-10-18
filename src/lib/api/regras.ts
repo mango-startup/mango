@@ -86,7 +86,7 @@ export function validarNovoEvento(dados: NovoEvento, agora: Date): CamposEvento 
   const poses = dados.poses_por_convidado ?? Math.min(24, pacote.poses_max)
   if (!POSES_VALIDAS.includes(poses) || poses > pacote.poses_max) {
     const validas = POSES_VALIDAS.filter((p) => p <= pacote.poses_max).join(', ')
-    return { erro: 'poses_invalidas', mensagem: `As poses podem ser ${validas}.` }
+    return { erro: 'poses_invalidas', mensagem: `As fotos por convidado podem ser ${validas}.` }
   }
 
   const inicio = lerData(dados.captura_inicio)

@@ -241,7 +241,7 @@ export class ServicoPagamento {
         chaveIdempotencia: `mango-checkout-${evento.id}-${anteriores.length + 1}`,
       }),
     )
-    if (!sessao.url) throw new ErroPagamento(503, 'pagamento_indisponivel', 'Não foi possível abrir a página de pagamento. Tente de novo.')
+    if (!sessao.url) throw new ErroPagamento(503, 'pagamento_indisponivel', 'Não deu para abrir a página de pagamento. Tente de novo.')
     await this.pool.query(
       `insert into pagamentos (evento_id, stripe_session_id, valor_centavos, moeda) values ($1, $2, $3, 'brl')
        on conflict (stripe_session_id) do nothing`,
@@ -365,7 +365,7 @@ export class ServicoPagamento {
       return await fn()
     } catch (e) {
       this.log('error', { aviso: 'stripe_falhou', tipo: (e as { type?: string }).type ?? (e as Error).name, mensagem: (e as Error).message })
-      throw new ErroPagamento(503, 'pagamento_indisponivel', 'Não foi possível falar com o serviço de pagamento agora. Tente de novo em instantes.')
+      throw new ErroPagamento(503, 'pagamento_indisponivel', 'Não deu para falar com o serviço de pagamento agora. Tente de novo em instantes.')
     }
   }
 

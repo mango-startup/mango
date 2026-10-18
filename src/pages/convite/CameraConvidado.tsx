@@ -158,7 +158,7 @@ export function CameraConvidado({ codigo, evento, eu }: CameraConvidadoProps) {
         onCapture={(video) => void guardar(() => capturarParaEnvio(video))}
         caption={
           recusa === 'sem_poses' ? (
-            <p className="text-sm text-danger-ink">Uma foto não entrou: o limite de poses foi atingido.</p>
+            <p className="text-sm text-danger-ink">Uma foto não entrou: o limite de fotos foi atingido.</p>
           ) : (
             statusEnvio
           )

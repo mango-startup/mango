@@ -4,13 +4,13 @@ interface ContadorPosesProps {
   className?: string
 }
 
-// A janelinha da câmera descartável: quantas poses sobram no rolo.
+// A janelinha da câmera descartável: quantas fotos sobram no rolo.
 export function ContadorPoses({ restantes, tamanho = 'normal', className = '' }: ContadorPosesProps) {
-  const rotulo = restantes === 1 ? 'pose' : 'poses'
+  const rotulo = restantes === 1 ? 'foto' : 'fotos'
   return (
     <span
       role="status"
-      aria-label={`${restantes} ${rotulo} restantes`}
+      aria-label={`${restantes} ${restantes === 1 ? 'foto restante' : 'fotos restantes'}`}
       className={`inline-flex flex-col items-end leading-none ${className}`}
     >
       <span

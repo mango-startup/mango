@@ -15,7 +15,7 @@ function tokenDe(texto: string): string {
 const mensagemDeFalha = (e: unknown) =>
   e instanceof ErroApi && e.erro === 'nao_autorizado'
     ? 'Este link não abre nenhum evento. Confira se copiou o link inteiro de anfitrião (não o dos convidados).'
-    : 'Não foi possível abrir o link agora. Confira sua conexão e tente de novo.'
+    : 'Não deu para abrir o link agora. Confira sua conexão e tente de novo.'
 
 function Casca({ children }: { children: ReactNode }) {
   return (

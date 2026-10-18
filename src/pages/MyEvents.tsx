@@ -64,7 +64,7 @@ export function MyEventsPage() {
             Carregando...
           </p>
         )}
-        {falhou && <p className="py-12 text-[15px] text-danger-ink">Não foi possível carregar seus eventos. Confira sua conexão.</p>}
+        {falhou && <p className="py-12 text-[15px] text-danger-ink">Não deu para carregar seus eventos. Confira sua conexão.</p>}
 
         {vazio && (
           <BlocoEstado

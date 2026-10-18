@@ -40,7 +40,7 @@ function desenhar(fonte: CanvasImageSource, sx: number, sy: number, sw: number, 
   canvas.width = largura
   canvas.height = altura
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Não foi possível criar o contexto 2D do canvas')
+  if (!ctx) throw new Error('Não deu para criar o contexto 2D do canvas')
   ctx.drawImage(fonte, sx, sy, sw, sh, 0, 0, largura, altura)
   return canvas
 }

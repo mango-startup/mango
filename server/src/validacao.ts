@@ -29,7 +29,7 @@ export function validarConfig(entrada: Record<string, unknown>, pacote: Pacote, 
   const padrao = opcoesDePoses.includes(cfg.poses_padrao) ? cfg.poses_padrao : Math.max(...opcoesDePoses, 0)
   const poses = entrada.poses_por_convidado ?? padrao
   if (typeof poses !== 'number' || !opcoesDePoses.includes(poses)) {
-    return falha('poses_invalidas', `As poses podem ser ${opcoesDePoses.join(', ')}.`)
+    return falha('poses_invalidas', `As fotos por convidado podem ser ${opcoesDePoses.join(', ')}.`)
   }
 
   const inicio = lerData(entrada.captura_inicio)

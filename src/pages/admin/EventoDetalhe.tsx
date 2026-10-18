@@ -68,7 +68,7 @@ export function EventoDetalhe() {
                 </Linha>
                 <Linha rotulo="Fotos">{dados.fotos.total}</Linha>
                 <Linha rotulo="Fotos removidas">{dados.fotos.removidas}</Linha>
-                <Linha rotulo="Poses por convidado">{e.poses_por_convidado}</Linha>
+                <Linha rotulo="Fotos por convidado">{e.poses_por_convidado}</Linha>
                 <Linha rotulo="Armazenamento">{formatarBytes(dados.fotos.armazenamento_bytes)}</Linha>
                 <Linha rotulo="Primeira foto">{dataHora(dados.fotos.primeira_em)}</Linha>
                 <Linha rotulo="Última foto">{dataHora(dados.fotos.ultima_em)}</Linha>

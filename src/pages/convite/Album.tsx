@@ -176,7 +176,7 @@ export function Album({ codigo, evento, eu, onMudou }: AlbumProps) {
         )}
         {lista.erro && (
           <div className="flex flex-col items-center gap-3 py-8 text-center">
-            <p className="text-sm text-danger-ink">Não foi possível carregar as fotos.</p>
+            <p className="text-sm text-danger-ink">Não deu para carregar as fotos.</p>
             <Botao variante="secundario" onClick={() => carregarPagina(lista.pagina + 1)}>
               Tentar de novo
             </Botao>
