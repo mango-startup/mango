@@ -91,7 +91,7 @@ export function Menu() {
           <SidebarMenu>
             {g.itens.map((i) => (
               <SidebarMenuItem key={i.para}>
-                <SidebarMenuButton asChild tooltip={i.rotulo} className="h-10" isActive={i.fim ? pathname === i.para : pathname.startsWith(i.para)}>
+                <SidebarMenuButton asChild tooltip={i.rotulo} className="h-10 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center" isActive={i.fim ? pathname === i.para : pathname.startsWith(i.para)}>
                   <NavLink to={i.para} end={i.fim} onClick={() => setOpenMobile(false)}>
                     <Icone nome={i.icone} />
                     {i.rotulo}

@@ -104,7 +104,7 @@ export function AdminLayout() {
   if (estado.admin.trocar_senha) return <TrocarSenha obrigatoria admin={estado.admin} aoTrocar={recarregar} aoSair={() => void sair()} />
 
   const marca = (
-    <span className="flex items-center gap-2 font-display text-[22px] leading-none">
+    <span className="flex items-center gap-2 font-display text-[22px] leading-none group-data-[collapsible=icon]:justify-center">
       <MangoLogo className="h-[21px] w-4" />
       <span className="pb-0.5 group-data-[collapsible=icon]:hidden">mango</span>
       <span className="ml-1 rounded-full group-data-[collapsible=icon]:hidden border border-line px-2.5 py-1 font-sans text-xs font-semibold text-muted">admin</span>
@@ -116,7 +116,7 @@ export function AdminLayout() {
       <TooltipProvider>
       <SidebarProvider className="bg-base text-paper">
         <Sidebar collapsible="icon">
-          <SidebarHeader className="px-4 pt-5 group-data-[collapsible=icon]:px-3">{marca}</SidebarHeader>
+          <SidebarHeader className="px-4 pt-5 group-data-[collapsible=icon]:px-0">{marca}</SidebarHeader>
           <div className="px-3 pt-3 group-data-[collapsible=icon]:px-1.5">
             <BotaoBusca aoAbrir={() => setBuscando(true)} />
           </div>
