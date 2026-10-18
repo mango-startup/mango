@@ -44,6 +44,12 @@ export function Saude() {
       {!dados && !erro && <Carregando />}
       {dados && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Indicador
+            rotulo="E-mail ao anfitrião"
+            valor={dados.email_configurado ? 'Ligado' : 'Desligado'}
+            alerta={!dados.email_configurado}
+            detalhe={dados.email_configurado ? 'Resend configurado no servidor' : 'Falta RESEND_API_KEY no servidor: o admin não consegue enviar e-mail'}
+          />
           <Indicador rotulo="Banco de dados" valor={dados.banco.ok ? 'OK' : 'Fora'} detalhe={`Respondeu em ${dados.banco.latencia_ms} ms`} alerta={!dados.banco.ok} />
           <Indicador
             rotulo="Fotos na fila de limpeza"

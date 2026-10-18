@@ -83,10 +83,12 @@ export interface Administrador {
 }
 
 export interface EventoAdmin {
+  captura_inicio: string | null
+  captura_fim: string | null
   id: string
   codigo: string
   nome: string
-  anfitriao_email: string
+  anfitriao_email: string | null
   estado: string
   pacote: string
   limite_convidados: number
@@ -104,6 +106,7 @@ export interface PaginaEventos {
 }
 
 export interface FiltroEventos {
+  limite?: string
   estado?: string
   pacote?: string
   busca?: string
@@ -170,6 +173,7 @@ export interface PaginaAnfitrioes {
 
 export interface SaudeAdmin {
   banco: { ok: boolean; latencia_ms: number }
+  email_configurado: boolean
   fotos_aguardando_limpeza: number
   fotos_aguardando_limpeza_ha_mais_de_2_dias: number
   pagamentos_aprovados_sem_evento: number
@@ -233,6 +237,62 @@ export interface EmailEnviado {
   status: 'enviado' | 'falhou'
   erro: string | null
   criado_em: string
+}
+
+export interface ItemAgenda {
+  id: string
+  nome: string
+  anfitriao_email: string | null
+  estado: string
+  pacote: string
+  tipo: 'abre' | 'fecha' | 'revela'
+  quando: string
+}
+
+export interface EventoParado {
+  id: string
+  nome: string
+  anfitriao_email: string | null
+  estado: string
+  criado_em: string
+  motivo: 'aguardando_pagamento' | 'sem_convidados'
+}
+
+export interface Agenda {
+  proximos: ItemAgenda[]
+  parados: EventoParado[]
+}
+
+export interface ResumoFinanceiro {
+  pagamentos: number
+  bruta_centavos: number
+  taxas_centavos: number
+  liquida_centavos: number
+  ticket_medio_centavos: number
+}
+
+export interface PacoteFinanceiro {
+  id: string
+  nome: string
+  preco_centavos: number
+  eventos: number
+  checkouts: number
+  pagos: number
+  abandonados: number
+  conversao: number | null
+  com_fotos: number
+  revelados: number
+  bruta_centavos: number
+  liquida_centavos: number
+}
+
+export interface Financeiro {
+  dias: number
+  atual: ResumoFinanceiro
+  anterior: ResumoFinanceiro
+  mes: { bruta_centavos: number; meta_centavos: number | null }
+  taxa: { percentual: number; fixa_centavos: number }
+  pacotes: PacoteFinanceiro[]
 }
 
 export interface SessaoAdmin {
@@ -315,7 +375,7 @@ export const admin = {
   configuracoes: () => chamar<{ grupos: GrupoConfig[] }>('GET', '/api/admin/configuracoes').then((r) => r.grupos),
   /** `null` volta a chave ao padrão. Tudo ou nada. */
   salvarConfiguracoes: (mudancas: Record<string, ValorConfig | null>) => chamar<{ ok: boolean }>('PATCH', '/api/admin/configuracoes', mudancas),
-  auditoria: (pagina = 1, limite = 50, filtro: { usuario?: string; acao?: string } = {}) => {
+  auditoria: (pagina = 1, limite = 50, filtro: { usuario?: string; acao?: string; de?: string; ate?: string } = {}) => {
     const q = new URLSearchParams({ pagina: String(pagina), limite: String(limite) })
     for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)
     return chamar<PaginaAuditoria>('GET', `/api/admin/auditoria?${q}`)
@@ -343,7 +403,13 @@ export const admin = {
   emails: (id: string) => chamar<{ configurado: boolean; emails: EmailEnviado[] }>('GET', `/api/admin/eventos/${encodeURIComponent(id)}/emails`),
   enviarEmail: (id: string, assunto: string, texto: string) => chamar<{ ok: boolean; destinatario: string }>('POST', `/api/admin/eventos/${encodeURIComponent(id)}/emails`, { assunto, texto }),
   saude: () => chamar<SaudeAdmin>('GET', '/api/admin/saude'),
-  pagamentos: (status = '', pagina = 1) => chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?pagina=${pagina}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
+  pagamentos: (filtro: { status?: string; de?: string; ate?: string; limite?: string } = {}, pagina = 1) => {
+    const q = new URLSearchParams({ pagina: String(pagina) })
+    for (const [k, v] of Object.entries(filtro)) if (v) q.set(k, v)
+    return chamar<PaginaPagamentos>('GET', `/api/admin/pagamentos?${q}`)
+  },
+  agenda: () => chamar<Agenda>('GET', '/api/admin/agenda'),
+  financeiro: (dias: number) => chamar<Financeiro>('GET', `/api/admin/financeiro?dias=${dias}`),
   administradores: () => chamar<{ administradores: Administrador[] }>('GET', '/api/admin/administradores').then((r) => r.administradores),
   redefinirSenha: (id: string) => chamar<{ usuario: string; senha_temporaria: string }>('POST', `/api/admin/administradores/${id}/redefinir-senha`),
 }

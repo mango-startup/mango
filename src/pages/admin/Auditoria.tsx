@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type PaginaAuditoria } from '../../lib/admin.ts'
 import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
 import { ACOES_AUDITORIA, campoTexto, dataHora } from './util'
+import { useFiltrosUrl } from './useFiltrosUrl'
 
 
 function resumo(valor: unknown): string {
@@ -16,9 +18,8 @@ function resumo(valor: unknown): string {
 }
 
 export function Auditoria() {
-  const [pagina, setPagina] = useState(1)
-  const [usuario, setUsuario] = useState('')
-  const [acao, setAcao] = useState('')
+  const { valores: f, definir, limpar, ativos } = useFiltrosUrl({ usuario: '', acao: '', de: '', ate: '', pagina: '1' })
+  const pagina = Number(f.pagina) || 1
   const [usuarios, setUsuarios] = useState<string[]>([])
   const [dados, setDados] = useState<PaginaAuditoria | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -42,13 +43,13 @@ export function Auditoria() {
   useEffect(() => {
     let ativo = true
     admin
-      .auditoria(pagina, 50, { usuario, acao })
+      .auditoria(pagina, 50, { usuario: f.usuario, acao: f.acao, de: f.de, ate: f.ate })
       .then((r) => ativo && (setDados(r), setErro(null)))
       .catch((e: unknown) => ativo && setErro(e instanceof ErroApi ? e.message : 'Sem conexão com o servidor.'))
     return () => {
       ativo = false
     }
-  }, [pagina, usuario, acao, versaoLista])
+  }, [pagina, f.usuario, f.acao, f.de, f.ate, versaoLista])
 
   useEffect(() => {
     admin.administradores().then((l) => setUsuarios(l.map((a) => a.usuario))).catch(() => {})
@@ -59,8 +60,8 @@ export function Auditoria() {
   return (
     <>
       <Titulo detalhe="Quem mudou o quê, e quando. Nada aqui pode ser apagado.">Auditoria</Titulo>
-      <div className="mb-4 grid gap-3 sm:max-w-[520px] sm:grid-cols-2">
-        <select aria-label="Quem" value={usuario} onChange={(e) => { setUsuario(e.target.value); setPagina(1) }} className={campoTexto}>
+      <div className="mb-4 grid gap-3 sm:grid-cols-4">
+        <select aria-label="Quem" value={f.usuario} onChange={(e) => definir({ usuario: e.target.value })} className={campoTexto}>
           <option value="">Todos os administradores</option>
           {usuarios.map((u) => (
             <option key={u} value={u}>
@@ -68,7 +69,7 @@ export function Auditoria() {
             </option>
           ))}
         </select>
-        <select aria-label="O quê" value={acao} onChange={(e) => { setAcao(e.target.value); setPagina(1) }} className={campoTexto}>
+        <select aria-label="O quê" value={f.acao} onChange={(e) => definir({ acao: e.target.value })} className={campoTexto}>
           <option value="">Todas as ações</option>
           {Object.entries(ACOES_AUDITORIA).map(([id, rotulo]) => (
             <option key={id} value={id}>
@@ -76,7 +77,22 @@ export function Auditoria() {
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          De
+          <Input type="date" value={f.de} onChange={(e) => definir({ de: e.target.value })} />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          Até
+          <Input type="date" value={f.ate} onChange={(e) => definir({ ate: e.target.value })} />
+        </label>
       </div>
+      {ativos > 0 && (
+        <div className="mb-4">
+          <Button type="button" variant="ghost" onClick={limpar}>
+            Limpar {ativos} filtro{ativos > 1 ? 's' : ''}
+          </Button>
+        </div>
+      )}
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {!dados && !erro && <Carregando />}
       {dados && (
@@ -120,13 +136,13 @@ export function Auditoria() {
       )}
       {dados && paginas > 1 && (
         <div className="mt-4 flex items-center justify-between">
-          <Button variant="outline" onClick={() => setPagina((p) => p - 1)} disabled={pagina <= 1}>
+          <Button variant="outline" onClick={() => definir({ pagina: String(pagina - 1) })} disabled={pagina <= 1}>
             Anteriores
           </Button>
           <span className="text-sm text-muted">
             Página {pagina} de {paginas}
           </span>
-          <Button variant="outline" onClick={() => setPagina((p) => p + 1)} disabled={pagina >= paginas}>
+          <Button variant="outline" onClick={() => definir({ pagina: String(pagina + 1) })} disabled={pagina >= paginas}>
             Mais antigos
           </Button>
         </div>

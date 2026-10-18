@@ -14,6 +14,7 @@ const ICONES: Record<string, ReactNode> = {
   eventos: <path d="M7 3v3M17 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />,
   anfitrioes: <path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.5c1.9.8 3 2.6 3 5.5" />,
   moderacao: <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6zM9 12l2 2 4-4" />,
+  financeiro: <path d="M12 3v18M16 7.5c0-1.4-1.8-2.5-4-2.5s-4 1.1-4 2.5 1.8 2.5 4 2.5 4 1.1 4 2.5-1.8 2.5-4 2.5-4-1.1-4-2.5" />,
   pagamentos: <path d="M3 7h18v10H3zM3 11h18M7 15h3" />,
   pacotes: <path d="M12 3l8 4v10l-8 4-8-4V7zM4 7l8 4 8-4M12 11v10" />,
   configuracoes: <path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 4v6M8 14v6" />,
@@ -52,6 +53,7 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
   {
     nome: 'Financeiro',
     itens: [
+      { para: '/admin/financeiro', rotulo: 'Financeiro', icone: 'financeiro' },
       { para: '/admin/pagamentos', rotulo: 'Pagamentos', icone: 'pagamentos' },
       { para: '/admin/pacotes', rotulo: 'Pacotes', icone: 'pacotes' },
     ],

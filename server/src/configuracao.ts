@@ -26,6 +26,10 @@ export interface Config {
   foto_dimensao_max_px: number
   foto_qualidade_jpeg: number
   zip_max_gb: number
+  // Financeiro (só o admin lê)
+  taxa_stripe_percentual: number
+  taxa_stripe_fixa_centavos: number
+  meta_receita_mensal_centavos: number
   // Retenção e moderação
   remocao_arquivo_dias: number
   pedido_remocao_motivo_max: number
@@ -82,6 +86,9 @@ export const DEFINICOES: Definicao[] = [
   d({ chave: 'envio_atrasado_horas', grupo: 'Fotos', rotulo: 'Envio depois de a câmera fechar', descricao: 'Fotos tiradas sem sinal ainda são aceitas por este tempo.', tipo: 'inteiro', padrao: 24, min: 0, max: 168, unidade: 'horas', publica: true }),
   d({ chave: 'album_pagina_padrao', grupo: 'Fotos', rotulo: 'Álbum, fotos por página (padrão)', descricao: 'Não pode passar do máximo abaixo.', tipo: 'inteiro', padrao: 60, min: 10, max: 200, publica: false }),
   d({ chave: 'album_pagina_max', grupo: 'Fotos', rotulo: 'Álbum, fotos por página (máximo)', descricao: 'Teto que o front pode pedir.', tipo: 'inteiro', padrao: 200, min: 20, max: 500, publica: false }),
+  d({ chave: 'taxa_stripe_percentual', grupo: 'Financeiro', rotulo: 'Taxa do Stripe (percentual)', descricao: 'Usada só para estimar a receita líquida no admin. Confira a taxa do seu contrato no Stripe.', tipo: 'decimal', padrao: 3.99, min: 0, max: 20, unidade: '%', publica: false }),
+  d({ chave: 'taxa_stripe_fixa_centavos', grupo: 'Financeiro', rotulo: 'Taxa do Stripe (fixa por pagamento)', descricao: 'Valor fixo cobrado em cada pagamento aprovado, em centavos (39 = R$ 0,39).', tipo: 'inteiro', padrao: 39, min: 0, max: 1000, unidade: 'centavos', publica: false }),
+  d({ chave: 'meta_receita_mensal_centavos', grupo: 'Financeiro', rotulo: 'Meta de receita do mês', descricao: 'Em centavos (500000 = R$ 5.000,00). Zero desliga a barra de meta no admin.', tipo: 'inteiro', padrao: 0, min: 0, max: 1000000000, unidade: 'centavos', publica: false }),
   d({ chave: 'zip_max_gb', grupo: 'Fotos', rotulo: 'ZIP do álbum, tamanho máximo', descricao: 'Acima disso o anfitrião baixa as fotos pelo álbum. Limite técnico de 4 GB.', tipo: 'decimal', padrao: 4, min: 0.5, max: 4, unidade: 'GB', publica: false }),
 
   d({ chave: 'remocao_arquivo_dias', grupo: 'Retenção e moderação', rotulo: 'Arquivo apagado depois de', descricao: 'Foto removida ou evento excluído tem os arquivos apagados do armazenamento depois deste prazo.', tipo: 'inteiro', padrao: 30, min: 0, max: 365, unidade: 'dias', publica: false }),

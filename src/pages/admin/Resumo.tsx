@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ErroApi } from '../../lib/api/tipos.ts'
-import { admin, formatarBytes, formatarReais, type Analise, type Crescimento, type PaginaAuditoria, type Resumo as DadosResumo, type SaudeAdmin } from '../../lib/admin.ts'
+import { admin, formatarBytes, formatarReais, type Agenda, type Analise, type Crescimento, type PaginaAuditoria, type Resumo as DadosResumo, type SaudeAdmin } from '../../lib/admin.ts'
 import { Barras, Colunas, Tendencia } from './Grafico'
 import { Variacao } from './Indicador'
 import { Aviso, Cartao, Carregando, EstadoVazio, Titulo } from './ui'
@@ -13,6 +13,7 @@ interface Dados {
   crescimento: Crescimento
   saude: SaudeAdmin | null
   auditoria: PaginaAuditoria | null
+  agenda: Agenda | null
 }
 
 function Kpi({ rotulo, valor, rodape, tendencia }: { rotulo: string; valor: string | number; rodape: ReactNode; tendencia: number[] }) {
@@ -42,7 +43,43 @@ function alertas(d: Dados): Alerta[] {
     if (saude.fotos_aguardando_limpeza_ha_mais_de_2_dias > 0) l.push({ texto: `${saude.fotos_aguardando_limpeza_ha_mais_de_2_dias} foto(s) na fila de limpeza há mais de 2 dias`, para: '/admin/saude' })
     if (saude.pedidos_de_remocao_pendentes_ha_mais_de_2_dias > 0) l.push({ texto: `${saude.pedidos_de_remocao_pendentes_ha_mais_de_2_dias} pedido(s) de remoção parado(s) há mais de 2 dias`, para: '/admin/moderacao' })
   }
+  for (const p of d.agenda?.parados ?? []) {
+    l.push({ texto: p.motivo === 'aguardando_pagamento' ? `“${p.nome}” aguarda pagamento há mais de 1 dia` : `“${p.nome}” abre em menos de 24 h e ainda não tem convidados`, para: `/admin/eventos/${p.id}` })
+  }
   return l
+}
+
+const TIPO_AGENDA = { abre: 'Câmera abre', fecha: 'Câmera fecha', revela: 'Revelação' } as const
+
+function CartaoAgenda({ agenda }: { agenda: Agenda | null }) {
+  const itens = agenda?.proximos ?? []
+  return (
+    <Cartao>
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold">Hoje e próximos 7 dias</h2>
+        <Link to="/admin/eventos?ordem=camera" className={`text-sm text-muted ${linkToque}`}>
+          Ver eventos por câmera
+        </Link>
+      </div>
+      {itens.length === 0 ? (
+        <EstadoVazio>Nenhum evento abre, fecha ou revela nos próximos 7 dias.</EstadoVazio>
+      ) : (
+        <ul className="divide-y divide-line text-[14px]">
+          {itens.slice(0, 12).map((i) => (
+            <li key={`${i.id}-${i.tipo}`} className="flex flex-wrap items-center justify-between gap-x-4 py-2">
+              <span>
+                <span className="mr-2 rounded-full border border-line px-2 py-0.5 text-xs text-muted">{TIPO_AGENDA[i.tipo]}</span>
+                <Link to={`/admin/eventos/${i.id}`} className="underline underline-offset-4 hover:text-muted">
+                  {i.nome}
+                </Link>
+              </span>
+              <span className="tabular-nums text-muted">{dataHora(i.quando)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Cartao>
+  )
 }
 
 export function Resumo() {
@@ -52,8 +89,8 @@ export function Resumo() {
   useEffect(() => {
     let ativo = true
     // Resumo, análise e crescimento são o essencial; saúde e auditoria enfeitam e não derrubam a tela.
-    Promise.all([admin.resumo(), admin.analise(30), admin.crescimento(30), admin.saude().catch(() => null), admin.auditoria(1, 6).catch(() => null)])
-      .then(([resumo, analise, crescimento, saude, auditoria]) => ativo && setDados({ resumo, analise, crescimento, saude, auditoria }))
+    Promise.all([admin.resumo(), admin.analise(30), admin.crescimento(30), admin.saude().catch(() => null), admin.auditoria(1, 6).catch(() => null), admin.agenda().catch(() => null)])
+      .then(([resumo, analise, crescimento, saude, auditoria, agenda]) => ativo && setDados({ resumo, analise, crescimento, saude, auditoria, agenda }))
       .catch((e: unknown) => ativo && setErro(e instanceof ErroApi ? e.message : 'Sem conexão com o servidor.'))
     return () => {
       ativo = false
@@ -76,6 +113,8 @@ export function Resumo() {
             <Kpi rotulo="Fotos (30 dias)" valor={dados.analise.periodo.fotos.atual} tendencia={dados.crescimento.serie.map((s) => s.fotos)} rodape={<Variacao dupla={dados.analise.periodo.fotos} />} />
             <Kpi rotulo="Convidados (30 dias)" valor={dados.analise.periodo.convidados.atual} tendencia={dados.crescimento.serie.map((s) => s.convidados)} rodape={<Variacao dupla={dados.analise.periodo.convidados} />} />
           </div>
+
+          <CartaoAgenda agenda={dados.agenda} />
 
           <div className="grid gap-4 xl:grid-cols-3">
             <Cartao className="xl:col-span-2">

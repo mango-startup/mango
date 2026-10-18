@@ -13,7 +13,7 @@ interface Resultado {
 
 const PAGINAS: Resultado[] = [
   ['Resumo', '/admin'], ['Análise', '/admin/analise'], ['Crescimento', '/admin/crescimento'], ['Uso e retenção', '/admin/uso'], ['Ao vivo', '/admin/ao-vivo'], ['Eventos', '/admin/eventos'], ['Anfitriões', '/admin/anfitrioes'],
-  ['Moderação', '/admin/moderacao'], ['Pagamentos', '/admin/pagamentos'], ['Pacotes', '/admin/pacotes'], ['Configurações', '/admin/configuracoes'],
+  ['Moderação', '/admin/moderacao'], ['Financeiro', '/admin/financeiro'], ['Pagamentos', '/admin/pagamentos'], ['Pacotes', '/admin/pacotes'], ['Configurações', '/admin/configuracoes'],
   ['Saúde', '/admin/saude'], ['Auditoria', '/admin/auditoria'], ['Administradores', '/admin/administradores'],
 ].map(([rotulo, para]) => ({ chave: para, rotulo, detalhe: 'Ir para a tela', para }))
 
