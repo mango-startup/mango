@@ -5,7 +5,7 @@ import { admin, formatarBytes, formatarReais, type EventoDetalhe as Dados } from
 import { Button } from '@/components/ui/button'
 import { EmailAnfitriao } from './EmailAnfitriao'
 import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
-import { dataHora, ESTADOS_EVENTO } from './util'
+import { dataHora, ESTADOS_EVENTO, rotuloEmail } from './util'
 
 const STATUS_PAGAMENTO: Record<string, string> = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado', expirado: 'Expirado', estornado: 'Estornado', aprovado_orfao: 'Aprovado sem evento' }
 const RESOLUCAO: Record<string, string> = { removida: 'Foto removida', mantida: 'Foto mantida' }
@@ -63,7 +63,7 @@ export function EventoDetalhe() {
       {!dados && !erro && <Carregando />}
       {dados && e && (
         <div className="flex flex-col gap-6">
-          <Titulo detalhe={`${e.anfitriao_email} · ${ESTADOS_EVENTO[e.estado] ?? e.estado}${e.excluido_em ? ' · apagado' : ''}`}>{e.nome}</Titulo>
+          <Titulo detalhe={`${rotuloEmail(e.anfitriao_email)} · ${ESTADOS_EVENTO[e.estado] ?? e.estado}${e.excluido_em ? ' · apagado' : ''}`}>{e.nome}</Titulo>
           <div className="flex flex-wrap gap-2">
             <Link to={`/admin/eventos/${e.id}/anfitriao`} className="inline-flex min-h-11 items-center rounded-[12px] border border-line px-4 text-sm font-semibold hover:bg-surface">
               Ver como o anfitrião (leitura)

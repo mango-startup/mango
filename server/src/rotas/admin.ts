@@ -97,10 +97,10 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     const [estados, totais, pedidos] = await Promise.all([
       pool.query<{ estado: string; n: string }>('select estado, count(*) as n from eventos where excluido_em is null group by estado'),
       pool.query<{ eventos_7d: string; convidados: string; fotos: string; fotos_24h: string; armazenamento_bytes: string }>(
-        `select (select count(*) from eventos where criado_em > $1::timestamptz - interval '7 days') as eventos_7d,
-                (select count(*) from convidados) as convidados,
-                (select count(*) from fotos where removida_em is null) as fotos,
-                (select count(*) from fotos where criado_em > $1::timestamptz - interval '24 hours') as fotos_24h,
+        `select (select count(*) from eventos where excluido_em is null and criado_em > $1::timestamptz - interval '7 days') as eventos_7d,
+                (select count(*) from convidados v join eventos e on e.id = v.evento_id where e.excluido_em is null) as convidados,
+                (select count(*) from fotos f join eventos e on e.id = f.evento_id where e.excluido_em is null and f.removida_em is null) as fotos,
+                (select count(*) from fotos f join eventos e on e.id = f.evento_id where e.excluido_em is null and f.removida_em is null and f.criado_em > $1::timestamptz - interval '24 hours') as fotos_24h,
                 (select coalesce(sum(tamanho_bytes), 0) from fotos where arquivo_apagado_em is null) as armazenamento_bytes`,
         [agora()],
       ),
@@ -250,9 +250,9 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     const r = await pool.query<{ dia: string; eventos: number; convidados: number; fotos: number; receita_centavos: number }>(
       `with dias as (select generate_series(($1::timestamptz at time zone 'America/Sao_Paulo')::date - ($2::int - 1), ($1::timestamptz at time zone 'America/Sao_Paulo')::date, interval '1 day')::date as dia)
        select to_char(d.dia, 'YYYY-MM-DD') as dia,
-              (select count(*) from eventos e where (e.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as eventos,
-              (select count(*) from convidados v where (v.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as convidados,
-              (select count(*) from fotos f where (f.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as fotos,
+              (select count(*) from eventos e where e.excluido_em is null and (e.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as eventos,
+              (select count(*) from convidados v join eventos e on e.id = v.evento_id where e.excluido_em is null and (v.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as convidados,
+              (select count(*) from fotos f join eventos e on e.id = f.evento_id where e.excluido_em is null and f.removida_em is null and (f.criado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as fotos,
               (select coalesce(sum(p.valor_centavos), 0) from pagamentos p where p.status = 'aprovado' and (p.atualizado_em at time zone 'America/Sao_Paulo')::date = d.dia)::int as receita_centavos
          from dias d order by d.dia`,
       [agora(), dias],
@@ -294,7 +294,7 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     const r = await pool.query<{ anfitrioes: string; recorrentes: string; dias_medios: string | null }>(
       `with por as (
          select anfitriao_email, count(*) as n, min(criado_em) as primeiro, max(criado_em) as ultimo
-           from eventos where excluido_em is null group by anfitriao_email)
+           from eventos where excluido_em is null and anfitriao_email is not null group by anfitriao_email)
        select count(*) as anfitrioes, count(*) filter (where n >= 2) as recorrentes,
               avg(extract(epoch from (ultimo - primeiro)) / 86400 / nullif(n - 1, 0)) filter (where n >= 2) as dias_medios
          from por`,
@@ -314,9 +314,13 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
   app.get('/api/admin/armazenamento', exigirAdmin, async (c) => {
     const [semanas, totais] = await Promise.all([
       pool.query<{ semana: string; bytes: string; fotos: string }>(
-        `select to_char(date_trunc('week', criado_em at time zone 'America/Sao_Paulo'), 'YYYY-MM-DD') as semana,
-                coalesce(sum(tamanho_bytes), 0) as bytes, count(*) as fotos
-           from fotos where criado_em > $1::timestamptz - interval '12 weeks' group by 1 order by 1`,
+        `with semanas as (
+           select generate_series(date_trunc('week', $1::timestamptz at time zone 'America/Sao_Paulo') - interval '11 weeks', date_trunc('week', $1::timestamptz at time zone 'America/Sao_Paulo'), interval '1 week') as inicio)
+         select to_char(s.inicio, 'YYYY-MM-DD') as semana,
+                coalesce(sum(f.tamanho_bytes), 0) as bytes, count(f.id) as fotos
+           from semanas s
+           left join fotos f on date_trunc('week', f.criado_em at time zone 'America/Sao_Paulo') = s.inicio and f.removida_em is null
+           group by s.inicio order by s.inicio`,
         [agora()],
       ),
       pool.query<{ bytes: string; eventos: string }>(
@@ -331,7 +335,8 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     return c.json({
       total_bytes: bytes,
       bytes_por_evento: eventosComFoto > 0 ? Math.round(bytes / eventosComFoto) : 0,
-      bytes_por_semana_recente: recentes.length > 0 ? Math.round(recentes.reduce((a, l) => a + Number(l.bytes), 0) / recentes.length) : 0,
+      // A série já traz as 12 semanas, inclusive as vazias.
+      bytes_por_semana_recente: Math.round(recentes.reduce((a, l) => a + Number(l.bytes), 0) / 4),
       semanas: semanas.rows.map((l) => ({ semana: l.semana, bytes: Number(l.bytes), fotos: Number(l.fotos) })),
     })
   })
@@ -534,8 +539,8 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
        count(*) filter (where ${coluna} >= $1::timestamptz - make_interval(days => $2 * 2) and ${coluna} < $1::timestamptz - make_interval(days => $2)) as ${alias}_anterior`
     const [ev, cv, ft, pg, funil, medias, pacotes, maiores] = await Promise.all([
       pool.query(`select ${janela('criado_em', 'n')} from eventos where excluido_em is null`, parametros),
-      pool.query(`select ${janela('criado_em', 'n')} from convidados`, parametros),
-      pool.query(`select ${janela('criado_em', 'n')} from fotos`, parametros),
+      pool.query(`select ${janela('criado_em', 'n')} from convidados where evento_id in (select id from eventos where excluido_em is null)`, parametros),
+      pool.query(`select ${janela('criado_em', 'n')} from fotos where removida_em is null and evento_id in (select id from eventos where excluido_em is null)`, parametros),
       pool.query(
         `select ${janela('atualizado_em', 'n')},
                 coalesce(sum(valor_centavos) filter (where atualizado_em >= $1::timestamptz - make_interval(days => $2) and atualizado_em < $1::timestamptz), 0) as receita_atual,
@@ -556,8 +561,8 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
       ),
       pool.query(
         `select (select count(*) from eventos where excluido_em is null) as eventos,
-                (select count(*) from fotos where removida_em is null) as fotos,
-                (select count(*) from convidados) as convidados,
+                (select count(*) from fotos f join eventos x on x.id = f.evento_id where x.excluido_em is null and f.removida_em is null) as fotos,
+                (select count(*) from convidados v join eventos x on x.id = v.evento_id where x.excluido_em is null) as convidados,
                 (select coalesce(sum(limite_convidados), 0) from eventos where excluido_em is null and estado in ('captura_aberta','captura_encerrada','revelado')) as vagas,
                 (select count(*) from convidados v join eventos e on e.id = v.evento_id where e.excluido_em is null and e.estado in ('captura_aberta','captura_encerrada','revelado')) as ocupadas,
                 (select count(*) from eventos where excluido_em is null and estado = 'captura_aberta') as capturando_agora`,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarReais, type Crescimento as Dados } from '../../lib/admin.ts'
+import { Colunas } from './Grafico'
 import { Aviso, Cartao, Titulo, Carregando } from './ui'
 import { campoTexto } from './util'
 
@@ -28,8 +29,6 @@ export function Crescimento() {
       ativo = false
     }
   }, [dias])
-
-  const maximo = dados ? Math.max(1, ...dados.serie.map((d) => d[metrica])) : 1
 
   return (
     <>
@@ -64,18 +63,7 @@ export function Crescimento() {
           </div>
           <Cartao>
             <h2 className="mb-4 text-sm font-semibold">{METRICAS[metrica]} por dia</h2>
-            <div className="flex h-44 items-end gap-px" role="img" aria-label={`${METRICAS[metrica]} por dia, de ${diaCurto(dados.serie[0].dia)} a ${diaCurto(dados.serie[dados.serie.length - 1].dia)}`}>
-              {dados.serie.map((d) => (
-                <div key={d.dia} title={`${diaCurto(d.dia)}: ${metrica === 'receita_centavos' ? formatarReais(d[metrica]) : d[metrica]}`} className="flex h-full min-w-px flex-1 items-end">
-                  <div className="w-full rounded-t-[2px] bg-paper" style={{ height: `${(d[metrica] / maximo) * 100}%`, minHeight: d[metrica] > 0 ? 2 : 0 }} />
-                </div>
-              ))}
-            </div>
-            <div className="mt-2 flex justify-between text-xs text-muted">
-              <span>{diaCurto(dados.serie[0].dia)}</span>
-              <span>pico: {dados.serie.some((d) => d[metrica] > 0) ? (metrica === 'receita_centavos' ? formatarReais(maximo) : maximo) : 0}</span>
-              <span>{diaCurto(dados.serie[dados.serie.length - 1].dia)}</span>
-            </div>
+            <Colunas itens={dados.serie.map((d) => ({ rotulo: diaCurto(d.dia), valor: d[metrica] }))} formatar={metrica === 'receita_centavos' ? formatarReais : String} />
           </Cartao>
         </div>
       )}

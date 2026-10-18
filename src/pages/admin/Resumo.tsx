@@ -5,7 +5,7 @@ import { admin, formatarBytes, formatarReais, type Analise, type Crescimento, ty
 import { Barras, Colunas, Tendencia } from './Grafico'
 import { Variacao } from './Indicador'
 import { Aviso, Cartao, Carregando, EstadoVazio, Titulo } from './ui'
-import { dataHora, ESTADOS_EVENTO } from './util'
+import { ACOES_AUDITORIA, dataHora, ESTADOS_EVENTO, linkToque } from './util'
 
 interface Dados {
   resumo: DadosResumo
@@ -65,12 +65,12 @@ export function Resumo() {
 
   return (
     <>
-      <Titulo detalhe="Como o Mango está agora, comparado aos 30 dias anteriores. Preços, planos e limites ficam em Pacotes e Configurações e valem na hora, sem deploy.">Resumo</Titulo>
+      <Titulo detalhe="Como o Mango está agora, comparado aos 30 dias anteriores. Preços, planos e limites ficam nas telas Pacotes e Configurações e valem na hora, sem deploy.">Resumo</Titulo>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {!dados && !erro && <Carregando />}
       {dados && (
         <div className="flex flex-col gap-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <Kpi rotulo="Receita (30 dias)" valor={formatarReais(dados.analise.periodo.receita_centavos.atual)} tendencia={dados.crescimento.serie.map((s) => s.receita_centavos)} rodape={<Variacao dupla={dados.analise.periodo.receita_centavos} />} />
             <Kpi rotulo="Eventos criados (30 dias)" valor={dados.analise.periodo.eventos.atual} tendencia={dados.crescimento.serie.map((s) => s.eventos)} rodape={<Variacao dupla={dados.analise.periodo.eventos} />} />
             <Kpi rotulo="Fotos (30 dias)" valor={dados.analise.periodo.fotos.atual} tendencia={dados.crescimento.serie.map((s) => s.fotos)} rodape={<Variacao dupla={dados.analise.periodo.fotos} />} />
@@ -81,7 +81,7 @@ export function Resumo() {
             <Cartao className="xl:col-span-2">
               <div className="mb-3 flex items-baseline justify-between gap-3">
                 <h2 className="text-sm font-semibold">Receita por dia</h2>
-                <Link to="/admin/crescimento" className="text-sm text-muted underline underline-offset-4 hover:text-paper">
+                <Link to="/admin/crescimento" className={`text-sm text-muted ${linkToque}`}>
                   Ver crescimento
                 </Link>
               </div>
@@ -130,7 +130,7 @@ export function Resumo() {
             <Cartao>
               <div className="mb-3 flex items-baseline justify-between gap-3">
                 <h2 className="text-sm font-semibold">Atividade recente</h2>
-                <Link to="/admin/auditoria" className="text-sm text-muted underline underline-offset-4 hover:text-paper">
+                <Link to="/admin/auditoria" className={`text-sm text-muted ${linkToque}`}>
                   Ver tudo
                 </Link>
               </div>
@@ -141,7 +141,7 @@ export function Resumo() {
                   {dados.auditoria.registros.map((r) => (
                     <li key={r.id} className="py-2">
                       <p>
-                        <strong className="font-semibold">{r.usuario}</strong> <span className="text-muted">{r.acao}</span>
+                        <strong className="font-semibold">{r.usuario}</strong> <span className="text-muted">{ACOES_AUDITORIA[r.acao] ?? r.acao}</span>
                       </p>
                       <p className="text-[12px] text-muted">{dataHora(r.criado_em)}</p>
                     </li>

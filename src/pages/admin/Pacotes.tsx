@@ -71,7 +71,7 @@ function CamposDoPacote({ f, mudar, erros, protegido, novo }: { f: Formulario; m
       <Campo rotulo="Álbum no ar (dias)" erro={erros.retencao_dias} ajuda="Depois da revelação. Só vale para eventos novos: os existentes mantêm o prazo prometido.">
         {(id) => <Input id={id} inputMode="numeric" value={f.retencao} onChange={(e) => mudar({ retencao: e.target.value })} />}
       </Campo>
-      <Campo rotulo="Fotos por convidado (máximo)" erro={erros.poses_max} ajuda="Não passa da maior opção de fotos (aba Configurações).">
+      <Campo rotulo="Fotos por convidado (máximo)" erro={erros.poses_max} ajuda="Não passa da maior opção de fotos (página Configurações).">
         {(id) => <Input id={id} inputMode="numeric" value={f.posesMax} onChange={(e) => mudar({ posesMax: e.target.value })} />}
       </Campo>
       <Campo rotulo="Ordem" erro={erros.ordem} ajuda="Posição na tela de preços (menor primeiro).">
@@ -248,7 +248,7 @@ export function Pacotes() {
 
   return (
     <>
-      <Titulo detalhe="Planos à venda. Mudar preço, convidados ou prazo vale para os eventos novos: quem já criou um evento mantém o que foi prometido. Os pacotes pagos só abrem quando o pagamento estiver ligado (aba Configurações).">Pacotes</Titulo>
+      <Titulo detalhe="Planos à venda. Mudar preço, convidados ou prazo vale para os eventos novos: quem já criou um evento mantém o que foi prometido. Os pacotes pagos só abrem quando o pagamento estiver ligado (página Configurações).">Pacotes</Titulo>
       <div className="flex flex-col gap-4">
         {salvo && <Aviso tipo="ok">Salvo. Já vale no site.</Aviso>}
         {erro && <Aviso tipo="erro">{erro}</Aviso>}

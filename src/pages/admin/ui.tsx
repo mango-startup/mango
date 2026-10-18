@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 
 // Só componentes aqui; os utilitários ficam em ./util.ts (o fast refresh exige isso).
@@ -80,5 +80,23 @@ export function EstadoVazio({ children, acao }: { children: ReactNode; acao?: Re
       <p className="max-w-[360px] text-[15px] leading-normal text-muted">{children}</p>
       {acao}
     </div>
+  )
+}
+
+/** Link de planilha com retorno visual: o download não mostra nada sozinho. */
+export function ExportarCsv({ href }: { href: string }) {
+  const [baixando, setBaixando] = useState(false)
+  return (
+    <a
+      href={href}
+      download
+      onClick={() => {
+        setBaixando(true)
+        setTimeout(() => setBaixando(false), 4000)
+      }}
+      className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4 hover:text-paper"
+    >
+      {baixando ? 'Preparando a planilha...' : 'Exportar CSV'}
+    </a>
   )
 }

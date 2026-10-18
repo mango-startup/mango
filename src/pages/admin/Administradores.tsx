@@ -141,7 +141,7 @@ export function Administradores() {
         )}
       </Cartao>
       <p className="mt-6 text-sm text-muted">
-        Para trocar a sua própria senha, use o seu nome no topo da página.
+        Para trocar a sua própria senha, use o seu nome no rodapé do menu.
       </p>
     </>
   )

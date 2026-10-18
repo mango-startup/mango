@@ -57,8 +57,8 @@ export function Anfitrioes() {
                 </thead>
                 <tbody className="divide-y divide-line [&_tr:hover]:bg-surface/70">
                   {dados.anfitrioes.map((a) => (
-                    <tr key={a.anfitriao_email}>
-                      <td className="px-4 py-3">{a.anfitriao_email}</td>
+                    <tr key={a.anfitriao_email ?? 'sem-email'}>
+                      <td className="px-4 py-3">{a.anfitriao_email ?? 'Sem e-mail (só com o link)'}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{a.eventos}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{a.fotos}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatarReais(a.pago_centavos)}</td>

@@ -4,7 +4,7 @@ import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, formatarBytes, formatarReais, type Analise as Dados } from '../../lib/admin.ts'
 import { Indicador } from './Indicador'
 import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
-import { campoTexto, decimal, porcento } from './util'
+import { campoTexto, decimal, porcento, rotuloEmail } from './util'
 
 const ETAPAS = [
   { chave: 'criados', rotulo: 'Criaram o evento' },
@@ -145,11 +145,11 @@ export function Analise() {
                   {dados.maiores_eventos.map((e) => (
                     <tr key={e.id}>
                       <td className="px-5 py-3">
-                        <Link to={`/admin/eventos/${e.id}`} className="underline underline-offset-4 hover:text-muted">
+                        <Link to={`/admin/eventos/${e.id}`} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-muted">
                           {e.nome}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-muted">{e.anfitriao_email}</td>
+                      <td className="px-4 py-3 text-muted">{rotuloEmail(e.anfitriao_email)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{e.convidados}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{e.fotos}</td>
                       <td className="px-5 py-3 text-right tabular-nums">{formatarBytes(e.armazenamento_bytes)}</td>

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { ErroApi } from '../../lib/api/tipos.ts'
 import { admin, type ModeracaoAdmin } from '../../lib/admin.ts'
 import { Aviso, Cartao, Titulo, Carregando, EstadoVazio } from './ui'
-import { dataHora } from './util'
+import { dataHora, rotuloEmail } from './util'
 
 export function Moderacao() {
   const [dados, setDados] = useState<ModeracaoAdmin | null>(null)
@@ -108,7 +108,7 @@ export function Moderacao() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted">{dataHora(p.criado_em)}</td>
                       <td className="px-4 py-3">{p.evento_nome}</td>
-                      <td className="px-4 py-3 text-muted">{p.anfitriao_email}</td>
+                      <td className="px-4 py-3 text-muted">{rotuloEmail(p.anfitriao_email)}</td>
                       <td className="px-4 py-3 text-muted">{p.motivo || '—'}</td>
                     </tr>
                   ))}
