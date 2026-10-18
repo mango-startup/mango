@@ -102,10 +102,10 @@ export function BuscaGlobal({ aberta, aoFechar }: { aberta: boolean; aoFechar: (
 
 export function BotaoBusca({ aoAbrir }: { aoAbrir: () => void }) {
   return (
-    <button type="button" onClick={aoAbrir} className="flex h-10 w-full items-center gap-2 rounded-[12px] border border-line bg-surface/60 px-3 text-sm text-muted hover:text-paper">
+    <button type="button" onClick={aoAbrir} aria-label="Buscar" className="flex h-10 w-full items-center gap-2 rounded-[12px] border border-line bg-surface/60 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 text-sm text-muted hover:text-paper">
       <Icone nome="analise" className="size-4" />
-      <span className="flex-1 text-left">Buscar</span>
-      <kbd className="hidden rounded border border-line px-1.5 text-[11px] md:inline">Ctrl K</kbd>
+      <span className="flex-1 text-left group-data-[collapsible=icon]:hidden">Buscar</span>
+      <kbd className="hidden rounded border border-line px-1.5 text-[11px] md:inline group-data-[collapsible=icon]:hidden">Ctrl K</kbd>
     </button>
   )
 }

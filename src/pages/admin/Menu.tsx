@@ -91,11 +91,11 @@ export function Menu() {
           <SidebarMenu>
             {g.itens.map((i) => (
               <SidebarMenuItem key={i.para}>
-                <SidebarMenuButton asChild className="h-10" isActive={i.fim ? pathname === i.para : pathname.startsWith(i.para)}>
+                <SidebarMenuButton asChild tooltip={i.rotulo} className="h-10" isActive={i.fim ? pathname === i.para : pathname.startsWith(i.para)}>
                   <NavLink to={i.para} end={i.fim} onClick={() => setOpenMobile(false)}>
                     <Icone nome={i.icone} />
                     {i.rotulo}
-                    {i.icone === 'moderacao' && pendentes > 0 && <span className="ml-auto rounded-full bg-danger/20 px-2 py-0.5 text-xs font-semibold text-danger-ink">{pendentes}</span>}
+                    {i.icone === 'moderacao' && pendentes > 0 && <span className="ml-auto rounded-full group-data-[collapsible=icon]:hidden bg-danger/20 px-2 py-0.5 text-xs font-semibold text-danger-ink">{pendentes}</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
