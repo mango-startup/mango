@@ -1,6 +1,7 @@
 // Cliente da área de admin (/api/admin/*, contrato em server/openapi.json). A sessão é um cookie HttpOnly que o
 // navegador manda sozinho; tudo que muda estado leva o header X-Mango-Admin (anti-CSRF). Não passa pela api do MangoApi.
 import { ErroApi } from './api/tipos.ts'
+import type { ParamsPreco } from './simuladorPreco.ts'
 
 export interface AdminEu {
   usuario: string
@@ -29,6 +30,14 @@ export interface PacoteAdmin {
   ordem: number
   gratis: boolean
   eventos?: number
+}
+
+/** Preço por participante publicado (GET/PUT /api/admin/preco). */
+export interface PrecoPublicado {
+  publicado: boolean
+  params: ParamsPreco
+  atualizado_em: string | null
+  atualizado_por: string | null
 }
 
 export type NovoPacote = Pick<PacoteAdmin, 'id' | 'nome' | 'convidados' | 'preco_centavos' | 'retencao_dias' | 'poses_max'> & { ativo?: boolean; ordem?: number }
@@ -343,7 +352,7 @@ export interface EventoDetalhe {
   pedidos_de_remocao: { id: string; foto_id: string; motivo: string | null; resolucao: string | null; resolvido_em: string | null; criado_em: string }[]
 }
 
-async function chamar<T>(metodo: 'GET' | 'POST' | 'PATCH' | 'DELETE', caminho: string, corpo?: unknown): Promise<T> {
+async function chamar<T>(metodo: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', caminho: string, corpo?: unknown): Promise<T> {
   const cabecalhos: Record<string, string> = {}
   if (metodo !== 'GET') cabecalhos['X-Mango-Admin'] = '1'
   if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json'
@@ -369,6 +378,8 @@ export const admin = {
   sair: () => chamar<void>('POST', '/api/admin/sair'),
   trocarSenha: (senhaAtual: string, novaSenha: string) => chamar<{ ok: boolean }>('POST', '/api/admin/trocar-senha', { senha_atual: senhaAtual, nova_senha: novaSenha }),
   resumo: () => chamar<Resumo>('GET', '/api/admin/resumo'),
+  preco: () => chamar<PrecoPublicado>('GET', '/api/admin/preco'),
+  publicarPreco: (params: ParamsPreco) => chamar<PrecoPublicado>('PUT', '/api/admin/preco', params),
   pacotes: () => chamar<{ pacotes: PacoteAdmin[] }>('GET', '/api/admin/pacotes').then((r) => r.pacotes),
   criarPacote: (dados: NovoPacote) => chamar<{ pacote: PacoteAdmin }>('POST', '/api/admin/pacotes', dados).then((r) => r.pacote),
   editarPacote: (id: string, dados: EdicaoPacote) => chamar<{ pacote: PacoteAdmin }>('PATCH', `/api/admin/pacotes/${encodeURIComponent(id)}`, dados).then((r) => r.pacote),

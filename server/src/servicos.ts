@@ -2,6 +2,7 @@ import type { Pool } from 'pg'
 import { avancarEstados } from './agendador.ts'
 import { ServicoConfig } from './configuracao.ts'
 import { ServicoPacotes } from './pacotes.ts'
+import { ServicoPrecos } from './preco.ts'
 import { ServicoPagamento } from './pagamento.ts'
 import type { ProvedorPagamento } from './pagamento.ts'
 import type { EnviadorEmail } from './email.ts'
@@ -10,6 +11,8 @@ import type { EnviadorEmail } from './email.ts'
 export interface Servicos {
   config: ServicoConfig
   pacotes: ServicoPacotes
+  /** Preço dinâmico por participante, publicado pelo admin. */
+  precos: ServicoPrecos
   /** Cobrança com o Stripe. `null` quando STRIPE_SECRET_KEY não está definida: só pacotes grátis funcionam. */
   pagamento: ServicoPagamento | null
   /** Envio de e-mail (Resend). `null` quando RESEND_API_KEY não está definida: o admin não consegue escrever aos anfitriões. */
@@ -30,6 +33,7 @@ export function criarServicos(pool: Pool, agora: () => Date = () => new Date(), 
   return {
     config,
     pacotes,
+    precos: new ServicoPrecos(pool),
     email,
     pagamento: gateway ? new ServicoPagamento({ pool, provedor: gateway.provedor, pacotes, appUrl: gateway.appUrl, agora }) : null,
     async avancar() {

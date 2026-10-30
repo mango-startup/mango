@@ -5043,6 +5043,116 @@
           }
         ]
       }
+    },
+    "/api/admin/preco": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Preço por participante publicado",
+        "description": "Parâmetros do preço dinâmico. Sem publicação, devolve os valores propostos com `publicado: false`.",
+        "responses": {
+          "200": {
+            "description": "Parâmetros.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrecoPublicado"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Publicar preço por participante",
+        "description": "Substitui todos os parâmetros. Fica na auditoria com o antes e o depois.",
+        "responses": {
+          "200": {
+            "description": "Publicado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrecoPublicado"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroValidacao"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão de admin. Códigos: `nao_autorizado`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Header anti-CSRF ausente ou senha inicial ainda não trocada. Códigos: `requisicao_invalida`, `trocar_senha_obrigatoria`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "admin": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrecoParams"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6759,6 +6869,103 @@
           "reaproveitada": {
             "type": "boolean",
             "description": "Já havia uma sessão aberta e ela foi devolvida, sem criar outra cobrança."
+          }
+        }
+      },
+      "PrecoParams": {
+        "type": "object",
+        "description": "Parâmetros do preço por participante. Valores em centavos.",
+        "required": [
+          "gratis",
+          "cobrarTodos",
+          "fotosTeste",
+          "fotosLimitadas",
+          "fotosBase",
+          "fotoExtraCentavos",
+          "degraus",
+          "ilimitadoCentavos",
+          "tetoIlimitado",
+          "pisoCentavos",
+          "arredondar90"
+        ],
+        "properties": {
+          "gratis": {
+            "type": "integer",
+            "description": "Até este número de participantes o evento não paga."
+          },
+          "cobrarTodos": {
+            "type": "boolean",
+            "description": "Passou do grátis, todos pagam; falso: só quem passa do limite."
+          },
+          "fotosTeste": {
+            "type": "integer"
+          },
+          "fotosLimitadas": {
+            "type": "integer"
+          },
+          "fotosBase": {
+            "type": "integer",
+            "description": "Fotos por pessoa já incluídas nos degraus."
+          },
+          "fotoExtraCentavos": {
+            "type": "integer",
+            "description": "Por participante, cada foto acima da base."
+          },
+          "degraus": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ate": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Último participante do degrau; null no último."
+                },
+                "centavos": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "ilimitadoCentavos": {
+            "type": "integer",
+            "description": "Por participante, no lugar dos degraus."
+          },
+          "tetoIlimitado": {
+            "type": "integer"
+          },
+          "pisoCentavos": {
+            "type": "integer"
+          },
+          "arredondar90": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PrecoPublicado": {
+        "type": "object",
+        "properties": {
+          "publicado": {
+            "type": "boolean",
+            "description": "Falso enquanto nunca foi publicado: valem os valores propostos."
+          },
+          "params": {
+            "$ref": "#/components/schemas/PrecoParams"
+          },
+          "atualizado_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "atualizado_por": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       }
