@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom'
 import { MangoLogo } from '../components/MangoLogo'
 import { api, type DefinicaoPacote } from '../lib/api'
 import { useConfigPublica } from '../lib/configPublica'
-import { precoEmReais } from '../lib/formato'
+import { usePrecoPublico } from '../lib/precoPublico'
+import { calcularPreco } from '../lib/simuladorPreco'
+import { precoEmReais, precoExato } from '../lib/formato'
 import { useTitulo } from '../lib/useTitulo'
 
 // Fotos de exemplo do Pexels, só para a landing do protótipo
@@ -362,7 +364,9 @@ function Revelacao() {
 
 // Ato 4: quanto custa, com os valores que o admin define (nada fixo no texto).
 function FaixaPreco() {
-  const pagos = useConfigPublica().pacotes_pagos_disponiveis
+  const config = useConfigPublica()
+  const pagos = config.pacotes_pagos_disponiveis
+  const params = usePrecoPublico()
   const [pacotes, setPacotes] = useState<DefinicaoPacote[] | null>(null)
   useEffect(() => {
     let ativo = true
@@ -377,6 +381,28 @@ function FaixaPreco() {
   const teste = pacotes?.find((p) => p.gratis)
   const pagosOrdenados = (pacotes ?? []).filter((p) => !p.gratis).sort((a, b) => a.preco_centavos - b.preco_centavos)
   const menor = pagos ? pagosOrdenados[0] : undefined
+  if (config.preco_dinamico) {
+    const exemplo = calcularPreco(20, params, 24)
+    return (
+      <section className="mt-16 px-6 lg:mt-32 lg:px-0">
+        <Link
+          to="/precos"
+          className="sobre-creme flex flex-col gap-4 rounded-[24px] bg-paper p-6 text-base transition active:scale-[0.99] lg:flex-row lg:items-end lg:justify-between lg:rounded-[40px] lg:p-14"
+        >
+          <span>
+            <span className="block font-display text-[34px] leading-none lg:text-[56px]">Grátis para testar.</span>
+            <span className="mt-3 block text-[17px] lg:text-[20px]">
+              Até {params.gratis} pessoas, {params.fotosTeste} fotos cada.
+              {pagos && ` Uma festa de 20 pessoas com 24 fotos cada custa ${precoExato(exemplo)}.`}
+            </span>
+          </span>
+          <span className="font-semibold">
+            <span className="border-b border-current pb-px">Calcular a minha festa</span>
+          </span>
+        </Link>
+      </section>
+    )
+  }
   return (
     <section className="mt-16 px-6 lg:mt-32 lg:px-0">
       <Link

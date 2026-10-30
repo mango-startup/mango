@@ -11,6 +11,13 @@ export function rotasPagamento(pool: Pool, servicos: Servicos): Hono {
   const app = new Hono()
   const { anfitriao } = criarAcesso(pool, servicos)
 
+  // Preço por participante, público: a home e o /precos calculam o valor com estes parâmetros. Não mostra quem publicou.
+  app.get('/api/preco', async (c) => {
+    const { publicado, params } = await servicos.precos.obter()
+    c.header('Cache-Control', 'public, max-age=60')
+    return c.json({ publicado, params })
+  })
+
   // O anfitrião abre a cobrança e recebe a página de pagamento do Stripe. Repetir reaproveita a sessão aberta.
   app.post('/api/anfitriao/evento/pagamento', async (c) => {
     const e = await anfitriao(c)

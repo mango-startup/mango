@@ -5153,6 +5153,35 @@
           }
         }
       }
+    },
+    "/api/preco": {
+      "get": {
+        "tags": [
+          "Pagamento"
+        ],
+        "summary": "Preço por participante",
+        "description": "Parâmetros públicos do preço dinâmico, para a home e o /precos calcularem o valor. Sem publicação do admin, devolve os valores propostos com `publicado: false`.",
+        "responses": {
+          "200": {
+            "description": "Parâmetros.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publicado": {
+                      "type": "boolean"
+                    },
+                    "params": {
+                      "$ref": "#/components/schemas/PrecoParams"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5817,6 +5846,10 @@
           },
           "pedido_remocao_motivo_max": {
             "type": "integer"
+          },
+          "preco_dinamico": {
+            "type": "boolean",
+            "description": "Mostra o preço por participante no lugar dos pacotes."
           }
         }
       },
