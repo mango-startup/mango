@@ -19,7 +19,7 @@ Auditoria dos valores de negócio que estavam fixos no código e agora são geri
 | `criacao_aberta` | **Criação de eventos aberta.** Desligue para pausar a criação de eventos novos (manutenção). Eventos existentes seguem funcionando. | ligado | — | sim (`GET /api/config`) |
 | `aviso_global` | **Aviso para todos os visitantes.** Faixa no topo do site (ex.: manutenção programada). Deixe vazio para não mostrar nada. | (vazio) | — | sim (`GET /api/config`) |
 | `pacotes_pagos_disponiveis` | **Pacotes pagos disponíveis.** Ligue só quando o pagamento estiver funcionando. Desligado, só pacotes grátis podem ser criados. | desligado | — | sim (`GET /api/config`) |
-| `preco_dinamico` | **Preço por participante.** Ligue só depois de testar um pagamento: a home e o /precos passam a mostrar o preço por participante e fotos, no lugar dos pacotes. | desligado | — | sim (`GET /api/config`) |
+| `preco_dinamico` | **Preço por participante.** Ligue só depois de testar um pagamento: a home, o /precos e o /criar passam a usar o preço por participante e fotos, no lugar dos pacotes. | desligado | — | sim (`GET /api/config`) |
 | `contato_suporte` | **Contato de suporte.** E-mail ou WhatsApp mostrado ao público (termos, ajuda). | (vazio) | — | sim (`GET /api/config`) |
 
 ### Eventos
@@ -114,7 +114,7 @@ O front busca `GET /api/config` ao abrir (e no máximo a cada 5 minutos), com va
 |---|---|
 | `poses_validas`, `poses_padrao` | opções e sugestão de poses na criação do evento (`CreateEvent.tsx`) |
 | `pacotes_pagos_disponiveis` | habilita ou bloqueia os pacotes pagos e troca "Em breve" pelo preço (criação e `/precos`) |
-| `preco_dinamico` | troca os pacotes pela calculadora de preço por participante (home e `/precos`) |
+| `preco_dinamico` | troca os pacotes pelo preço por participante (home, `/precos` e `/criar`; o servidor passa a calcular e cobrar o valor) |
 | `criacao_aberta` | aviso e botão bloqueado na criação do evento |
 | `nome_evento_max`, `apelido_max` | limite dos campos de nome do evento e de apelido do convidado |
 | `revelacao_max_dias` | validação e mensagem do prazo da revelação (`criar/horarios.ts`) |

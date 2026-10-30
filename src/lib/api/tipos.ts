@@ -68,6 +68,9 @@ export interface NovoEvento {
   nome: string
   pacote?: Pacote
   poses_por_convidado?: number
+  /** Preço por participante (com `preco_dinamico` ligado): no lugar de `pacote` e `poses_por_convidado`. */
+  participantes?: number
+  fotos?: number | 'ilimitado'
   captura_inicio: string
   captura_fim: string
   /** Sem valor e sem revelacao_manual: 12 h depois do fim. */

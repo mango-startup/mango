@@ -203,8 +203,8 @@ export class ServicoPagamento {
   /** Abre a cobrança do evento e devolve a página de pagamento. Reaproveita a sessão aberta, se houver. */
   async iniciar(eventoId: string): Promise<{ url: string; reaproveitada: boolean }> {
     const evento = (
-      await this.pool.query<{ id: string; nome: string; estado: string; pacote: string }>(
-        'select id, nome, estado, pacote from eventos where id = $1 and excluido_em is null',
+      await this.pool.query<{ id: string; nome: string; estado: string; pacote: string; valor_centavos: number | null }>(
+        'select id, nome, estado, pacote, valor_centavos from eventos where id = $1 and excluido_em is null',
         [eventoId],
       )
     ).rows[0]
@@ -213,7 +213,9 @@ export class ServicoPagamento {
       throw new ErroPagamento(409, 'sem_cobranca_pendente', 'Este evento não está aguardando pagamento.', { estado: evento.estado })
     }
     const pacote = await this.pacotes.obter(evento.pacote)
-    if (!pacote || pacote.gratis || pacote.preco_centavos <= 0) throw new ErroPagamento(409, 'pacote_gratis', 'Este pacote não tem cobrança.')
+    // Preço por participante: o valor foi calculado pelo servidor na criação e fica gravado no evento.
+    const valorCentavos = evento.valor_centavos ?? pacote?.preco_centavos ?? 0
+    if (!pacote || valorCentavos <= 0 || (pacote.gratis && evento.valor_centavos === null)) throw new ErroPagamento(409, 'pacote_gratis', 'Este pacote não tem cobrança.')
 
     const anteriores = (
       await this.pool.query<LinhaPagamento>('select id, evento_id, stripe_session_id, valor_centavos, status from pagamentos where evento_id = $1 order by criado_em desc', [evento.id])
@@ -235,7 +237,7 @@ export class ServicoPagamento {
         nomeEvento: evento.nome,
         nomePacote: pacote.nome,
         pacoteId: pacote.id,
-        valorCentavos: pacote.preco_centavos,
+        valorCentavos,
         successUrl: `${this.appUrl}/eventos/${evento.id}/pagamento?stripe=ok`,
         cancelUrl: `${this.appUrl}/eventos/${evento.id}/pagamento?stripe=cancelado`,
         chaveIdempotencia: `mango-checkout-${evento.id}-${anteriores.length + 1}`,
@@ -245,7 +247,7 @@ export class ServicoPagamento {
     await this.pool.query(
       `insert into pagamentos (evento_id, stripe_session_id, valor_centavos, moeda) values ($1, $2, $3, 'brl')
        on conflict (stripe_session_id) do nothing`,
-      [evento.id, sessao.id, pacote.preco_centavos],
+      [evento.id, sessao.id, valorCentavos],
     )
     return { url: sessao.url, reaproveitada: false }
   }

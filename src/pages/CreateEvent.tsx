@@ -7,7 +7,10 @@ import { MangoLogo } from '../components/MangoLogo'
 import { ErroApi, api, type DefinicaoPacote, type Evento, type Pacote } from '../lib/api'
 import { quando } from '../lib/datas'
 import { useConfigPublica } from '../lib/configPublica'
-import { precoEmReais } from '../lib/formato'
+import { precoEmReais, precoExato } from '../lib/formato'
+import { usePrecoPublico } from '../lib/precoPublico'
+import { calcularPreco } from '../lib/simuladorPreco'
+import { EscolhaPessoasFotos } from '../components/EscolhaPessoasFotos'
 import { guardarRascunho, lerRascunho } from './criar/rascunho'
 import { montarHorarios, type CampoHorario, type CamposHorario, type ModoRevelacao } from './criar/horarios'
 
@@ -15,9 +18,12 @@ interface Formulario extends CamposHorario {
   nome: string
   poses: number
   pacote: Pacote
+  /** Preço por participante (com `preco_dinamico` ligado). */
+  participantes: string
+  fotos: number | 'ilimitado'
 }
 
-type CampoErro = 'nome' | 'poses' | 'pacote' | CampoHorario | 'geral'
+type CampoErro = 'nome' | 'poses' | 'pacote' | 'pessoas' | CampoHorario | 'geral'
 
 function hojeMais(dias: number): string {
   const d = new Date()
@@ -26,7 +32,7 @@ function hojeMais(dias: number): string {
 }
 
 function formularioInicial(pacote: Pacote | null): Formulario {
-  const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', poses: 24, pacote: 'teste', revelacao: 'manha', revelacaoEm: '' }
+  const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', poses: 24, pacote: 'teste', participantes: '30', fotos: 24, revelacao: 'manha', revelacaoEm: '' }
   // O pacote e as poses efetivos são conferidos na tela contra os pacotes e a configuração do servidor.
   return { ...padrao, ...lerRascunho<Formulario>(), ...(pacote ? { pacote } : {}) }
 }
@@ -36,6 +42,8 @@ const CAMPO_DO_ERRO: Record<string, CampoErro> = {
   nome_invalido: 'nome',
   poses_invalidas: 'poses',
   pacote_invalido: 'pacote',
+  participantes_invalidos: 'pessoas',
+  fotos_invalidas: 'pessoas',
   datas_invalidas: 'data',
   fim_no_passado: 'data',
   periodo_invalido: 'fim',
@@ -60,6 +68,8 @@ export function CreateEventPage() {
   const ids = { nome: useId(), data: useId(), inicio: useId(), fim: useId(), revelacaoEm: useId() }
   const cfg = useConfigPublica()
   const pagamentoDisponivel = cfg.pacotes_pagos_disponiveis
+  const dinamico = cfg.preco_dinamico
+  const precos = usePrecoPublico()
 
   useEffect(() => {
     let ativo = true
@@ -80,6 +90,10 @@ export function CreateEventPage() {
   // Poses que valem: a escolhida, se o pacote deixa; senão a sugestão da configuração (ou a maior que cabe).
   const cabem = cfg.poses_validas.filter((n) => n <= posesMax)
   const poses = cabem.includes(form.poses) ? form.poses : cabem.includes(cfg.poses_padrao) ? cfg.poses_padrao : (cabem.at(-1) ?? cfg.poses_validas[0])
+  // Preço por participante: o total mostrado é o mesmo que o servidor vai calcular ao criar.
+  const pessoas = /^\d+$/.test(form.participantes.trim()) ? Number(form.participantes.trim()) : 0
+  const total = pessoas >= 1 ? calcularPreco(pessoas, precos, form.fotos) : null
+  const posesPrevia = dinamico ? (form.fotos === 'ilimitado' ? precos.tetoIlimitado : form.fotos) : poses
   const horarios = useMemo(() => montarHorarios(form, new Date(), { revelacaoMaxDias: cfg.revelacao_max_dias }), [form, cfg.revelacao_max_dias])
 
   function mudar<K extends keyof Formulario>(campo: K, valor: Formulario[K]) {
@@ -94,13 +108,13 @@ export function CreateEventPage() {
     e.preventDefault()
     if (!form.nome.trim()) return setErro({ campo: 'nome', mensagem: 'Dê um nome para o evento.' })
     if ('campo' in horarios) return setErro(horarios)
+    if (dinamico && (pessoas < 1 || pessoas > 5000)) return setErro({ campo: 'pessoas', mensagem: 'Informe de 1 a 5000 pessoas.' })
     setEnviando(true)
     setErro(null)
     try {
       const evento = await api.criarEvento({
         nome: form.nome,
-        pacote: pacote?.id ?? form.pacote,
-        poses_por_convidado: poses,
+        ...(dinamico ? { participantes: pessoas, fotos: form.fotos } : { pacote: pacote?.id ?? form.pacote, poses_por_convidado: poses }),
         captura_inicio: horarios.captura_inicio,
         captura_fim: horarios.captura_fim,
         revelacao_em: horarios.revelacao_em,
@@ -162,6 +176,9 @@ export function CreateEventPage() {
           {erroDe('fim')}
         </fieldset>
 
+        {dinamico && <EscolhaPessoasFotos params={precos} participantes={form.participantes} fotos={form.fotos} total={total} erro={erro?.campo === 'pessoas' ? erro.mensagem : undefined} onParticipantes={(v) => mudar('participantes', v)} onFotos={(v) => mudar('fotos', v)} />}
+
+        {!dinamico && (
         <fieldset>
           <legend className="mb-3 text-sm font-semibold">Fotos por convidado</legend>
           <Opcoes>
@@ -176,6 +193,7 @@ export function CreateEventPage() {
           )}
           {erroDe('poses')}
         </fieldset>
+        )}
 
         <fieldset>
           <legend className="mb-3 text-sm font-semibold">Revelação</legend>
@@ -201,6 +219,7 @@ export function CreateEventPage() {
           {erroDe('revelacaoEm')}
         </fieldset>
 
+        {!dinamico && (
         <fieldset>
           <legend className="mb-3 text-sm font-semibold">Convidados</legend>
           <div className="grid grid-cols-2 gap-2">
@@ -220,8 +239,9 @@ export function CreateEventPage() {
           </p>
           {erroDe('pacote')}
         </fieldset>
+        )}
 
-        <PreviaConvite nome={form.nome} poses={poses} revelacao={'campo' in horarios ? null : horarios.revelacao} />
+        <PreviaConvite nome={form.nome} poses={posesPrevia} revelacao={'campo' in horarios ? null : horarios.revelacao} />
 
         <div className="flex flex-col gap-3">
           {erroDe('geral')}
@@ -230,12 +250,13 @@ export function CreateEventPage() {
               A criação de eventos está pausada por um instante. Tente de novo em breve.
             </p>
           )}
-          <Botao type="submit" disabled={enviando || pacotes.length === 0 || !cfg.criacao_aberta} className="w-full">
+          <Botao type="submit" disabled={enviando || (dinamico ? total === null || (total > 0 && !pagamentoDisponivel) : pacotes.length === 0) || !cfg.criacao_aberta} className="w-full">
             <span key={enviando ? 'envio' : pacote?.id} className="anim-troca">
-              {enviando ? 'Criando...' : pacote && !pacote.gratis ? `Continuar · ${precoEmReais(pacote.preco_centavos)}` : 'Criar a câmera'}
+              {enviando ? 'Criando...' : dinamico ? (total ? `Continuar · ${precoExato(total)}` : 'Criar a câmera') : pacote && !pacote.gratis ? `Continuar · ${precoEmReais(pacote.preco_centavos)}` : 'Criar a câmera'}
             </span>
           </Botao>
-          {pacote && !pacote.gratis && <p className="text-center text-sm text-muted">Você paga na próxima etapa. O link só funciona depois do pagamento.</p>}
+          {dinamico && total !== null && total > 0 && !pagamentoDisponivel && <p className="text-center text-sm text-muted">Pagamento em breve. Por enquanto dá para testar com até {precos.gratis} pessoas e {precos.fotosTeste} fotos cada.</p>}
+          {(dinamico ? total !== null && total > 0 && pagamentoDisponivel : pacote && !pacote.gratis) && <p className="text-center text-sm text-muted">Você paga na próxima etapa. O link só funciona depois do pagamento.</p>}
         </div>
       </form>
     </Pagina>
