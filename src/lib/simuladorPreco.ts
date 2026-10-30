@@ -12,10 +12,17 @@ export interface ParamsPreco {
   /** Passou do grátis: todos pagam (o grátis é só o teste). Desligado, só quem passa do limite paga. */
   cobrarTodos: boolean
   fotosTeste: number
+  /** Fotos por pessoa escolhidas no pacote limitado (muda o preço). */
   fotosLimitadas: number
+  /** Fotos por pessoa que os degraus já incluem. */
+  fotosBase: number
+  /** Por participante, cada foto acima da base. */
+  fotoExtraCentavos: number
   degraus: Degrau[]
-  /** Extra por participante pago para liberar fotos ilimitadas. */
-  ilimitadasCentavos: number
+  /** Preço por participante das fotos ilimitadas (no lugar dos degraus). */
+  ilimitadoCentavos: number
+  /** Teto de fotos por pessoa no ilimitado (uso justo). Só informativo na simulação. */
+  tetoIlimitado: number
   /** Valor mínimo de qualquer evento pago (cobre a taxa fixa do meio de pagamento). */
   pisoCentavos: number
   /** Arredonda o total para cima até o próximo ,90 (14,90 / 15,90 ...). */
@@ -27,39 +34,47 @@ export const PARAMS_PADRAO: ParamsPreco = {
   cobrarTodos: true,
   fotosTeste: 10,
   fotosLimitadas: 10,
+  fotosBase: 10,
+  fotoExtraCentavos: 6,
   degraus: [
     { ate: 50, centavos: 150 },
     { ate: 100, centavos: 120 },
     { ate: null, centavos: 100 },
   ],
-  ilimitadasCentavos: 50,
+  ilimitadoCentavos: 450,
+  tetoIlimitado: 100,
   pisoCentavos: 1490,
   arredondar90: true,
 }
 
-export interface ResultadoPreco {
-  pagos: number
-  limitado: number
-  ilimitado: number
-}
+/** Opções de fotos por pessoa mostradas lado a lado na tabela. */
+export const OPCOES_FOTOS = [10, 15, 24, 36]
 
-/** Preço em centavos para `n` participantes: cada pagante custa o preço do degrau em que cai. Até `gratis` participantes, não paga nada. */
-export function calcularPreco(n: number, p: ParamsPreco): ResultadoPreco {
+/**
+ * Preço em centavos para `n` participantes com `fotos` por pessoa (ou ilimitadas). Cada pagante custa o preço do
+ * degrau em que cai, mais as fotos acima da base. Até `gratis` participantes, não paga nada. O piso vale para o
+ * total; depois vem o arredondamento.
+ */
+export function calcularPreco(n: number, p: ParamsPreco, fotos: number | 'ilimitado'): number {
   const total = Math.max(0, Math.floor(n))
-  const pagos = total <= p.gratis ? 0 : p.cobrarTodos ? total : total - p.gratis
-  let limitado = 0
-  let inicio = total <= p.gratis || p.cobrarTodos ? 0 : p.gratis
-  if (total <= p.gratis) return { pagos, limitado, ilimitado: 0 }
+  if (total <= p.gratis) return 0
+  const pagos = p.cobrarTodos ? total : total - p.gratis
+  let porDegrau = 0
+  let inicio = p.cobrarTodos ? 0 : p.gratis
   for (const d of p.degraus) {
     const fim = d.ate ?? Infinity
-    const qtd = Math.max(0, Math.min(total, fim) - inicio)
-    limitado += qtd * d.centavos
+    porDegrau += Math.max(0, Math.min(total, fim) - inicio) * d.centavos
     inicio = Math.max(inicio, fim)
   }
-  // O piso vale para o preço base; o extra de ilimitadas entra por cima, senão o piso o engole nas festas pequenas.
-  const arredonda = (c: number) => (p.arredondar90 ? Math.ceil((c - 90) / 100) * 100 + 90 : c)
-  const base = Math.max(limitado, p.pisoCentavos)
-  return { pagos, limitado: arredonda(base), ilimitado: arredonda(base + pagos * p.ilimitadasCentavos) }
+  const bruto = fotos === 'ilimitado' ? pagos * p.ilimitadoCentavos : porDegrau + pagos * Math.max(0, fotos - p.fotosBase) * p.fotoExtraCentavos
+  const comPiso = Math.max(bruto, p.pisoCentavos)
+  return p.arredondar90 ? Math.ceil((comPiso - 90) / 100) * 100 + 90 : comPiso
+}
+
+/** Quantos participantes pagam (para mostrar o preço médio). */
+export function participantesPagos(n: number, p: ParamsPreco): number {
+  const total = Math.max(0, Math.floor(n))
+  return total <= p.gratis ? 0 : p.cobrarTodos ? total : total - p.gratis
 }
 
 /** Tabela pública da Once (once.film/pricing, consultada em 2026-10-29), em dólares: convidados → centavos de dólar. */

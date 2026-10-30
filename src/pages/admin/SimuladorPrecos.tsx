@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { admin, centavosParaCampo, formatarReais, reaisParaCentavos, type PacoteAdmin } from '../../lib/admin.ts'
-import { ONCE_USD, PARAMS_PADRAO, calcularPreco, type ParamsPreco } from '../../lib/simuladorPreco.ts'
+import { ONCE_USD, OPCOES_FOTOS, PARAMS_PADRAO, calcularPreco, participantesPagos, type ParamsPreco } from '../../lib/simuladorPreco.ts'
 import { Aviso, Campo, Cartao, Interruptor, Titulo } from './ui'
 
 // Os campos guardam o texto digitado; só viram número ao calcular.
@@ -18,7 +18,10 @@ interface Formulario {
   ate2: string
   preco2: string
   preco3: string
-  ilimitadas: string
+  fotosBase: string
+  fotoExtra: string
+  ilimitado: string
+  teto: string
   participantes: string
   cotacao: string
 }
@@ -39,7 +42,10 @@ const doPadrao = (): Formulario => {
     ate2: String(d2.ate),
     preco2: centavosParaCampo(d2.centavos),
     preco3: centavosParaCampo(d3.centavos),
-    ilimitadas: centavosParaCampo(PARAMS_PADRAO.ilimitadasCentavos),
+    fotosBase: String(PARAMS_PADRAO.fotosBase),
+    fotoExtra: centavosParaCampo(PARAMS_PADRAO.fotoExtraCentavos),
+    ilimitado: centavosParaCampo(PARAMS_PADRAO.ilimitadoCentavos),
+    teto: String(PARAMS_PADRAO.tetoIlimitado),
     participantes: '30',
     cotacao: '5,50',
   }
@@ -66,11 +72,14 @@ function ler(f: Formulario): { params: ParamsPreco | null; participantes: number
   const p1 = reaisParaCentavos(f.preco1)
   const p2 = reaisParaCentavos(f.preco2)
   const p3 = reaisParaCentavos(f.preco3)
-  const ilim = reaisParaCentavos(f.ilimitadas)
+  const fotosBase = inteiro(f.fotosBase)
+  const fotoExtra = reaisParaCentavos(f.fotoExtra)
+  const ilim = reaisParaCentavos(f.ilimitado)
+  const teto = inteiro(f.teto)
   const piso = reaisParaCentavos(f.piso)
   const participantes = inteiro(f.participantes)
   const cotacao = reaisParaCentavos(f.cotacao)
-  const nulos = [gratis, fotosTeste, fotosLimitadas, ate1, ate2, p1, p2, p3, ilim, piso].some((v) => v === null)
+  const nulos = [gratis, fotosTeste, fotosLimitadas, ate1, ate2, p1, p2, p3, ilim, piso, fotosBase, fotoExtra, teto].some((v) => v === null)
   const base = { participantes, cotacao: cotacao === null ? null : cotacao / 100 }
   if (nulos) return { ...base, params: null, erro: 'Há campo com valor inválido: use números inteiros e valores em reais, como 1,50.' }
   if (ate1! <= (f.cobrarTodos ? 0 : gratis!) || ate2! <= ate1!) return { ...base, params: null, erro: 'Os degraus precisam crescer: o fim do 1º degrau tem de ser maior que o grátis e menor que o do 2º.' }
@@ -87,7 +96,10 @@ function ler(f: Formulario): { params: ParamsPreco | null; participantes: number
         { ate: ate2, centavos: p2! },
         { ate: null, centavos: p3! },
       ],
-      ilimitadasCentavos: ilim!,
+      fotosBase: fotosBase!,
+      fotoExtraCentavos: fotoExtra!,
+      ilimitadoCentavos: ilim!,
+      tetoIlimitado: teto!,
       pisoCentavos: piso!,
       arredondar90: f.arredondar90,
     },
@@ -112,7 +124,10 @@ export function SimuladorPrecos() {
     })
 
   const { params, participantes, cotacao, erro } = useMemo(() => ler(f), [f])
-  const resultado = params && participantes !== null ? calcularPreco(participantes, params) : null
+  const resultado =
+    params && participantes !== null
+      ? { pagos: participantesPagos(participantes, params), limitado: calcularPreco(participantes, params, params.fotosLimitadas), ilimitado: calcularPreco(participantes, params, 'ilimitado') }
+      : null
 
   const carregarReais = () => {
     setErroPacotes(false)
@@ -143,8 +158,11 @@ export function SimuladorPrecos() {
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             {campo('Participantes grátis', 'gratis', 'Até aqui o evento não paga nada (o teste).')}
             {campo('Fotos por pessoa no teste', 'fotosTeste')}
-            {campo('Fotos por pessoa (limitado)', 'fotosLimitadas', 'O padrão nos pacotes pagos.')}
-            {campo('Extra de fotos ilimitadas (R$ por participante)', 'ilimitadas', undefined, 'decimal')}
+            {campo('Fotos por pessoa (limitado)', 'fotosLimitadas', 'A escolha que a simulação usa. Muda o preço.')}
+            {campo('Fotos já incluídas nos degraus', 'fotosBase')}
+            {campo('Cada foto acima disso (R$ por participante)', 'fotoExtra', undefined, 'decimal')}
+            {campo('Fotos ilimitadas (R$ por participante)', 'ilimitado', 'Substitui os degraus.', 'decimal')}
+            {campo('Teto de fotos no ilimitado', 'teto', 'Uso justo: só informativo aqui.')}
             {campo('Valor mínimo do evento pago (R$)', 'piso', 'Cobre a taxa fixa do pagamento.', 'decimal')}
           </div>
           <div className="mt-5 flex items-center justify-between gap-4">
@@ -188,7 +206,7 @@ export function SimuladorPrecos() {
               <div className="rounded-[14px] border border-line p-4">
                 <dt className="text-sm text-muted">Fotos ilimitadas</dt>
                 <dd className="mt-1 font-display text-[34px] leading-none tabular-nums">{resultado.ilimitado === 0 ? 'Grátis' : reais(resultado.ilimitado)}</dd>
-                <dd className="mt-2 text-sm text-muted tabular-nums">{resultado.pagos > 0 ? `+${reais(resultado.ilimitado - resultado.limitado)} pelo extra` : 'Dentro do teste'}</dd>
+                <dd className="mt-2 text-sm text-muted tabular-nums">{resultado.pagos > 0 ? `${reais(Math.round(resultado.ilimitado / resultado.pagos))} por participante, até ${params!.tetoIlimitado} fotos` : 'Dentro do teste'}</dd>
               </div>
             </dl>
           )}
@@ -200,24 +218,28 @@ export function SimuladorPrecos() {
         <div className="mt-4 w-full max-w-[220px]">{campo('Cotação do dólar (R$)', 'cotacao', undefined, 'decimal')}</div>
         {params && (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-[15px] tabular-nums">
+            <table className="w-full min-w-[640px] text-left text-[15px] tabular-nums">
               <thead className="text-sm text-muted">
                 <tr className="border-b border-line">
                   <th className="py-2 pr-3 font-medium">Participantes</th>
-                  <th className="py-2 pr-3 font-medium">Mango limitado</th>
-                  <th className="py-2 pr-3 font-medium">Mango ilimitado</th>
+                  {OPCOES_FOTOS.map((o) => (
+                    <th key={o} className="py-2 pr-3 font-medium">{o} fotos</th>
+                  ))}
+                  <th className="py-2 pr-3 font-medium">Ilimitado</th>
                   <th className="py-2 font-medium">Once (aprox.)</th>
                 </tr>
               </thead>
               <tbody>
                 {tamanhos.map((n) => {
-                  const r = calcularPreco(n, params)
                   const once = ONCE_USD.find((o) => o.convidados === n)
+                  const valor = (c: number) => (c === 0 ? 'Grátis' : reais(c))
                   return (
                     <tr key={n} className={`border-b border-line/60 ${n === participantes ? 'bg-surface' : ''}`}>
                       <td className="py-2.5 pr-3">{n}</td>
-                      <td className="py-2.5 pr-3">{r.limitado === 0 ? 'Grátis' : reais(r.limitado)}</td>
-                      <td className="py-2.5 pr-3">{r.ilimitado === 0 ? 'Grátis' : reais(r.ilimitado)}</td>
+                      {OPCOES_FOTOS.map((o) => (
+                        <td key={o} className="py-2.5 pr-3">{valor(calcularPreco(n, params, o))}</td>
+                      ))}
+                      <td className="py-2.5 pr-3">{valor(calcularPreco(n, params, 'ilimitado'))}</td>
                       <td className="py-2.5">{once ? (once.centavos === 0 ? 'Grátis' : cotacao ? reais(Math.round(once.centavos * cotacao)) : '—') : '—'}</td>
                     </tr>
                   )
@@ -226,7 +248,7 @@ export function SimuladorPrecos() {
             </table>
           </div>
         )}
-        <p className="mt-3 text-sm text-muted">Once: tabela de once.film/pricing consultada em 29/10/2026, em dólares, convertida pela cotação acima. Eles cobram à parte US$ 9,99 pelo extra de fotos ilimitadas.</p>
+        <p className="mt-3 text-sm text-muted">Once: tabela de once.film/pricing consultada em 29/10/2026, em dólares, convertida pela cotação acima. Eles cobram à parte US$ 9,99 pelo extra de fotos ilimitadas; o Mango cobra por foto.</p>
       </Cartao>
 
       <Cartao className="mt-5">
@@ -252,7 +274,7 @@ export function SimuladorPrecos() {
               </thead>
               <tbody>
                 {reais_.map((p) => {
-                  const novo = calcularPreco(p.convidados, params).limitado
+                  const novo = calcularPreco(p.convidados, params, params.fotosLimitadas)
                   const dif = novo - p.preco_centavos
                   return (
                     <tr key={p.id} className="border-b border-line/60">
