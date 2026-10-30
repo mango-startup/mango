@@ -191,7 +191,8 @@ export function SimuladorPrecos() {
   const preco = params ? calcularPreco(n, params, escolha) : null
   const hoje = real && params ? calcularPreco(n, real.params, escolha) : null
   const pagos = params ? participantesPagos(n, params, escolha) : 0
-  const igual = !!(real && params && mudancas(real.params, params).length === 0)
+  // Nunca publicado não conta como "igual": os valores propostos ainda precisam ser publicados uma vez.
+  const igual = !!(real?.publicado && params && mudancas(real.params, params).length === 0)
   const lista = useMemo(() => (real && params ? mudancas(real.params, params) : []), [real, params])
 
   const tamanhos = useMemo(() => [...new Set([5, 10, 25, 50, 100, 150, 200, ...(participantes ? [participantes] : [])])].sort((a, b) => a - b), [participantes])
