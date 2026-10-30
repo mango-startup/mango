@@ -298,6 +298,28 @@ test('GET /api/config só mostra o que o front pode ver e acompanha o admin', op
   await config(cookie, { contato_suporte: null, foto_qualidade_jpeg: null })
 })
 
+test('preço por participante: publicar valida, grava, audita e aparece na rota pública', opcoes, async () => {
+  const cookie = await adminLiberado('raziel')
+  const antes = await chamar('GET', '/api/admin/preco', { cookie })
+  assert.equal(antes.status, 200)
+  assert.equal(antes.json.publicado, false) // nunca publicado: valem os propostos
+  const params = { ...antes.json.params, pisoCentavos: 1290 }
+  const ruim = await chamar('PUT', '/api/admin/preco', { cookie, corpo: { ...params, degraus: [{ ate: 100, centavos: 150 }, { ate: 50, centavos: 120 }, { ate: null, centavos: 100 }] } })
+  assert.equal(ruim.status, 400)
+  assert.equal((await chamar('PUT', '/api/admin/preco', { corpo: params })).status, 401) // sem sessão
+  const ok = await chamar('PUT', '/api/admin/preco', { cookie, corpo: params })
+  assert.equal(ok.status, 200)
+  assert.equal(ok.json.publicado, true)
+  assert.equal(ok.json.atualizado_por, 'raziel')
+  const publico = await chamar('GET', '/api/preco')
+  assert.equal(publico.status, 200)
+  assert.equal(publico.json.params.pisoCentavos, 1290)
+  assert.equal(publico.json.atualizado_por, undefined) // não mostra quem publicou
+  const aud = await chamar('GET', '/api/admin/auditoria', { cookie })
+  assert.ok(aud.json.registros.some((r: { acao: string }) => r.acao === 'preco.publicar'))
+  await pool!.query('delete from preco_modelo') // os outros testes contam com os valores propostos
+})
+
 test('pacotes: criar, editar, desativar, proteger o teste e não mexer em evento já criado', opcoes, async () => {
   const cookie = await adminLiberado('raziel')
   await config(cookie, { pacotes_pagos_disponiveis: true })

@@ -19,7 +19,7 @@ before(async () => {
   await pool.query('drop schema public cascade; create schema public')
   await migrar(pool)
   // Os testes de pacote pago precisam do pagamento "ligado" (padrão: desligado até o #37).
-  await pool.query("insert into configuracoes (chave, valor) values ('pacotes_pagos_disponiveis', 'true')")
+  await pool.query("insert into configuracoes (chave, valor) values ('pacotes_pagos_disponiveis', 'true'), ('preco_dinamico', 'true')")
 })
 after(async () => {
   await pool?.end()
@@ -59,6 +59,41 @@ test('pacote pago fica aguardando pagamento', opcoes, async () => {
   const { evento } = await criarEvento({ pacote: 'festa' })
   assert.equal(evento.estado, 'aguardando_pagamento')
   assert.equal(evento.limite_convidados, 30)
+})
+
+test('preço por participante: 5 pessoas com 10 fotos é grátis e nasce pronto', opcoes, async () => {
+  const { evento } = await criarEvento({ participantes: 5, fotos: 10 })
+  assert.equal(evento.estado, 'pronto')
+  assert.equal(evento.pacote, 'teste')
+  assert.equal(evento.limite_convidados, 5)
+  assert.equal(evento.poses_por_convidado, 10)
+  assert.equal(evento.limite_fotos, 50)
+})
+
+test('preço por participante: o servidor calcula o valor e o evento espera o pagamento', opcoes, async () => {
+  const { codigo, evento } = await criarEvento({ participantes: 20, fotos: 24, valor_centavos: 1 }) // valor do cliente é ignorado
+  assert.equal(evento.estado, 'aguardando_pagamento')
+  assert.equal(evento.pacote, 'por_participante')
+  assert.equal(evento.limite_convidados, 20)
+  assert.equal(evento.limite_fotos, 480)
+  const [linha] = (await pool!.query('select valor_centavos from eventos where codigo = $1', [codigo])).rows
+  assert.equal(linha.valor_centavos, 4690)
+})
+
+test('preço por participante: ilimitado usa o teto de fotos e valida o pedido', opcoes, async () => {
+  const { evento } = await criarEvento({ participantes: 20, fotos: 'ilimitado' })
+  assert.equal(evento.poses_por_convidado, 100)
+  const base = { nome: 'X', captura_inicio: h(1), captura_fim: h(7) }
+  for (const [extra, erro] of [
+    [{ participantes: 0 }, 'participantes_invalidos'],
+    [{ participantes: 9999 }, 'participantes_invalidos'],
+    [{ participantes: 10, fotos: 500 }, 'fotos_invalidas'],
+    [{ participantes: 10, fotos: 'muitas' }, 'fotos_invalidas'],
+  ] as const) {
+    const r = await chamar('POST', '/api/eventos', { ...base, ...extra })
+    assert.equal(r.status, 400)
+    assert.equal(r.json.erro, erro)
+  }
 })
 
 test('validações da criação', opcoes, async () => {

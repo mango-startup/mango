@@ -4,6 +4,7 @@ import type { Pool } from 'pg'
 import { podeTransicionar } from '../estados.ts'
 import type { Servicos } from '../servicos.ts'
 import { gerarCodigo, gerarToken, hashToken } from '../tokens.ts'
+import { calcularPreco } from '../preco.ts'
 import { validarConfig } from '../validacao.ts'
 import { erro } from './util.ts'
 
@@ -53,30 +54,55 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
     const cfg = await servicos.config.valores()
     if (!cfg.criacao_aberta) return erro(c, 503, 'criacao_pausada', 'A criação de eventos está pausada por um instante. Tente de novo em breve.')
 
-    const pacoteNome = corpo.pacote ?? 'teste'
+    const dinamico = cfg.preco_dinamico && corpo.participantes !== undefined
+    const params = dinamico ? (await servicos.precos.obter()).params : null
+
+    // Preço por participante (#178): o servidor calcula o valor; o pacote do evento é o teste (se der zero) ou o marcador.
+    let participantes = 0
+    let fotos: number | 'ilimitado' = 0
+    let valor = 0
+    if (params) {
+      const p = corpo.participantes
+      const f = corpo.fotos ?? params.fotosLimitadas
+      if (typeof p !== 'number' || !Number.isInteger(p) || p < 1 || p > 5000) return erro(c, 400, 'participantes_invalidos', 'Informe de 1 a 5000 participantes.')
+      if (f !== 'ilimitado' && (typeof f !== 'number' || !Number.isInteger(f) || f < 1 || f > params.tetoIlimitado)) {
+        return erro(c, 400, 'fotos_invalidas', `Informe de 1 a ${params.tetoIlimitado} fotos por pessoa, ou "ilimitado".`)
+      }
+      participantes = p
+      fotos = f as number | 'ilimitado'
+      valor = calcularPreco(participantes, params, fotos)
+    }
+
+    const pacoteNome = params ? (valor === 0 ? 'teste' : 'por_participante') : (corpo.pacote ?? 'teste')
     const pacote = typeof pacoteNome === 'string' ? await servicos.pacotes.obter(pacoteNome) : null
     if (!pacote) return erro(c, 400, 'pacote_invalido', 'Pacote desconhecido.')
-    if (!pacote.ativo) return erro(c, 409, 'pacote_indisponivel', 'Este pacote não está disponível no momento.')
-    if (!pacote.gratis && !cfg.pacotes_pagos_disponiveis) {
+    if (!pacote.ativo && !params) return erro(c, 409, 'pacote_indisponivel', 'Este pacote não está disponível no momento.')
+    // O marcador do preço por participante tem preço zero na tabela; quem manda é o valor calculado.
+    const pago = params ? valor > 0 : !pacote.gratis
+    if (pago && !cfg.pacotes_pagos_disponiveis) {
       return erro(c, 409, 'pagamento_indisponivel', 'Os pacotes pagos ainda não estão disponíveis. Use o teste grátis por enquanto.')
     }
 
-    const validado = validarConfig(corpo, pacote, agora(), cfg)
+    // No modelo novo as poses e a lotação vêm do pedido, não do pacote; a validação de nome e horários é a mesma.
+    const validado = validarConfig(params ? { ...corpo, poses_por_convidado: undefined } : corpo, params ? { ...pacote, poses_max: 100 } : pacote, agora(), params ? { ...cfg, poses_validas: [cfg.poses_padrao] } : cfg)
     if (!validado.ok) return erro(c, 400, validado.erro, validado.mensagem)
-    const { nome, poses, inicio, fim, manual, revelacao } = validado.config
+    const { nome, inicio, fim, manual, revelacao } = validado.config
+    const poses = params ? (fotos === 'ilimitado' ? params.tetoIlimitado : fotos) : validado.config.poses
+    const limiteConvidados = params ? participantes : pacote.convidados
+    const valorCentavos = params && valor > 0 ? valor : null
 
     const token = gerarToken()
-    // Pacote pago fica aguardando pagamento (o pagamento entra depois); o grátis já nasce pronto.
-    const estado = pacote.gratis ? 'pronto' : 'aguardando_pagamento'
+    // Evento pago fica aguardando pagamento; o grátis já nasce pronto.
+    const estado = pago ? 'aguardando_pagamento' : 'pronto'
 
     for (let tentativa = 0; tentativa < 5; tentativa++) {
       const codigo = gerarCodigo()
       try {
         const r = await pool.query<EventoLinha>(
           `insert into eventos (codigo, anfitriao_token_hash, nome, estado, pacote, limite_convidados, retencao_dias,
-             poses_por_convidado, limite_fotos, captura_inicio, captura_fim, revelacao_em, revelacao_manual)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning ${COLUNAS}`,
-          [codigo, hashToken(token), nome, estado, pacote.id, pacote.convidados, pacote.retencao_dias, poses, pacote.convidados * poses, inicio, fim, revelacao, manual],
+             poses_por_convidado, limite_fotos, captura_inicio, captura_fim, revelacao_em, revelacao_manual, valor_centavos)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning ${COLUNAS}`,
+          [codigo, hashToken(token), nome, estado, pacote.id, limiteConvidados, pacote.retencao_dias, poses, limiteConvidados * poses, inicio, fim, revelacao, manual, valorCentavos],
         )
         return c.json({ evento: r.rows[0], anfitriao_token: token }, 201)
       } catch (e) {

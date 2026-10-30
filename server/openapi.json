@@ -5489,6 +5489,27 @@
           },
           "revelacao_manual": {
             "type": "boolean"
+          },
+          "participantes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "description": "Preço por participante (só com `preco_dinamico` ligado): quantas pessoas vão fotografar. O servidor calcula o valor; um valor enviado pelo cliente é ignorado. Substitui `pacote` e `poses_por_convidado`."
+          },
+          "fotos": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "ilimitado"
+                ]
+              }
+            ],
+            "description": "Fotos por pessoa (preço por participante): de 1 ao teto, ou `ilimitado` (usa o teto). Padrão: o sugerido pelo preço publicado."
           }
         }
       },

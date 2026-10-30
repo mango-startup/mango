@@ -655,8 +655,8 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
                 count(*) filter (where e.estado in ('pronto','captura_aberta','captura_encerrada','revelado','expirado')) as ativados,
                 count(*) filter (where exists (select 1 from fotos f where f.evento_id = e.id)) as com_fotos,
                 count(*) filter (where e.revelado_em is not null) as revelados,
-                count(*) filter (where coalesce(p.preco_centavos, 0) > 0) as pagos_criados,
-                count(*) filter (where coalesce(p.preco_centavos, 0) > 0 and e.estado in ('pronto','captura_aberta','captura_encerrada','revelado','expirado')) as pagos_ativados
+                count(*) filter (where coalesce(e.valor_centavos, p.preco_centavos, 0) > 0) as pagos_criados,
+                count(*) filter (where coalesce(e.valor_centavos, p.preco_centavos, 0) > 0 and e.estado in ('pronto','captura_aberta','captura_encerrada','revelado','expirado')) as pagos_ativados
            from eventos e left join pacotes p on p.id = e.pacote
           where e.excluido_em is null and e.criado_em >= $1::timestamptz - make_interval(days => $2) and e.criado_em < $1::timestamptz`,
         parametros,
@@ -736,7 +736,8 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
   app.get('/api/admin/pacotes', exigirAdmin, async (c) => {
     const [lista, uso] = await Promise.all([servicos.pacotes.listar(), pool.query<{ pacote: string; n: string }>('select pacote, count(*) as n from eventos where excluido_em is null group by pacote')])
     const porPacote = new Map(uso.rows.map((u) => [u.pacote, Number(u.n)]))
-    return c.json({ pacotes: lista.map((p) => ({ ...p, eventos: porPacote.get(p.id) ?? 0 })) })
+    // O marcador do preço por participante é interno: não aparece para editar.
+    return c.json({ pacotes: lista.filter((p) => p.id !== 'por_participante').map((p) => ({ ...p, eventos: porPacote.get(p.id) ?? 0 })) })
   })
 
   app.post('/api/admin/pacotes', exigirAdmin, async (c) => {
