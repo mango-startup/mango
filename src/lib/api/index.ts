@@ -4,13 +4,15 @@
 import { persistenciaIdb } from './persistencia.ts'
 import { criarApiReal } from './real.ts'
 import { sessaoLocal } from './sessao.ts'
+import { EM_LABORATORIO, ESPACO } from '../laboratorio.ts'
 import { criarApiSimulada } from './simulada.ts'
 import type { MangoApi } from './tipos.ts'
 
-const modo = import.meta.env.VITE_API ?? (import.meta.env.PROD ? 'real' : 'simulada')
-const sessao = sessaoLocal()
+// No laboratório da câmera do admin a api é sempre a simulada, com dados e sessão à parte (prefixo `lab-`).
+const modo = EM_LABORATORIO ? 'simulada' : (import.meta.env.VITE_API ?? (import.meta.env.PROD ? 'real' : 'simulada'))
+const sessao = sessaoLocal(ESPACO)
 
-const simulada = modo === 'simulada' ? criarApiSimulada({ persistencia: persistenciaIdb(), sessao, atrasoMs: [150, 400] }) : null
+const simulada = modo === 'simulada' ? criarApiSimulada({ persistencia: persistenciaIdb(`${ESPACO}mango-simulado`), sessao, atrasoMs: [150, 400] }) : null
 
 export const api: MangoApi = simulada ?? criarApiReal({ sessao })
 
@@ -22,6 +24,6 @@ export const apiPronta: Promise<void> = simulada
   : Promise.resolve()
 
 // No console do navegador, com a simulada: mango.eventos(), mango.forcarEstado('ABERTA27', 'revelado'), mango.resetar()
-if (import.meta.env.DEV && simulada) Object.assign(window, { mango: simulada.dev })
+if ((import.meta.env.DEV || EM_LABORATORIO) && simulada) Object.assign(window, { mango: simulada.dev })
 
 export * from './tipos.ts'

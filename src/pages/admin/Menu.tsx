@@ -16,6 +16,7 @@ const ICONES: Record<string, ReactNode> = {
   moderacao: <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6zM9 12l2 2 4-4" />,
   financeiro: <path d="M12 3v18M16 7.5c0-1.4-1.8-2.5-4-2.5s-4 1.1-4 2.5 1.8 2.5 4 2.5 4 1.1 4 2.5-1.8 2.5-4 2.5-4-1.1-4-2.5" />,
   pagamentos: <path d="M3 7h18v10H3zM3 11h18M7 15h3" />,
+  camera: <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />,
   simulador: <path d="M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h2M16 16h0" />,
   configuracoes: <path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 4v6M8 14v6" />,
   saude: <path d="M3 12h4l2-5 4 10 2-5h6" />,
@@ -48,6 +49,7 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
       { para: '/admin/eventos', rotulo: 'Eventos', icone: 'eventos' },
       { para: '/admin/anfitrioes', rotulo: 'Anfitriões', icone: 'anfitrioes' },
       { para: '/admin/moderacao', rotulo: 'Moderação', icone: 'moderacao' },
+      { para: '/admin/laboratorio-camera', rotulo: 'Laboratório da câmera', icone: 'camera' },
     ],
   },
   {

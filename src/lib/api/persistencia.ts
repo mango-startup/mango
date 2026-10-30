@@ -8,8 +8,8 @@ export interface Persistencia {
 }
 
 /** IndexedDB do navegador, separado do banco 'mango-db' usado pela câmera do protótipo. */
-export function persistenciaIdb(): Persistencia {
-  const store = createStore('mango-simulado', 'dados')
+export function persistenciaIdb(nome = 'mango-simulado'): Persistencia {
+  const store = createStore(nome, 'dados')
   return {
     ler: (chave) => get(chave, store),
     gravar: (chave, valor) => set(chave, valor, store),
