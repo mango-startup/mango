@@ -23,7 +23,7 @@ if (!gateway) console.warn('STRIPE_SECRET_KEY não definida: pagamento desligado
 const resendKey = process.env.RESEND_API_KEY || null
 const email = resendKey ? criarResend(resendKey, process.env.EMAIL_REMETENTE || 'Mango <contato@mango.razielhub.cloud>') : null
 if (!email) console.warn('RESEND_API_KEY não definida: o admin não envia e-mail aos anfitriões.')
-const servicos = criarServicos(pool, undefined, gateway, email)
+const servicos = criarServicos(pool, undefined, gateway, email, config.appUrl)
 
 // Admins iniciais: criados uma vez, com a senha inicial do ambiente e troca obrigatória no primeiro login.
 if (config.adminSenhaInicial) {

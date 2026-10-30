@@ -142,6 +142,7 @@ export function PrivacyPage() {
               <li>O nome que o convidado escolhe mostrar no álbum, se escolher (é opcional).</li>
               <li>Um código aleatório que identifica o aparelho dentro do evento, para manter o rolo de cada convidado.</li>
               <li>Os dados do evento informados pelo anfitrião (nome, datas e configurações).</li>
+              <li>O e-mail do anfitrião, informado ao criar o evento ou na página de pagamento, para mandar o link de acesso ao evento, avisos sobre ele e responder pedidos de suporte. Nos eventos pagos ele é obrigatório. Não vendemos o e-mail nem o usamos para propaganda.</li>
               <li>Nos pacotes pagos, o valor, a data e o identificador da cobrança. O pagamento é feito na página do Stripe: o Mango não recebe nem guarda o número do cartão.</li>
             </ul>
           ),
@@ -150,7 +151,7 @@ export function PrivacyPage() {
           titulo: 'O que não coletamos',
           conteudo: (
             <p>
-              Não pedimos cadastro aos convidados. As fotos tiradas pelo Mango saem sem localização (GPS) nem outros dados da câmera (EXIF): a imagem é gerada de novo
+              Não pedimos cadastro nem e-mail aos convidados. As fotos tiradas pelo Mango saem sem localização (GPS) nem outros dados da câmera (EXIF): a imagem é gerada de novo
               no aparelho antes do envio.
             </p>
           ),

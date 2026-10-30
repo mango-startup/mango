@@ -22,6 +22,8 @@ export interface SessaoCheckout {
   currency: string | null
   client_reference_id: string | null
   payment_intent: string | null
+  /** E-mail que o cliente informou na página do Stripe, se informou. */
+  customer_email?: string | null
 }
 
 /** O evento do gateway já reduzido ao que o servidor usa. */
@@ -80,6 +82,7 @@ function paraSessao(s: Stripe.Checkout.Session): SessaoCheckout {
     currency: s.currency ?? null,
     client_reference_id: s.client_reference_id ?? null,
     payment_intent: typeof pi === 'string' ? pi : (pi?.id ?? null),
+    customer_email: s.customer_details?.email ?? s.customer_email ?? null,
   }
 }
 
@@ -314,6 +317,10 @@ export class ServicoPagamento {
     if (sessao.client_reference_id !== pag.evento_id || sessao.amount_total !== pag.valor_centavos || sessao.currency !== 'brl') {
       this.log('error', { aviso: 'pagamento_divergente', stripe_evento: eventoStripe, sessao: sessaoId, evento: pag.evento_id, esperado: pag.valor_centavos, recebido: sessao.amount_total, moeda: sessao.currency })
       return 'ignorado'
+    }
+    // Reserva do contato: se o anfitrião não informou o e-mail ao criar, vale o que ele digitou no Stripe.
+    if (sessao.customer_email) {
+      await cliente.query('update eventos set anfitriao_email = lower($2) where id = $1 and anfitriao_email is null', [pag.evento_id, sessao.customer_email.trim()])
     }
     if (sessao.payment_intent) {
       await cliente.query('update pagamentos set stripe_payment_intent_id = $2, atualizado_em = $3 where id = $1', [pag.id, sessao.payment_intent, this.agora()])

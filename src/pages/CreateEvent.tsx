@@ -16,11 +16,12 @@ import { montarHorarios, type CampoHorario, type CamposHorario, type ModoRevelac
 
 interface Formulario extends CamposHorario {
   nome: string
+  email: string
   participantes: string
   fotos: number | 'ilimitado'
 }
 
-type CampoErro = 'nome' | 'pessoas' | CampoHorario | 'geral'
+type CampoErro = 'nome' | 'pessoas' | 'email' | CampoHorario | 'geral'
 
 function hojeMais(dias: number): string {
   const d = new Date()
@@ -29,7 +30,7 @@ function hojeMais(dias: number): string {
 }
 
 function formularioInicial(): Formulario {
-  const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', participantes: '30', fotos: 24, revelacao: 'manha', revelacaoEm: '' }
+  const padrao: Formulario = { nome: '', email: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', participantes: '30', fotos: 24, revelacao: 'manha', revelacaoEm: '' }
   return { ...padrao, ...lerRascunho<Formulario>() }
 }
 
@@ -37,6 +38,8 @@ function formularioInicial(): Formulario {
 const CAMPO_DO_ERRO: Record<string, CampoErro> = {
   nome_invalido: 'nome',
   participantes_invalidos: 'pessoas',
+  email_invalido: 'email',
+  email_obrigatorio: 'email',
   fotos_invalidas: 'pessoas',
   datas_invalidas: 'data',
   fim_no_passado: 'data',
@@ -53,7 +56,7 @@ export function CreateEventPage() {
   const [erro, setErro] = useState<{ campo: CampoErro; mensagem: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [criado, setCriado] = useState<{ evento: Evento; linkAnfitriao: string } | null>(null)
-  const ids = { nome: useId(), data: useId(), inicio: useId(), fim: useId(), revelacaoEm: useId() }
+  const ids = { nome: useId(), email: useId(), data: useId(), inicio: useId(), fim: useId(), revelacaoEm: useId() }
   const cfg = useConfigPublica()
   const pagamentoDisponivel = cfg.pacotes_pagos_disponiveis
   const precos = usePrecoPublico()
@@ -80,6 +83,9 @@ export function CreateEventPage() {
     e.preventDefault()
     if (!form.nome.trim()) return setErro({ campo: 'nome', mensagem: 'Dê um nome para o evento.' })
     if ('campo' in horarios) return setErro(horarios)
+    const email = form.email.trim()
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return setErro({ campo: 'email', mensagem: 'Confira o e-mail: precisa ser parecido com nome@exemplo.com.' })
+    if (!email && total !== null && total > 0) return setErro({ campo: 'email', mensagem: 'Informe seu e-mail: é para onde mandamos o link de anfitrião.' })
     if (pessoas < 1 || pessoas > 5000) return setErro({ campo: 'pessoas', mensagem: 'Informe de 1 a 5000 pessoas.' })
     setEnviando(true)
     setErro(null)
@@ -88,6 +94,7 @@ export function CreateEventPage() {
         nome: form.nome,
         participantes: pessoas,
         fotos: form.fotos,
+        ...(email ? { email } : {}),
         captura_inicio: horarios.captura_inicio,
         captura_fim: horarios.captura_fim,
         revelacao_em: horarios.revelacao_em,
@@ -175,6 +182,15 @@ export function CreateEventPage() {
           {erroDe('revelacaoEm')}
         </fieldset>
 
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor={ids.email} className="text-sm font-semibold">
+            Seu e-mail {total === 0 && <span className="font-normal text-muted">(opcional)</span>}
+          </label>
+          <input id={ids.email} type="email" inputMode="email" autoComplete="email" value={form.email} onChange={(e) => mudar('email', e.target.value)} placeholder="voce@exemplo.com" className={`${campoTexto} placeholder:text-muted/60`} />
+          <p className="text-sm text-muted">Mandamos o link de anfitrião para você não perder o acesso ao evento. Não usamos para propaganda.</p>
+          {erroDe('email')}
+        </div>
 
         <PreviaConvite nome={form.nome} poses={posesPrevia} revelacao={'campo' in horarios ? null : horarios.revelacao} />
 

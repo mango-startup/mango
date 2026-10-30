@@ -4,6 +4,7 @@ import { avancarEstados } from '../src/agendador.ts'
 import { criarApp } from '../src/app.ts'
 import { criarPool } from '../src/db.ts'
 import { migrar } from '../src/migracoes.ts'
+import { criarServicos } from '../src/servicos.ts'
 
 // Precisa de um Postgres descartável: TEST_DATABASE_URL. Sem ele, os testes são pulados.
 const url = process.env.TEST_DATABASE_URL
@@ -21,7 +22,7 @@ before(async () => {
   // A migração 009 tira os pacotes fixos de venda; estes testes cobrem o caminho antigo (pedidos com `pacote`).
   await pool.query("update pacotes set ativo = true where id in ('festa', 'celebracao', 'casamento')")
   // Os testes de pacote pago precisam do pagamento "ligado" (padrão: desligado até o #37).
-  await pool.query("insert into configuracoes (chave, valor) values ('pacotes_pagos_disponiveis', 'true')")
+  await pool.query("insert into configuracoes (chave, valor) values ('pacotes_pagos_disponiveis', 'true'), ('rl_ativo', 'false')")
 })
 after(async () => {
   await pool?.end()
@@ -39,7 +40,7 @@ async function chamar(metodo: string, caminho: string, corpo?: unknown, cabecalh
 }
 
 async function criarEvento(extra: Record<string, unknown> = {}) {
-  const r = await chamar('POST', '/api/eventos', { nome: 'Festa da Ana', captura_inicio: h(1), captura_fim: h(7), ...extra })
+  const r = await chamar('POST', '/api/eventos', { nome: 'Festa da Ana', email: 'ana@mango.test', captura_inicio: h(1), captura_fim: h(7), ...extra })
   assert.equal(r.status, 201, JSON.stringify(r.json))
   // O relógio do teste anda sozinho; alinha a criação a ele para a limpeza de rascunhos não pegar o evento.
   await pool!.query('update eventos set criado_em = $2 where codigo = $1', [r.json.evento.codigo, agora])
@@ -96,6 +97,43 @@ test('preço por participante: ilimitado usa o teto de fotos e valida o pedido',
     assert.equal(r.status, 400)
     assert.equal(r.json.erro, erro)
   }
+})
+
+test('e-mail do anfitrião: obrigatório no evento pago, opcional no grátis, validado e guardado em minúsculas', opcoes, async () => {
+  const base = { nome: 'X', captura_inicio: h(1), captura_fim: h(7) }
+  const pago = await chamar('POST', '/api/eventos', { ...base, participantes: 20, fotos: 24 })
+  assert.equal(pago.status, 400)
+  assert.equal(pago.json.erro, 'email_obrigatorio')
+  for (const email of ['sem-arroba', 'a@b', 'a b@c.com', 123]) {
+    const r = await chamar('POST', '/api/eventos', { ...base, participantes: 20, fotos: 24, email })
+    assert.equal(r.json.erro, 'email_invalido', String(email))
+  }
+  const gratis = await chamar('POST', '/api/eventos', { ...base, participantes: 5, fotos: 10 })
+  assert.equal(gratis.status, 201) // teste grátis não exige e-mail
+  const ok = await chamar('POST', '/api/eventos', { ...base, participantes: 20, fotos: 24, email: '  Ana@Mango.Test ' })
+  assert.equal(ok.status, 201)
+  const [linha] = (await pool!.query('select anfitriao_email from eventos where codigo = $1', [ok.json.evento.codigo])).rows
+  assert.equal(linha.anfitriao_email, 'ana@mango.test')
+})
+
+test('e-mail do anfitrião: recebe o link de anfitrião, e falha no envio não derruba a criação', opcoes, async () => {
+  const enviados: { para: string; assunto: string; texto: string }[] = []
+  let falha = false
+  const email = { async enviar(e: { para: string; assunto: string; texto: string }) { if (falha) throw new Error('resend fora'); enviados.push(e); return { ok: true as const } } }
+  const comEmail = criarApp(pool!, {} as never, () => agora, undefined, criarServicos(pool!, () => agora, null, email, 'https://mango.teste'))
+  const criar = async () => {
+    const r = await comEmail.request('/api/eventos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome: 'Festa da Bia', email: 'bia@mango.test', participantes: 5, fotos: 10, captura_inicio: h(1), captura_fim: h(7) }) })
+    return { status: r.status, json: await r.json() }
+  }
+  const r = await criar()
+  assert.equal(r.status, 201)
+  await new Promise((ok) => setTimeout(ok, 20))
+  assert.equal(enviados.length, 1)
+  assert.equal(enviados[0].para, 'bia@mango.test')
+  assert.ok(enviados[0].texto.includes(`https://mango.teste/anfitriao#${r.json.anfitriao_token}`))
+  assert.ok(enviados[0].texto.includes(`https://mango.teste/c/${r.json.evento.codigo}`)) // grátis: o link dos convidados já vale
+  falha = true
+  assert.equal((await criar()).status, 201)
 })
 
 test('validações da criação', opcoes, async () => {
