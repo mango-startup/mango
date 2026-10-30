@@ -56,11 +56,10 @@ export function calcularPreco(n: number, p: ParamsPreco): ResultadoPreco {
     limitado += qtd * d.centavos
     inicio = Math.max(inicio, fim)
   }
-  const fecha = (c: number) => {
-    const comPiso = Math.max(c, p.pisoCentavos)
-    return p.arredondar90 ? Math.ceil((comPiso - 90) / 100) * 100 + 90 : comPiso
-  }
-  return { pagos, limitado: fecha(limitado), ilimitado: fecha(limitado + pagos * p.ilimitadasCentavos) }
+  // O piso vale para o preço base; o extra de ilimitadas entra por cima, senão o piso o engole nas festas pequenas.
+  const arredonda = (c: number) => (p.arredondar90 ? Math.ceil((c - 90) / 100) * 100 + 90 : c)
+  const base = Math.max(limitado, p.pisoCentavos)
+  return { pagos, limitado: arredonda(base), ilimitado: arredonda(base + pagos * p.ilimitadasCentavos) }
 }
 
 /** Tabela pública da Once (once.film/pricing, consultada em 2026-10-29), em dólares: convidados → centavos de dólar. */
