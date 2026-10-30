@@ -16,6 +16,10 @@ export interface ParamsPreco {
   degraus: Degrau[]
   /** Extra por participante pago para liberar fotos ilimitadas. */
   ilimitadasCentavos: number
+  /** Valor mínimo de qualquer evento pago (cobre a taxa fixa do meio de pagamento). */
+  pisoCentavos: number
+  /** Arredonda o total para cima até o próximo ,90 (14,90 / 15,90 ...). */
+  arredondar90: boolean
 }
 
 export const PARAMS_PADRAO: ParamsPreco = {
@@ -29,6 +33,8 @@ export const PARAMS_PADRAO: ParamsPreco = {
     { ate: null, centavos: 100 },
   ],
   ilimitadasCentavos: 50,
+  pisoCentavos: 1490,
+  arredondar90: true,
 }
 
 export interface ResultadoPreco {
@@ -50,7 +56,11 @@ export function calcularPreco(n: number, p: ParamsPreco): ResultadoPreco {
     limitado += qtd * d.centavos
     inicio = Math.max(inicio, fim)
   }
-  return { pagos, limitado, ilimitado: limitado + pagos * p.ilimitadasCentavos }
+  const fecha = (c: number) => {
+    const comPiso = Math.max(c, p.pisoCentavos)
+    return p.arredondar90 ? Math.ceil((comPiso - 90) / 100) * 100 + 90 : comPiso
+  }
+  return { pagos, limitado: fecha(limitado), ilimitado: fecha(limitado + pagos * p.ilimitadasCentavos) }
 }
 
 /** Tabela pública da Once (once.film/pricing, consultada em 2026-10-29), em dólares: convidados → centavos de dólar. */
