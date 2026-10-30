@@ -5,7 +5,7 @@ import { Botao } from '../components/Botao'
 import { MangoLogo } from '../components/MangoLogo'
 import { ErroApi, api, type DefinicaoPacote, type PainelEvento, type StatusPagamento } from '../lib/api'
 import { useConfigPublica } from '../lib/configPublica'
-import { precoEmReais } from '../lib/formato'
+import { precoExato } from '../lib/formato'
 
 const CONSULTA_MS = 5000
 const DEMORANDO_MS = 2 * 60 * 1000
@@ -115,7 +115,8 @@ export function PaymentStatusPage() {
 
   const voltar = `/eventos/${id}`
   const pacote = pacotes.find((p) => p.id === painel?.evento.pacote)
-  const rotuloPagar = pacote && !pacote.gratis ? `Pagar ${precoEmReais(pacote.preco_centavos)}` : 'Ir para o pagamento'
+  const valorPagar = painel?.evento.valor_centavos ?? (pacote && !pacote.gratis ? pacote.preco_centavos : null)
+  const rotuloPagar = valorPagar ? `Pagar ${precoExato(valorPagar)}` : 'Ir para o pagamento'
   let vista: Vista
   if (falha && !painel) vista = 'erro'
   else if (!painel || pagamento === 'carregando') vista = 'confirmando'
@@ -234,7 +235,7 @@ export function PaymentStatusPage() {
       )}
       {painel && vista !== 'confirmando' && vista !== 'erro' && vista !== 'aprovado' && vista !== 'cancelado' && (
         <p className="mt-8 border-t border-line pt-4 text-center text-sm text-muted">
-          {painel.evento.nome} · pacote {painel.evento.pacote} · até {painel.evento.limite_convidados} convidados
+          {painel.evento.nome} · até {painel.evento.limite_convidados} pessoas · {painel.evento.poses_por_convidado} fotos cada
         </p>
       )}
     </Casca>

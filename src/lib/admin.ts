@@ -40,8 +40,6 @@ export interface PrecoPublicado {
   atualizado_por: string | null
 }
 
-export type NovoPacote = Pick<PacoteAdmin, 'id' | 'nome' | 'convidados' | 'preco_centavos' | 'retencao_dias' | 'poses_max'> & { ativo?: boolean; ordem?: number }
-export type EdicaoPacote = Partial<Omit<PacoteAdmin, 'id' | 'gratis' | 'eventos'>>
 
 export type TipoConfig = 'inteiro' | 'decimal' | 'booleano' | 'texto' | 'lista_inteiros'
 export type ValorConfig = number | boolean | string | number[]
@@ -381,8 +379,6 @@ export const admin = {
   preco: () => chamar<PrecoPublicado>('GET', '/api/admin/preco'),
   publicarPreco: (params: ParamsPreco) => chamar<PrecoPublicado>('PUT', '/api/admin/preco', params),
   pacotes: () => chamar<{ pacotes: PacoteAdmin[] }>('GET', '/api/admin/pacotes').then((r) => r.pacotes),
-  criarPacote: (dados: NovoPacote) => chamar<{ pacote: PacoteAdmin }>('POST', '/api/admin/pacotes', dados).then((r) => r.pacote),
-  editarPacote: (id: string, dados: EdicaoPacote) => chamar<{ pacote: PacoteAdmin }>('PATCH', `/api/admin/pacotes/${encodeURIComponent(id)}`, dados).then((r) => r.pacote),
   configuracoes: () => chamar<{ grupos: GrupoConfig[] }>('GET', '/api/admin/configuracoes').then((r) => r.grupos),
   /** `null` volta a chave ao padrão. Tudo ou nada. */
   salvarConfiguracoes: (mudancas: Record<string, ValorConfig | null>) => chamar<{ ok: boolean }>('PATCH', '/api/admin/configuracoes', mudancas),

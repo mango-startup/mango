@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { MangoLogo } from '../components/MangoLogo'
-import { api, type DefinicaoPacote } from '../lib/api'
 import { useConfigPublica } from '../lib/configPublica'
 import { usePrecoPublico } from '../lib/precoPublico'
 import { calcularPreco } from '../lib/simuladorPreco'
-import { precoEmReais, precoExato } from '../lib/formato'
+import { precoExato } from '../lib/formato'
 import { useTitulo } from '../lib/useTitulo'
 
 // Fotos de exemplo do Pexels, só para a landing do protótipo
@@ -28,8 +27,8 @@ const PERGUNTAS: { pergunta: string; resposta: string; link?: { to: string; text
   },
   {
     pergunta: 'Quantas fotos cada convidado tira?',
-    resposta: 'Você escolhe ao criar a câmera: 12, 24 ou 36 fotos, como um rolo de verdade. No teste grátis são 12. Não dá para apagar e tirar de novo.',
-    link: { to: '/precos', texto: 'Ver os pacotes' },
+    resposta: 'Você escolhe ao criar a câmera, como um rolo de verdade: quanto mais fotos por pessoa, mais o evento custa, e dá para deixar ilimitado. Não dá para apagar e tirar de novo.',
+    link: { to: '/precos', texto: 'Calcular o preço' },
   },
   {
     pergunta: 'Quando as fotos aparecem?',
@@ -37,7 +36,7 @@ const PERGUNTAS: { pergunta: string; resposta: string; link?: { to: string; text
   },
   {
     pergunta: 'Por quanto tempo o álbum fica no ar?',
-    resposta: 'Por 12 meses depois da revelação nos pacotes pagos e 30 dias no teste grátis. Você pode baixar todas as fotos antes disso.',
+    resposta: 'Por 12 meses depois da revelação nos eventos pagos e 30 dias no teste grátis. Você pode baixar todas as fotos antes disso.',
   },
   {
     pergunta: 'Quem consegue ver o álbum?',
@@ -136,8 +135,8 @@ export function LandingPage() {
             Ninguém vê.
           </h1>
           <p style={{ '--d': '160ms' } as React.CSSProperties} className="anim-up mt-5 max-w-[350px] px-6 text-[17px] leading-normal opacity-90 lg:mt-10 lg:max-w-[520px] lg:px-14 lg:text-[22px]">
-            Uma câmera descartável para a sua festa. Cada convidado leva um rolo de 12, 24 ou 36
-            fotos. Elas só aparecem quando você revelar.
+            Uma câmera descartável para a sua festa. Cada convidado leva um rolo de fotos.
+            Elas só aparecem quando você revelar.
           </p>
           <div ref={ctaHero} style={{ '--d': '240ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
             <Link
@@ -362,47 +361,11 @@ function Revelacao() {
   )
 }
 
-// Ato 4: quanto custa, com os valores que o admin define (nada fixo no texto).
+// Ato 4: quanto custa, com os valores que o admin publica (nada fixo no texto).
 function FaixaPreco() {
-  const config = useConfigPublica()
-  const pagos = config.pacotes_pagos_disponiveis
+  const pagos = useConfigPublica().pacotes_pagos_disponiveis
   const params = usePrecoPublico()
-  const [pacotes, setPacotes] = useState<DefinicaoPacote[] | null>(null)
-  useEffect(() => {
-    let ativo = true
-    api.pacotes().then(
-      (p) => ativo && setPacotes(p),
-      () => {},
-    )
-    return () => {
-      ativo = false
-    }
-  }, [])
-  const teste = pacotes?.find((p) => p.gratis)
-  const pagosOrdenados = (pacotes ?? []).filter((p) => !p.gratis).sort((a, b) => a.preco_centavos - b.preco_centavos)
-  const menor = pagos ? pagosOrdenados[0] : undefined
-  if (config.preco_dinamico) {
-    const exemplo = calcularPreco(20, params, 24)
-    return (
-      <section className="mt-16 px-6 lg:mt-32 lg:px-0">
-        <Link
-          to="/precos"
-          className="sobre-creme flex flex-col gap-4 rounded-[24px] bg-paper p-6 text-base transition active:scale-[0.99] lg:flex-row lg:items-end lg:justify-between lg:rounded-[40px] lg:p-14"
-        >
-          <span>
-            <span className="block font-display text-[34px] leading-none lg:text-[56px]">Grátis para testar.</span>
-            <span className="mt-3 block text-[17px] lg:text-[20px]">
-              Até {params.gratis} pessoas, {params.fotosTeste} fotos cada.
-              {pagos && ` Uma festa de 20 pessoas com 24 fotos cada custa ${precoExato(exemplo)}.`}
-            </span>
-          </span>
-          <span className="font-semibold">
-            <span className="border-b border-current pb-px">Calcular a minha festa</span>
-          </span>
-        </Link>
-      </section>
-    )
-  }
+  const exemplo = calcularPreco(20, params, 24)
   return (
     <section className="mt-16 px-6 lg:mt-32 lg:px-0">
       <Link
@@ -411,13 +374,13 @@ function FaixaPreco() {
       >
         <span>
           <span className="block font-display text-[34px] leading-none lg:text-[56px]">Grátis para testar.</span>
-          <span className="mt-3 block min-h-[1.5em] text-[17px] lg:text-[20px]">
-            {teste && `Até ${teste.convidados} convidados, ${teste.poses_max} fotos cada.`}
-            {menor && ` Festas a partir de ${precoEmReais(menor.preco_centavos)}.`}
+          <span className="mt-3 block text-[17px] lg:text-[20px]">
+            Até {params.gratis} pessoas, {params.fotosTeste} fotos cada.
+            {pagos && ` Uma festa de 20 pessoas com 24 fotos cada custa ${precoExato(exemplo)}.`}
           </span>
         </span>
         <span className="font-semibold">
-          <span className="border-b border-current pb-px">Ver os pacotes</span>
+          <span className="border-b border-current pb-px">Calcular a minha festa</span>
         </span>
       </Link>
     </section>

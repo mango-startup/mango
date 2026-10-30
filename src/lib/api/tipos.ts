@@ -45,6 +45,8 @@ export interface Evento {
   album_privado: boolean
   revelado_em: string | null
   expira_em: string | null
+  /** Valor combinado na criação (preço por participante); null no teste e nos eventos de pacote. */
+  valor_centavos?: number | null
 }
 
 /** O que o convidado vê no link /c/:codigo. */
@@ -68,7 +70,7 @@ export interface NovoEvento {
   nome: string
   pacote?: Pacote
   poses_por_convidado?: number
-  /** Preço por participante (com `preco_dinamico` ligado): no lugar de `pacote` e `poses_por_convidado`. */
+  /** Preço por participante: no lugar de `pacote` e `poses_por_convidado` (que ficam só para pedidos antigos). */
   participantes?: number
   fotos?: number | 'ilimitado'
   captura_inicio: string

@@ -5368,6 +5368,13 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "valor_centavos": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Valor combinado na criação (preço por participante); null no teste grátis e nos eventos de pacote."
           }
         }
       },
@@ -5494,7 +5501,7 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 5000,
-            "description": "Preço por participante (só com `preco_dinamico` ligado): quantas pessoas vão fotografar. O servidor calcula o valor; um valor enviado pelo cliente é ignorado. Substitui `pacote` e `poses_por_convidado`."
+            "description": "Preço por participante (o padrão): quantas pessoas vão fotografar. O servidor calcula o valor; um valor enviado pelo cliente é ignorado. Substitui `pacote` e `poses_por_convidado`."
           },
           "fotos": {
             "oneOf": [
@@ -5867,10 +5874,6 @@
           },
           "pedido_remocao_motivo_max": {
             "type": "integer"
-          },
-          "preco_dinamico": {
-            "type": "boolean",
-            "description": "Mostra o preço por participante no lugar dos pacotes."
           }
         }
       },

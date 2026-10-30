@@ -24,10 +24,11 @@ interface EventoLinha {
   album_privado: boolean
   revelado_em: Date | null
   expira_em: Date | null
+  valor_centavos: number | null
 }
 
 const COLUNAS = `id, codigo, nome, estado, pacote, limite_convidados, poses_por_convidado, limite_fotos,
-  captura_inicio, captura_fim, revelacao_em, revelacao_manual, album_privado, revelado_em, expira_em`
+  captura_inicio, captura_fim, revelacao_em, revelacao_manual, album_privado, revelado_em, expira_em, valor_centavos`
 
 async function lerCorpo(c: Context): Promise<Record<string, unknown> | null> {
   try {
@@ -54,8 +55,8 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
     const cfg = await servicos.config.valores()
     if (!cfg.criacao_aberta) return erro(c, 503, 'criacao_pausada', 'A criação de eventos está pausada por um instante. Tente de novo em breve.')
 
-    const dinamico = cfg.preco_dinamico && corpo.participantes !== undefined
-    const params = dinamico ? (await servicos.precos.obter()).params : null
+    // Preço por participante é o padrão; `pacote` fica só para pedidos antigos (app aberto antes da troca).
+    const params = corpo.participantes !== undefined ? (await servicos.precos.obter()).params : null
 
     // Preço por participante (#178): o servidor calcula o valor; o pacote do evento é o teste (se der zero) ou o marcador.
     let participantes = 0

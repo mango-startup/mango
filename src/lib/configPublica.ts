@@ -6,7 +6,6 @@ import { useEffect, useSyncExternalStore } from 'react'
 export interface ConfigPublica {
   criacao_aberta: boolean
   pacotes_pagos_disponiveis: boolean
-  preco_dinamico: boolean
   contato_suporte: string
   aviso_global: string
   captura_max_horas: number
@@ -27,7 +26,6 @@ export interface ConfigPublica {
 export const CONFIG_PADRAO: Readonly<ConfigPublica> = {
   criacao_aberta: true,
   pacotes_pagos_disponiveis: false,
-  preco_dinamico: false,
   contato_suporte: '',
   aviso_global: '',
   captura_max_horas: 48,

@@ -75,6 +75,8 @@ before(async () => {
   if (!pool) return
   await pool.query('drop schema public cascade; create schema public')
   await migrar(pool)
+  // A migração 009 tira os pacotes fixos de venda; estes testes cobrem o caminho antigo (pedidos com `pacote`).
+  await pool.query("update pacotes set ativo = true where id in ('festa', 'celebracao', 'casamento')")
   await pool.query("insert into configuracoes (chave, valor) values ('pacotes_pagos_disponiveis', 'true')")
 })
 after(async () => {

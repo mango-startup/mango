@@ -17,7 +17,6 @@ export interface Config {
   rascunho_validade_dias: number
   criacao_aberta: boolean
   pacotes_pagos_disponiveis: boolean
-  preco_dinamico: boolean
   // Fotos
   foto_max_kb: number
   miniatura_max_kb: number
@@ -69,7 +68,6 @@ export const DEFINICOES: Definicao[] = [
   d({ chave: 'criacao_aberta', grupo: 'Operação', rotulo: 'Criação de eventos aberta', descricao: 'Desligue para pausar a criação de eventos novos (manutenção). Eventos existentes seguem funcionando.', tipo: 'booleano', padrao: true, publica: true }),
   d({ chave: 'aviso_global', grupo: 'Operação', rotulo: 'Aviso para todos os visitantes', descricao: 'Faixa no topo do site (ex.: manutenção programada). Deixe vazio para não mostrar nada.', tipo: 'texto', padrao: '', publica: true }),
   d({ chave: 'pacotes_pagos_disponiveis', grupo: 'Operação', rotulo: 'Pacotes pagos disponíveis', descricao: 'Ligue só quando o pagamento estiver funcionando. Desligado, só pacotes grátis podem ser criados.', tipo: 'booleano', padrao: false, publica: true }),
-  d({ chave: 'preco_dinamico', grupo: 'Operação', rotulo: 'Preço por participante', descricao: 'Ligue só depois de testar um pagamento: a home, o /precos e o /criar passam a usar o preço por participante e fotos, no lugar dos pacotes.', tipo: 'booleano', padrao: false, publica: true }),
   d({ chave: 'contato_suporte', grupo: 'Operação', rotulo: 'Contato de suporte', descricao: 'E-mail ou WhatsApp mostrado ao público (termos, ajuda).', tipo: 'texto', padrao: '', publica: true }),
 
   d({ chave: 'captura_max_horas', grupo: 'Eventos', rotulo: 'Câmera aberta, no máximo', descricao: 'Maior intervalo entre abrir e fechar a câmera de um evento.', tipo: 'inteiro', padrao: 48, min: 1, max: 168, unidade: 'horas', publica: true }),
