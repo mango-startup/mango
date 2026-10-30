@@ -108,7 +108,7 @@ export function TermsPage() {
           titulo: 'Pagamento e reembolso',
           conteudo: (
             <p>
-              Os pacotes pagos são cobrados uma vez por evento, sem assinatura. O reembolso é integral enquanto nenhuma foto tiver sido tirada no evento. Os prazos de
+              Os eventos pagos são cobrados uma vez, na criação,, sem assinatura. O reembolso é integral enquanto nenhuma foto tiver sido tirada no evento. Os prazos de
               arrependimento previstos no Código de Defesa do Consumidor serão detalhados aqui após a revisão jurídica.
             </p>
           ),
@@ -117,7 +117,7 @@ export function TermsPage() {
           titulo: 'Por quanto tempo as fotos ficam',
           conteudo: (
             <p>
-              O álbum fica disponível por 12 meses depois da revelação nos pacotes pagos e por 30 dias no teste grátis. Depois disso, as fotos são apagadas. Baixe as
+              O álbum fica disponível por 12 meses depois da revelação nos eventos pagos e por 30 dias no teste grátis. Depois disso, as fotos são apagadas. Baixe as
               que quiser guardar antes do fim do prazo.
             </p>
           ),

@@ -1,13 +1,13 @@
 import { useTitulo } from '../lib/useTitulo'
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Botao } from '../components/Botao'
 import { CampoCopiavel } from '../components/CampoCopiavel'
 import { MangoLogo } from '../components/MangoLogo'
-import { ErroApi, api, type DefinicaoPacote, type Evento, type Pacote } from '../lib/api'
+import { ErroApi, api, type Evento } from '../lib/api'
 import { quando } from '../lib/datas'
 import { useConfigPublica } from '../lib/configPublica'
-import { precoEmReais, precoExato } from '../lib/formato'
+import { precoExato } from '../lib/formato'
 import { usePrecoPublico } from '../lib/precoPublico'
 import { calcularPreco } from '../lib/simuladorPreco'
 import { EscolhaPessoasFotos } from '../components/EscolhaPessoasFotos'
@@ -16,14 +16,11 @@ import { montarHorarios, type CampoHorario, type CamposHorario, type ModoRevelac
 
 interface Formulario extends CamposHorario {
   nome: string
-  poses: number
-  pacote: Pacote
-  /** Preço por participante (com `preco_dinamico` ligado). */
   participantes: string
   fotos: number | 'ilimitado'
 }
 
-type CampoErro = 'nome' | 'poses' | 'pacote' | 'pessoas' | CampoHorario | 'geral'
+type CampoErro = 'nome' | 'pessoas' | CampoHorario | 'geral'
 
 function hojeMais(dias: number): string {
   const d = new Date()
@@ -31,17 +28,14 @@ function hojeMais(dias: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function formularioInicial(pacote: Pacote | null): Formulario {
-  const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', poses: 24, pacote: 'teste', participantes: '30', fotos: 24, revelacao: 'manha', revelacaoEm: '' }
-  // O pacote e as poses efetivos são conferidos na tela contra os pacotes e a configuração do servidor.
-  return { ...padrao, ...lerRascunho<Formulario>(), ...(pacote ? { pacote } : {}) }
+function formularioInicial(): Formulario {
+  const padrao: Formulario = { nome: '', data: hojeMais(7), inicio: '19:00', fim: '02:00', participantes: '30', fotos: 24, revelacao: 'manha', revelacaoEm: '' }
+  return { ...padrao, ...lerRascunho<Formulario>() }
 }
 
 /** Erros da api que dizem respeito a um campo específico. */
 const CAMPO_DO_ERRO: Record<string, CampoErro> = {
   nome_invalido: 'nome',
-  poses_invalidas: 'poses',
-  pacote_invalido: 'pacote',
   participantes_invalidos: 'pessoas',
   fotos_invalidas: 'pessoas',
   datas_invalidas: 'data',
@@ -52,48 +46,26 @@ const CAMPO_DO_ERRO: Record<string, CampoErro> = {
   revelacao_fora_do_prazo: 'revelacaoEm',
 }
 
-// Só o formato: se o pacote existe e está à venda, quem decide é a lista que o servidor manda.
-const ehPacote = (v: string | null): v is Pacote => v !== null && /^[a-z][a-z0-9_]{1,29}$/.test(v)
-
 // /criar — uma página só, com padrões prontos. Depois de criar, mostra os links (convidado e anfitrião).
 export function CreateEventPage() {
   useTitulo('Nova câmera')
-  const [params] = useSearchParams()
-  const pacoteDaUrl = params.get('pacote')
-  const [form, setForm] = useState<Formulario>(() => formularioInicial(ehPacote(pacoteDaUrl) ? pacoteDaUrl : null))
-  const [pacotes, setPacotes] = useState<DefinicaoPacote[]>([])
+  const [form, setForm] = useState<Formulario>(formularioInicial)
   const [erro, setErro] = useState<{ campo: CampoErro; mensagem: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [criado, setCriado] = useState<{ evento: Evento; linkAnfitriao: string } | null>(null)
   const ids = { nome: useId(), data: useId(), inicio: useId(), fim: useId(), revelacaoEm: useId() }
   const cfg = useConfigPublica()
   const pagamentoDisponivel = cfg.pacotes_pagos_disponiveis
-  const dinamico = cfg.preco_dinamico
   const precos = usePrecoPublico()
-
-  useEffect(() => {
-    let ativo = true
-    api.pacotes().then((p) => ativo && setPacotes(p))
-    return () => {
-      ativo = false
-    }
-  }, [])
 
   useEffect(() => {
     if (!criado) guardarRascunho(form)
   }, [form, criado])
 
-  // Pacote que vale: o escolhido, se existe e se pode ser comprado agora; senão o teste grátis.
-  const pacote = pacotes.find((p) => p.id === form.pacote && (p.gratis || pagamentoDisponivel)) ?? pacotes.find((p) => p.id === 'teste')
-  const maiorPose = Math.max(...cfg.poses_validas)
-  const posesMax = pacote?.poses_max ?? maiorPose
-  // Poses que valem: a escolhida, se o pacote deixa; senão a sugestão da configuração (ou a maior que cabe).
-  const cabem = cfg.poses_validas.filter((n) => n <= posesMax)
-  const poses = cabem.includes(form.poses) ? form.poses : cabem.includes(cfg.poses_padrao) ? cfg.poses_padrao : (cabem.at(-1) ?? cfg.poses_validas[0])
   // Preço por participante: o total mostrado é o mesmo que o servidor vai calcular ao criar.
   const pessoas = /^\d+$/.test(form.participantes.trim()) ? Number(form.participantes.trim()) : 0
   const total = pessoas >= 1 ? calcularPreco(pessoas, precos, form.fotos) : null
-  const posesPrevia = dinamico ? (form.fotos === 'ilimitado' ? precos.tetoIlimitado : form.fotos) : poses
+  const posesPrevia = form.fotos === 'ilimitado' ? precos.tetoIlimitado : form.fotos
   const horarios = useMemo(() => montarHorarios(form, new Date(), { revelacaoMaxDias: cfg.revelacao_max_dias }), [form, cfg.revelacao_max_dias])
 
   function mudar<K extends keyof Formulario>(campo: K, valor: Formulario[K]) {
@@ -108,13 +80,14 @@ export function CreateEventPage() {
     e.preventDefault()
     if (!form.nome.trim()) return setErro({ campo: 'nome', mensagem: 'Dê um nome para o evento.' })
     if ('campo' in horarios) return setErro(horarios)
-    if (dinamico && (pessoas < 1 || pessoas > 5000)) return setErro({ campo: 'pessoas', mensagem: 'Informe de 1 a 5000 pessoas.' })
+    if (pessoas < 1 || pessoas > 5000) return setErro({ campo: 'pessoas', mensagem: 'Informe de 1 a 5000 pessoas.' })
     setEnviando(true)
     setErro(null)
     try {
       const evento = await api.criarEvento({
         nome: form.nome,
-        ...(dinamico ? { participantes: pessoas, fotos: form.fotos } : { pacote: pacote?.id ?? form.pacote, poses_por_convidado: poses }),
+        participantes: pessoas,
+        fotos: form.fotos,
         captura_inicio: horarios.captura_inicio,
         captura_fim: horarios.captura_fim,
         revelacao_em: horarios.revelacao_em,
@@ -176,24 +149,7 @@ export function CreateEventPage() {
           {erroDe('fim')}
         </fieldset>
 
-        {dinamico && <EscolhaPessoasFotos params={precos} participantes={form.participantes} fotos={form.fotos} total={total} erro={erro?.campo === 'pessoas' ? erro.mensagem : undefined} onParticipantes={(v) => mudar('participantes', v)} onFotos={(v) => mudar('fotos', v)} />}
-
-        {!dinamico && (
-        <fieldset>
-          <legend className="mb-3 text-sm font-semibold">Fotos por convidado</legend>
-          <Opcoes>
-            {cfg.poses_validas.map((n) => (
-              <Opcao key={n} nome="poses" marcada={poses === n} desabilitada={n > posesMax} onEscolher={() => mudar('poses', n)}>
-                <span className="font-display text-[28px] leading-none tabular-nums">{n}</span>
-              </Opcao>
-            ))}
-          </Opcoes>
-          {posesMax < maiorPose && (
-            <p className="mt-2 text-sm text-muted">{pacote?.gratis ? 'O teste grátis' : `O pacote ${pacote?.nome ?? ''}`.trim()} vai até {posesMax} fotos.</p>
-          )}
-          {erroDe('poses')}
-        </fieldset>
-        )}
+        <EscolhaPessoasFotos params={precos} participantes={form.participantes} fotos={form.fotos} total={total} erro={erro?.campo === 'pessoas' ? erro.mensagem : undefined} onParticipantes={(v) => mudar('participantes', v)} onFotos={(v) => mudar('fotos', v)} />
 
         <fieldset>
           <legend className="mb-3 text-sm font-semibold">Revelação</legend>
@@ -219,27 +175,6 @@ export function CreateEventPage() {
           {erroDe('revelacaoEm')}
         </fieldset>
 
-        {!dinamico && (
-        <fieldset>
-          <legend className="mb-3 text-sm font-semibold">Convidados</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {pacotes.map((p) => (
-              <Opcao key={p.id} nome="pacote" marcada={pacote?.id === p.id} desabilitada={!p.gratis && !pagamentoDisponivel} onEscolher={() => mudar('pacote', p.id)} alinhar="esquerda">
-                <span className="flex flex-col gap-1 py-1">
-                  <span className="font-display text-[26px] leading-none tabular-nums">até {p.convidados}</span>
-                  <span className="text-sm text-muted">{p.gratis ? 'Grátis' : pagamentoDisponivel ? precoEmReais(p.preco_centavos) : 'Em breve'}</span>
-                </span>
-              </Opcao>
-            ))}
-          </div>
-          <p className="mt-2 text-sm">
-            <Link to="/precos" className="text-muted underline underline-offset-2 hover:text-paper">
-              O que cada pacote inclui
-            </Link>
-          </p>
-          {erroDe('pacote')}
-        </fieldset>
-        )}
 
         <PreviaConvite nome={form.nome} poses={posesPrevia} revelacao={'campo' in horarios ? null : horarios.revelacao} />
 
@@ -250,13 +185,13 @@ export function CreateEventPage() {
               A criação de eventos está pausada por um instante. Tente de novo em breve.
             </p>
           )}
-          <Botao type="submit" disabled={enviando || (dinamico ? total === null || (total > 0 && !pagamentoDisponivel) : pacotes.length === 0) || !cfg.criacao_aberta} className="w-full">
-            <span key={enviando ? 'envio' : pacote?.id} className="anim-troca">
-              {enviando ? 'Criando...' : dinamico ? (total ? `Continuar · ${precoExato(total)}` : 'Criar a câmera') : pacote && !pacote.gratis ? `Continuar · ${precoEmReais(pacote.preco_centavos)}` : 'Criar a câmera'}
+          <Botao type="submit" disabled={enviando || total === null || (total > 0 && !pagamentoDisponivel) || !cfg.criacao_aberta} className="w-full">
+            <span key={enviando ? 'envio' : total} className="anim-troca">
+              {enviando ? 'Criando...' : total ? `Continuar · ${precoExato(total)}` : 'Criar a câmera'}
             </span>
           </Botao>
-          {dinamico && total !== null && total > 0 && !pagamentoDisponivel && <p className="text-center text-sm text-muted">Pagamento em breve. Por enquanto dá para testar com até {precos.gratis} pessoas e {precos.fotosTeste} fotos cada.</p>}
-          {(dinamico ? total !== null && total > 0 && pagamentoDisponivel : pacote && !pacote.gratis) && <p className="text-center text-sm text-muted">Você paga na próxima etapa. O link só funciona depois do pagamento.</p>}
+          {total !== null && total > 0 && !pagamentoDisponivel && <p className="text-center text-sm text-muted">Pagamento em breve. Por enquanto dá para testar com até {precos.gratis} pessoas e {precos.fotosTeste} fotos cada.</p>}
+          {total !== null && total > 0 && pagamentoDisponivel && <p className="text-center text-sm text-muted">Você paga na próxima etapa. O link só funciona depois do pagamento.</p>}
         </div>
       </form>
     </Pagina>
@@ -275,10 +210,6 @@ function Pagina({ children }: { children: ReactNode }) {
       <main className="mx-auto mt-6 max-w-[520px]">{children}</main>
     </div>
   )
-}
-
-function Opcoes({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-3 gap-2">{children}</div>
 }
 
 interface OpcaoProps {
