@@ -190,7 +190,7 @@ export function SimuladorPrecos() {
   const n = participantes ?? 0
   const preco = params ? calcularPreco(n, params, escolha) : null
   const hoje = real && params ? calcularPreco(n, real.params, escolha) : null
-  const pagos = params ? participantesPagos(n, params) : 0
+  const pagos = params ? participantesPagos(n, params, escolha) : 0
   const igual = !!(real && params && mudancas(real.params, params).length === 0)
   const lista = useMemo(() => (real && params ? mudancas(real.params, params) : []), [real, params])
 
@@ -300,7 +300,7 @@ export function SimuladorPrecos() {
             <div className="mt-7 border-t border-line pt-6" aria-live="polite">
               <p className="font-display text-[54px] leading-none tabular-nums">{dinheiro(preco)}</p>
               <p className="mt-3 text-[15px] text-muted tabular-nums">
-                {preco === 0 ? `Até ${params!.gratis} participantes não pagam.` : `${formatarReais(Math.round(preco / n))} por participante, ${pagos} pagando`}
+                {preco === 0 ? `Até ${params!.gratis} participantes com ${params!.fotosTeste} fotos não pagam.` : `${formatarReais(Math.round(preco / n))} por participante, ${pagos} pagando`}
               </p>
               {escolha === 'ilimitado' && <p className="mt-1 text-sm text-muted">Uso justo: até {params!.tetoIlimitado} fotos por pessoa.</p>}
               {hoje !== null && hoje !== preco && (
