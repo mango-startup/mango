@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { MangoLogo } from '../components/MangoLogo'
+import { api, type DefinicaoPacote } from '../lib/api'
+import { useConfigPublica } from '../lib/configPublica'
+import { precoEmReais } from '../lib/formato'
 import { useTitulo } from '../lib/useTitulo'
 
 // Fotos de exemplo do Pexels, só para a landing do protótipo
@@ -60,7 +64,7 @@ const PERGUNTAS: { pergunta: string; resposta: string; link?: { to: string; text
 ]
 
 // Marca o elemento com .in quando ele entra na tela (revelação ao rolar)
-function useReveal<T extends HTMLElement>() {
+function useReveal<T extends HTMLElement>(threshold = 0.2) {
   const ref = useRef<T>(null)
   useEffect(() => {
     const el = ref.current
@@ -72,11 +76,11 @@ function useReveal<T extends HTMLElement>() {
           io.disconnect()
         }
       },
-      { threshold: 0.2 },
+      { threshold },
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [])
+  }, [threshold])
   return ref
 }
 
@@ -99,8 +103,11 @@ function Reveal({
 
 export function LandingPage() {
   useTitulo()
+  const ctaHero = useRef<HTMLDivElement>(null)
+  const ctaFinal = useRef<HTMLElement>(null)
+  const mostrarCtaFixo = useCtaFixo(ctaHero, ctaFinal)
   return (
-    <div className="min-h-svh bg-base text-paper">
+    <div className="min-h-svh overflow-x-clip bg-base text-paper">
       <div className="mx-auto max-w-[520px] lg:max-w-[1360px] lg:px-10">
         <div className="lg:mt-8 lg:grid lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[1fr_1fr] lg:items-stretch lg:gap-16">
         <section className="sobre-creme rounded-b-[32px] bg-paper pb-8 text-base lg:flex lg:flex-col lg:rounded-[40px] lg:pb-16">
@@ -130,7 +137,7 @@ export function LandingPage() {
             Uma câmera descartável para a sua festa. Cada convidado leva um rolo de 12, 24 ou 36
             fotos. Elas só aparecem quando você revelar.
           </p>
-          <div style={{ '--d': '240ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
+          <div ref={ctaHero} style={{ '--d': '240ms' } as React.CSSProperties} className="anim-up mt-6 px-6 lg:mt-12 lg:px-14">
             <Link
               to="/criar"
               className="btn-shimmer flex h-[52px] items-center justify-center rounded-[14px] bg-base text-base font-semibold text-paper transition hover:bg-surface active:scale-[0.98] lg:inline-flex lg:h-16 lg:px-12 lg:text-lg"
@@ -144,7 +151,11 @@ export function LandingPage() {
         <PhotoStrip />
         </div>
 
-        <section id="como-funciona" className="mt-10 bg-surface px-6 py-3 lg:mt-24 lg:grid lg:grid-cols-3 lg:rounded-[40px] lg:px-8 lg:py-16">
+        <DuranteAFesta />
+        <Revelacao />
+        <FaixaPreco />
+
+        <section id="como-funciona" className="mt-10 scroll-mt-6 bg-surface px-6 py-3 lg:mt-24 lg:grid lg:grid-cols-3 lg:rounded-[40px] lg:px-8 lg:py-16">
           {STEPS.map((step, i) => (
             <Reveal
               key={step.title}
@@ -188,7 +199,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="mt-14 px-6 lg:mt-48 lg:text-center">
+        <section ref={ctaFinal} className="mt-14 px-6 lg:mt-48 lg:text-center">
           <Reveal>
           <h2 className="font-display text-[40px] leading-[1.02] lg:text-[96px]">
             A festa acontece.
@@ -205,7 +216,7 @@ export function LandingPage() {
           </Reveal>
         </section>
 
-        <footer className="flex items-center justify-between px-6 pb-7 pt-14 text-sm text-muted lg:px-0 lg:pb-10 lg:pt-24">
+        <footer className="flex items-center justify-between px-6 pb-24 pt-14 text-sm text-muted lg:px-0 lg:pb-10 lg:pt-24">
           <span className="flex items-center gap-2 font-display text-lg text-paper">
             <MangoLogo className="h-[18px] w-3.5" />
             mango
@@ -217,22 +228,196 @@ export function LandingPage() {
           </nav>
         </footer>
       </div>
+
+      {/* Celular: o botão fica à mão depois do hero e sai de cena no convite final.
+          Vai para o body porque a transição de rota usa transform, que prenderia o fixed. */}
+      {createPortal(
+      <div
+        inert={!mostrarCtaFixo}
+        className={`cta-fixo fixed inset-x-0 bottom-0 z-20 border-t border-line bg-base px-6 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 lg:hidden ${
+          mostrarCtaFixo ? '' : 'pointer-events-none translate-y-full opacity-0'
+        }`}
+      >
+        <Link
+          to="/criar"
+          className="mx-auto flex h-[52px] max-w-[472px] items-center justify-center rounded-[14px] bg-paper font-semibold text-base transition active:scale-[0.98]"
+        >
+          Criar uma câmera
+        </Link>
+      </div>,
+      document.body,
+      )}
     </div>
   )
 }
 
+// Mostra o botão fixo quando o CTA do hero já saiu da tela e o convite final ainda não entrou.
+function useCtaFixo(hero: React.RefObject<HTMLElement | null>, final: React.RefObject<HTMLElement | null>) {
+  const [visivel, setVisivel] = useState({ hero: true, final: false })
+  useEffect(() => {
+    const h = hero.current
+    const f = final.current
+    if (!h || !f) return
+    const io = new IntersectionObserver((entries) => {
+      setVisivel((v) => {
+        const novo = { ...v }
+        for (const e of entries) {
+          if (e.target === h) novo.hero = e.isIntersecting || e.boundingClientRect.top > 0
+          if (e.target === f) novo.final = e.isIntersecting
+        }
+        return novo
+      })
+    })
+    io.observe(h)
+    io.observe(f)
+    return () => io.disconnect()
+  }, [hero, final])
+  return !visivel.hero && !visivel.final
+}
+
+// Ato 2: durante a festa as fotos caem no rolo viradas para baixo.
+const CONVIDADOS = [
+  { nome: 'Ana', restam: 7 },
+  { nome: 'Léo', restam: 15 },
+  { nome: 'Bia', restam: 2 },
+]
+const GIROS = ['-7deg', '4deg', '-2deg', '8deg', '-4deg']
+
+function DuranteAFesta() {
+  const pilha = useReveal<HTMLDivElement>(0.35)
+  return (
+    <section className="mt-16 px-6 lg:mt-36 lg:grid lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-16 lg:px-0">
+      <div>
+        <h2 className="font-display text-[40px] leading-[1.02] lg:text-[72px]">Durante a festa, cada um tem um rolo.</h2>
+        <p className="mt-5 max-w-[440px] text-[17px] leading-normal text-paper/80 lg:mt-8 lg:text-[20px]">
+          O convidado abre o link e fotografa. A foto vai para o rolo virada para baixo: nem quem tirou consegue
+          ver. Acabaram as poses, acabou.
+        </p>
+      </div>
+
+      <div ref={pilha} className="pilha mt-10 lg:mt-0">
+        <div className="relative mx-auto aspect-[4/5] w-[min(78%,360px)] lg:w-[min(80%,420px)]" aria-hidden="true">
+          {GIROS.map((giro, i) => (
+            <div
+              key={giro}
+              className="quadro-virado absolute inset-0 flex flex-col justify-between rounded-2xl border border-line bg-surface p-4 shadow-[0_18px_40px_-20px_rgb(0_0_0/0.8)]"
+              style={{ '--giro': giro, '--d': `${i * 90}ms`, zIndex: i } as React.CSSProperties}
+            >
+              <span className="text-sm font-semibold text-muted">{String(i + 1).padStart(3, '0')}</span>
+              <span className="flex items-center gap-2 self-end font-display text-lg text-paper/70">
+                <MangoLogo className="h-[18px] w-3.5" />
+                mango
+              </span>
+            </div>
+          ))}
+        </div>
+        <ul className="mx-auto mt-12 grid max-w-[420px] grid-cols-3 gap-3 text-center">
+          {CONVIDADOS.map((c) => (
+            <li key={c.nome} className="rounded-xl border border-line px-2 py-3">
+              <span className="block font-display text-[30px] leading-none tabular-nums">{c.restam}</span>
+              <span className="mt-1 block text-[13px] text-muted">poses de {c.nome}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+// Ato 3: na revelação, o véu sai de cima das fotos conforme elas atravessam a tela.
+const ALBUM = [
+  { id: STRIP_PHOTOS[0], legenda: 'Ana, 23h41' },
+  { id: STRIP_PHOTOS[1], legenda: 'Léo, 0h12' },
+  { id: STRIP_PHOTOS[2], legenda: 'Bia, 1h58' },
+]
+
+function Revelacao() {
+  const album = useReveal<HTMLDivElement>(0.3)
+  return (
+    <section className="mt-20 px-6 lg:mt-40 lg:px-0">
+      <h2 className="font-display text-[40px] leading-[1.02] lg:max-w-[900px] lg:text-[72px]">
+        Na manhã seguinte, o rolo vira álbum.
+      </h2>
+      <p className="mt-5 max-w-[460px] text-[17px] leading-normal text-paper/80 lg:mt-8 lg:text-[20px]">
+        No horário que você escolher, as fotos aparecem para todo mundo ao mesmo tempo, do jeito que saíram.
+      </p>
+      <div ref={album} className="revelacao mt-10 grid grid-cols-2 gap-3 lg:mt-16 lg:grid-cols-3 lg:gap-6">
+        {ALBUM.map((foto, i) => (
+          <figure key={foto.id} className={i === 0 ? 'col-span-2 lg:col-span-1' : ''}>
+            <div className={`relative overflow-hidden rounded-xl bg-surface ${i === 0 ? 'aspect-[4/3] lg:aspect-[3/4]' : 'aspect-[3/4]'}`}>
+              <img src={photoUrl(foto.id)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              <div
+                aria-hidden="true"
+                className="veu absolute inset-0 bg-[#2a1f14]"
+                style={{ '--d': `${i * 220}ms` } as React.CSSProperties}
+              />
+            </div>
+            <figcaption className="mt-2 text-sm text-muted">{foto.legenda}</figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// Ato 4: quanto custa, com os valores que o admin define (nada fixo no texto).
+function FaixaPreco() {
+  const pagos = useConfigPublica().pacotes_pagos_disponiveis
+  const [pacotes, setPacotes] = useState<DefinicaoPacote[] | null>(null)
+  useEffect(() => {
+    let ativo = true
+    api.pacotes().then(
+      (p) => ativo && setPacotes(p),
+      () => {},
+    )
+    return () => {
+      ativo = false
+    }
+  }, [])
+  const teste = pacotes?.find((p) => p.gratis)
+  const pagosOrdenados = (pacotes ?? []).filter((p) => !p.gratis).sort((a, b) => a.preco_centavos - b.preco_centavos)
+  const menor = pagos ? pagosOrdenados[0] : undefined
+  return (
+    <section className="mt-16 px-6 lg:mt-32 lg:px-0">
+      <Link
+        to="/precos"
+        className="sobre-creme flex flex-col gap-4 rounded-[24px] bg-paper p-6 text-base transition active:scale-[0.99] lg:flex-row lg:items-end lg:justify-between lg:rounded-[40px] lg:p-14"
+      >
+        <span>
+          <span className="block font-display text-[34px] leading-none lg:text-[56px]">Grátis para testar.</span>
+          <span className="mt-3 block min-h-[1.5em] text-[17px] lg:text-[20px]">
+            {teste && `Até ${teste.convidados} convidados, ${teste.poses_max} fotos cada.`}
+            {menor && ` Festas a partir de ${precoEmReais(menor.preco_centavos)}.`}
+          </span>
+        </span>
+        <span className="font-semibold">
+          <span className="border-b border-current pb-px">Ver os pacotes</span>
+        </span>
+      </Link>
+    </section>
+  )
+}
+
 // Três quadros borrados que se revelam ao toque — o gesto central do produto.
+// Na abertura, um flash curto: o contador do rolo desce uma pose.
 function PhotoStrip() {
   const [revealed, setRevealed] = useState<boolean[]>([false, false, false])
+  const poses = useConfigPublica().poses_padrao
+  const [tiradas, setTiradas] = useState(0)
 
   useEffect(() => {
-    const timer = setTimeout(() => setRevealed((r) => [true, r[1], r[2]]), 1200)
-    return () => clearTimeout(timer)
+    const flash = setTimeout(() => setTiradas(1), 950)
+    const timer = setTimeout(() => setRevealed((r) => [true, r[1], r[2]]), 1600)
+    return () => {
+      clearTimeout(flash)
+      clearTimeout(timer)
+    }
   }, [])
 
   return (
-    <div style={{ '--d': '200ms' } as React.CSSProperties} className="anim-up lg:self-center">
-      <div className="mx-6 mt-7 grid grid-cols-3 gap-2.5 lg:mx-0 lg:mt-0 lg:gap-5">
+    <div style={{ '--d': '200ms' } as React.CSSProperties} className="anim-up relative lg:self-center">
+      <div aria-hidden="true" className="flash-hero pointer-events-none absolute -inset-3 z-10 rounded-3xl bg-white lg:-inset-6" />
+      <div className="mx-6 mt-7 grid grid-cols-3 gap-2.5 lg:mx-0 lg:mt-0 lg:gap-6">
         {STRIP_PHOTOS.map((id, i) => (
           <button
             key={id}
@@ -240,18 +425,19 @@ function PhotoStrip() {
             aria-label={revealed[i] ? `Foto ${i + 1} revelada` : `Revelar foto ${i + 1}`}
             onClick={() => setRevealed((r) => r.map((v, j) => (j === i ? !v : v)))}
             className={`frame relative aspect-[3/4.2] overflow-hidden rounded-xl bg-surface ${
-              i === 1 ? 'mt-6 lg:mt-12' : i === 2 ? 'mt-2 lg:mt-4' : ''
+              i === 1 ? 'mt-6 lg:mt-14' : i === 2 ? 'mt-2 lg:mt-5' : ''
             }`}
             style={
               {
                 clipPath: 'polygon(0 0, 100% 0, 100% 86%, 86% 100%, 0 100%)',
                 '--tilt': ['-2deg', '1.5deg', '-1deg'][i],
-                              } as React.CSSProperties
+              } as React.CSSProperties
             }
           >
             <img
               src={photoUrl(id)}
               alt=""
+              fetchPriority={i === 0 ? 'high' : undefined}
               className={`h-full w-full object-cover transition duration-700 ease-out ${
                 revealed[i] ? '' : 'scale-110 blur-lg brightness-50 saturate-50'
               }`}
@@ -264,7 +450,15 @@ function PhotoStrip() {
           </button>
         ))}
       </div>
-      <p className="mx-6 mt-5 text-sm text-muted lg:mx-0 lg:mt-10 lg:text-[18px]">Toque nos quadros. É assim que o álbum aparece.</p>
+      <div className="mx-6 mt-5 flex items-baseline justify-between gap-4 lg:mx-0 lg:mt-10">
+        <p className="text-sm text-muted lg:text-[18px]">Toque nos quadros. É assim que o álbum aparece.</p>
+        <p className="shrink-0 text-sm text-muted lg:text-[18px]" aria-live="off">
+          <span key={tiradas} className="anim-rota inline-block font-display text-[22px] text-paper tabular-nums lg:text-[28px]">
+            {poses - tiradas}
+          </span>{' '}
+          poses
+        </p>
+      </div>
     </div>
   )
 }
