@@ -34,6 +34,7 @@ export const ACOES_AUDITORIA: Record<string, string> = {
   'config.restaurar': 'Voltou ao padrão',
   'pacote.criar': 'Criou pacote',
   'pacote.alterar': 'Alterou pacote',
+  'preco.publicar': 'Publicou o preço por participante',
   'admin.entrar': 'Entrou',
   'admin.trocar_senha': 'Trocou a senha',
   'admin.redefinir_senha': 'Redefiniu a senha de',

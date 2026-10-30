@@ -755,6 +755,17 @@ export function rotasAdmin(pool: Pool, servicos: Servicos, agora: () => Date = (
     return c.json({ pacote: r.pacote })
   })
 
+  // --- Preço por participante (#169): o que o simulador publica
+  app.get('/api/admin/preco', exigirAdmin, async (c) => c.json(await servicos.precos.obter()))
+
+  app.put('/api/admin/preco', exigirAdmin, async (c) => {
+    const corpo = await lerCorpo(c)
+    if (!corpo) return erro(c, 400, 'corpo_invalido', 'Envie um JSON válido.')
+    const r = await servicos.precos.publicar(corpo, c.get('admin'))
+    if (!r.ok) return erro(c, 400, 'validacao', 'Confira os campos.', { erros: r.erros })
+    return c.json(r.preco)
+  })
+
   // --- Configurações
   app.get('/api/admin/configuracoes', exigirAdmin, async (c) => {
     const linhas = await servicos.config.linhas()
