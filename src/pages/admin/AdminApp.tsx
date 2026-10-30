@@ -16,6 +16,7 @@ import { Pacotes } from './Pacotes'
 import { Pagamentos } from './Pagamentos'
 import { Resumo } from './Resumo'
 import { Saude } from './Saude'
+import { SimuladorPrecos } from './SimuladorPrecos'
 import { TrocarSenha } from './TrocarSenha'
 import { Uso } from './Uso'
 
@@ -38,6 +39,7 @@ export default function AdminApp() {
             <Route path="financeiro" element={<Financeiro />} />
             <Route path="pagamentos" element={<Pagamentos />} />
             <Route path="pacotes" element={<Pacotes />} />
+            <Route path="simulador-precos" element={<SimuladorPrecos />} />
             <Route path="configuracoes" element={<Configuracoes />} />
             <Route path="auditoria" element={<Auditoria />} />
             <Route path="administradores" element={<Administradores />} />
