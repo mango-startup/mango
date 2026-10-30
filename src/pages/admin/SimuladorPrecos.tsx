@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { admin, centavosParaCampo, formatarReais, reaisParaCentavos, type PacoteAdmin } from '../../lib/admin.ts'
 import { ONCE_USD, PARAMS_PADRAO, calcularPreco, type ParamsPreco } from '../../lib/simuladorPreco.ts'
-import { Aviso, Campo, Cartao, Titulo } from './ui'
+import { Aviso, Campo, Cartao, Interruptor, Titulo } from './ui'
 
 // Os campos guardam o texto digitado; só viram número ao calcular.
 interface Formulario {
   gratis: string
+  cobrarTodos: boolean
   fotosTeste: string
   fotosLimitadas: string
   ate1: string
@@ -26,6 +27,7 @@ const doPadrao = (): Formulario => {
   const [d1, d2, d3] = PARAMS_PADRAO.degraus
   return {
     gratis: String(PARAMS_PADRAO.gratis),
+    cobrarTodos: PARAMS_PADRAO.cobrarTodos,
     fotosTeste: String(PARAMS_PADRAO.fotosTeste),
     fotosLimitadas: String(PARAMS_PADRAO.fotosLimitadas),
     ate1: String(d1.ate),
@@ -66,12 +68,13 @@ function ler(f: Formulario): { params: ParamsPreco | null; participantes: number
   const nulos = [gratis, fotosTeste, fotosLimitadas, ate1, ate2, p1, p2, p3, ilim].some((v) => v === null)
   const base = { participantes, cotacao: cotacao === null ? null : cotacao / 100 }
   if (nulos) return { ...base, params: null, erro: 'Há campo com valor inválido: use números inteiros e valores em reais, como 1,50.' }
-  if (ate1! <= gratis! || ate2! <= ate1!) return { ...base, params: null, erro: 'Os degraus precisam crescer: grátis < fim do 1º degrau < fim do 2º degrau.' }
+  if (ate1! <= (f.cobrarTodos ? 0 : gratis!) || ate2! <= ate1!) return { ...base, params: null, erro: 'Os degraus precisam crescer: o fim do 1º degrau tem de ser maior que o grátis e menor que o do 2º.' }
   return {
     ...base,
     erro: null,
     params: {
       gratis: gratis!,
+      cobrarTodos: f.cobrarTodos,
       fotosTeste: fotosTeste!,
       fotosLimitadas: fotosLimitadas!,
       degraus: [
@@ -115,7 +118,7 @@ export function SimuladorPrecos() {
     return [...lista].sort((a, b) => a - b)
   }, [participantes])
 
-  const campo = (rotulo: string, chave: keyof Formulario, ajuda?: string, modo: 'numeric' | 'decimal' = 'numeric') => (
+  const campo = (rotulo: string, chave: Exclude<keyof Formulario, 'cobrarTodos'>, ajuda?: string, modo: 'numeric' | 'decimal' = 'numeric') => (
     <Campo rotulo={rotulo} ajuda={ajuda}>
       {(id) => <Input id={id} inputMode={modo} value={f[chave]} onChange={(e) => mudar({ [chave]: e.target.value })} />}
     </Campo>
@@ -131,11 +134,16 @@ export function SimuladorPrecos() {
         <Cartao>
           <h2 className="font-display text-[24px] leading-none">Parâmetros</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {campo('Participantes grátis', 'gratis', 'O teste: todo evento até aqui não paga.')}
+            {campo('Participantes grátis', 'gratis', 'Até aqui o evento não paga nada (o teste).')}
             {campo('Fotos por pessoa no teste', 'fotosTeste')}
             {campo('Fotos por pessoa (limitado)', 'fotosLimitadas', 'O padrão nos pacotes pagos.')}
             {campo('Extra de fotos ilimitadas (R$ por participante)', 'ilimitadas', undefined, 'decimal')}
           </div>
+          <div className="mt-5 flex items-center justify-between gap-4">
+            <span className="text-[15px]">Passou do grátis, todos pagam</span>
+            <Interruptor marcado={f.cobrarTodos} onMudar={(v) => mudar({ cobrarTodos: v })} rotulo="Passou do grátis, todos pagam" />
+          </div>
+          <p className="mt-2 text-sm text-muted">Ligado: com 6 participantes pagam os 6, o grátis é só o teste. Desligado: só o 6º em diante paga.</p>
           <h3 className="mt-6 text-[15px] font-semibold">Preço por participante (R$)</h3>
           <div className="mt-3 grid gap-4 sm:grid-cols-3">
             {campo('Até o participante nº', 'ate1')}
