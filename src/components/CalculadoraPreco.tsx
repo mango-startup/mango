@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { precoExato } from '../lib/formato'
 import { OPCOES_FOTOS, calcularPreco, participantesPagos, type ParamsPreco } from '../lib/simuladorPreco.ts'
@@ -6,15 +5,23 @@ import { OPCOES_FOTOS, calcularPreco, participantesPagos, type ParamsPreco } fro
 const ATALHOS = [20, 50, 100, 200]
 
 // Calculadora do /precos: a pessoa escolhe quantos participantes e quantas fotos e vê o total na hora.
-export function CalculadoraPreco({ params, pagamentoDisponivel }: { params: ParamsPreco; pagamentoDisponivel: boolean }) {
-  const [texto, setTexto] = useState('30')
-  const [fotos, setFotos] = useState<number | 'ilimitado'>(24)
+interface Props {
+  params: ParamsPreco
+  pagamentoDisponivel: boolean
+  /** Estado de quem usa a calculadora, para a página poder trocar os valores (exemplos). */
+  texto: string
+  fotos: number | 'ilimitado'
+  onTexto: (v: string) => void
+  onFotos: (v: number | 'ilimitado') => void
+}
+
+export function CalculadoraPreco({ params, pagamentoDisponivel, texto, fotos, onTexto: setTexto, onFotos: setFotos }: Props) {
   const n = /^\d+$/.test(texto.trim()) ? Math.min(Number(texto.trim()), 5000) : 0
   const total = calcularPreco(n, params, fotos)
   const pagantes = participantesPagos(n, params, fotos)
 
   return (
-    <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1fr]">
+    <div id="calculadora" className="mt-10 grid scroll-mt-6 gap-6 lg:grid-cols-[1fr_1fr]">
       <div className="rounded-[20px] border border-line p-5 sm:p-7">
         <label htmlFor="participantes" className="text-[17px] font-semibold">
           Quantas pessoas vão fotografar?
