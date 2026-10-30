@@ -60,9 +60,11 @@ export function calcularPreco(participantes: number, p: ParamsPreco, fotos: numb
     porDegrau += Math.max(0, Math.min(total, fim) - inicio) * d.centavos
     inicio = Math.max(inicio, fim)
   }
-  const bruto = fotos === 'ilimitado' ? pagos * p.ilimitadoCentavos : porDegrau + pagos * Math.max(0, fotos - p.fotosBase) * p.fotoExtraCentavos
-  const comPiso = Math.max(bruto, p.pisoCentavos)
-  return p.arredondar90 ? Math.ceil((comPiso - 90) / 100) * 100 + 90 : comPiso
+  // O piso vale para o preço base. As fotos extras entram por cima dele; o ilimitado troca os degraus pelo seu
+  // preço e leva junto o que faltou para o piso. Assim cada opção custa mais que a anterior em qualquer tamanho.
+  const base = Math.max(porDegrau, p.pisoCentavos)
+  const bruto = fotos === 'ilimitado' ? base - porDegrau + pagos * p.ilimitadoCentavos : base + pagos * Math.max(0, fotos - p.fotosBase) * p.fotoExtraCentavos
+  return p.arredondar90 ? Math.ceil((bruto - 90) / 100) * 100 + 90 : bruto
 }
 
 export type Erros = Record<string, string>
