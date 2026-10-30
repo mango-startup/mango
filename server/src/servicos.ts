@@ -17,6 +17,8 @@ export interface Servicos {
   pagamento: ServicoPagamento | null
   /** Envio de e-mail (Resend). `null` quando RESEND_API_KEY não está definida: o admin não consegue escrever aos anfitriões. */
   email: EnviadorEmail | null
+  /** Endereço público do site (APP_URL), para montar os links dos e-mails. `null`: não dá para mandar link. */
+  appUrl: string | null
   /** Avança os eventos pelo relógio usando a configuração atual (prazo dos rascunhos). */
   avancar(): Promise<void>
 }
@@ -27,7 +29,7 @@ export interface Gateway {
   appUrl: string
 }
 
-export function criarServicos(pool: Pool, agora: () => Date = () => new Date(), gateway: Gateway | null = null, email: EnviadorEmail | null = null): Servicos {
+export function criarServicos(pool: Pool, agora: () => Date = () => new Date(), gateway: Gateway | null = null, email: EnviadorEmail | null = null, appUrl: string | null = null): Servicos {
   const config = new ServicoConfig(pool)
   const pacotes = new ServicoPacotes(pool)
   return {
@@ -35,6 +37,7 @@ export function criarServicos(pool: Pool, agora: () => Date = () => new Date(), 
     pacotes,
     precos: new ServicoPrecos(pool),
     email,
+    appUrl: appUrl ?? gateway?.appUrl ?? null,
     pagamento: gateway ? new ServicoPagamento({ pool, provedor: gateway.provedor, pacotes, appUrl: gateway.appUrl, agora }) : null,
     async avancar() {
       const c = await config.valores()

@@ -97,7 +97,7 @@ async function chamar(metodo: string, caminho: string, corpo?: unknown, cabecalh
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
 
 async function criarEvento(pacote: 'festa' | 'teste' = 'festa') {
-  const r = await chamar('POST', '/api/eventos', { nome: 'Casamento da Ana', pacote, captura_inicio: h(48), captura_fim: h(54) })
+  const r = await chamar('POST', '/api/eventos', { nome: 'Casamento da Ana', pacote, email: 'ana@mango.test', captura_inicio: h(48), captura_fim: h(54) })
   assert.equal(r.status, 201, JSON.stringify(r.json))
   await pool!.query('update eventos set criado_em = $2 where id = $1', [r.json.evento.id, agora])
   return { id: r.json.evento.id as string, token: r.json.anfitriao_token as string }
@@ -193,6 +193,21 @@ test('webhook sem assinatura ou com assinatura errada é recusado e não altera 
   // A mesma entrega com a assinatura certa é aceita (o id não foi "queimado" pela forjada)
   assert.equal((await webhook(falso)).json.resultado, 'processado')
   assert.equal(await estadoDe(ev.id), 'pronto')
+})
+
+test('o e-mail do Stripe vira o contato do anfitrião só quando ele não informou o dele', opcoes, async () => {
+  const informou = await criarEvento() // criou com ana@mango.test
+  const semEmail = await criarEvento()
+  await pool!.query('update eventos set anfitriao_email = null where id = $1', [semEmail.id])
+  for (const ev of [informou, semEmail]) {
+    const { sessaoId } = await abrirCobranca(ev)
+    stripe.pagar(sessaoId)
+    Object.assign(stripe.sessoes.get(sessaoId)!, { customer_email: 'Pagador@Mango.Test' })
+    assert.equal((await webhook({ tipo: 'checkout.session.completed', sessaoId })).status, 200)
+  }
+  const email = async (id: string) => (await pool!.query<{ anfitriao_email: string | null }>('select anfitriao_email from eventos where id = $1', [id])).rows[0].anfitriao_email
+  assert.equal(await email(informou.id), 'ana@mango.test') // o que ele informou ao criar vale
+  assert.equal(await email(semEmail.id), 'pagador@mango.test') // reserva, em minúsculas
 })
 
 test('pagamento confirmado libera o evento uma vez, e a mesma entrega não se repete', opcoes, async () => {

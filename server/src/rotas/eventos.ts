@@ -92,6 +92,17 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
     const limiteConvidados = params ? participantes : pacote.convidados
     const valorCentavos = params && valor > 0 ? valor : null
 
+    // E-mail do anfitrião: contato e recuperação do link. Obrigatório quando há cobrança; no teste grátis é opcional.
+    let emailAnfitriao: string | null = null
+    if (typeof corpo.email === 'string' && corpo.email.trim() !== '') {
+      const e = corpo.email.trim().toLowerCase()
+      if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return erro(c, 400, 'email_invalido', 'Confira o e-mail: precisa ser parecido com nome@exemplo.com.')
+      emailAnfitriao = e
+    } else if (corpo.email !== undefined && corpo.email !== null && typeof corpo.email !== 'string') {
+      return erro(c, 400, 'email_invalido', 'Confira o e-mail: precisa ser parecido com nome@exemplo.com.')
+    }
+    if (pago && !emailAnfitriao) return erro(c, 400, 'email_obrigatorio', 'Informe seu e-mail: é para onde mandamos o link de anfitrião.')
+
     const token = gerarToken()
     // Evento pago fica aguardando pagamento; o grátis já nasce pronto.
     const estado = pago ? 'aguardando_pagamento' : 'pronto'
@@ -101,10 +112,23 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
       try {
         const r = await pool.query<EventoLinha>(
           `insert into eventos (codigo, anfitriao_token_hash, nome, estado, pacote, limite_convidados, retencao_dias,
-             poses_por_convidado, limite_fotos, captura_inicio, captura_fim, revelacao_em, revelacao_manual, valor_centavos)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning ${COLUNAS}`,
-          [codigo, hashToken(token), nome, estado, pacote.id, limiteConvidados, pacote.retencao_dias, poses, limiteConvidados * poses, inicio, fim, revelacao, manual, valorCentavos],
+             poses_por_convidado, limite_fotos, captura_inicio, captura_fim, revelacao_em, revelacao_manual, valor_centavos, anfitriao_email)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning ${COLUNAS}`,
+          [codigo, hashToken(token), nome, estado, pacote.id, limiteConvidados, pacote.retencao_dias, poses, limiteConvidados * poses, inicio, fim, revelacao, manual, valorCentavos, emailAnfitriao],
         )
+        // O link de anfitrião também vai por e-mail (quem perde o aparelho não perde o evento). Falha aqui não derruba a criação.
+        if (emailAnfitriao && servicos.email && servicos.appUrl) {
+          const e = r.rows[0]
+          const texto = [
+            `Sua câmera "${e.nome}" foi criada.`,
+            '',
+            'Link de anfitrião (é com ele que você administra o evento, em qualquer aparelho; não mande para os convidados):',
+            `${servicos.appUrl}/anfitriao#${token}`,
+            '',
+            e.estado === 'pronto' ? `Link para os convidados:\n${servicos.appUrl}/c/${e.codigo}` : 'O link para os convidados fica disponível depois do pagamento.',
+          ].join('\n')
+          void servicos.email.enviar({ para: emailAnfitriao, assunto: 'Seu link de anfitrião do Mango', texto }).catch(() => {})
+        }
         return c.json({ evento: r.rows[0], anfitriao_token: token }, 201)
       } catch (e) {
         if ((e as { code?: string }).code !== '23505') throw e // 23505 = código repetido: tenta outro

@@ -73,6 +73,8 @@ export interface NovoEvento {
   /** Preço por participante: no lugar de `pacote` e `poses_por_convidado` (que ficam só para pedidos antigos). */
   participantes?: number
   fotos?: number | 'ilimitado'
+  /** E-mail do anfitrião: recebe o link de anfitrião. Obrigatório se o evento é pago. */
+  email?: string
   captura_inicio: string
   captura_fim: string
   /** Sem valor e sem revelacao_manual: 12 h depois do fim. */

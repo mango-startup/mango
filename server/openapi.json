@@ -5517,6 +5517,11 @@
               }
             ],
             "description": "Fotos por pessoa (preço por participante): de 1 ao teto, ou `ilimitado` (usa o teto). Padrão: o sugerido pelo preço publicado."
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "description": "E-mail do anfitrião: o link de anfitrião é enviado para ele. Obrigatório quando o evento é pago (`email_obrigatorio`); opcional no teste grátis. Inválido: `email_invalido`."
           }
         }
       },

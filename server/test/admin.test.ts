@@ -228,7 +228,7 @@ test('configurações: lista com padrão, valida tudo ou nada, restaura e audita
 test('a configuração vale de verdade: limite de captura, criação pausada, tamanho de foto e limites de requisição', opcoes, async () => {
   const cookie = await adminLiberado('raziel')
   const criar = (extra: Record<string, unknown> = {}, ip = '20.0.0.1') =>
-    chamar('POST', '/api/eventos', { corpo: { nome: 'Festa', captura_inicio: h(1), captura_fim: h(4), ...extra }, ip })
+    chamar('POST', '/api/eventos', { corpo: { nome: 'Festa', email: 'anfitriao@mango.test', captura_inicio: h(1), captura_fim: h(4), ...extra }, ip })
 
   // Limite de captura vira 2 h: 3 h passa a ser recusado, com o número na mensagem.
   await config(cookie, { captura_max_horas: 2 })
@@ -326,7 +326,7 @@ test('pacotes: criar, editar, desativar, proteger o teste e não mexer em evento
   const cookie = await adminLiberado('raziel')
   await config(cookie, { pacotes_pagos_disponiveis: true })
   const criarEvento = async (pacote: string, ip: string) => {
-    const r = await chamar('POST', '/api/eventos', { corpo: { nome: 'E', pacote, captura_inicio: h(1), captura_fim: h(4) }, ip })
+    const r = await chamar('POST', '/api/eventos', { corpo: { nome: 'E', pacote, email: 'a@mango.test', captura_inicio: h(1), captura_fim: h(4) }, ip })
     // O relógio do teste anda sozinho; alinha a criação a ele para a limpeza de rascunhos não pegar o evento pago.
     if (r.status === 201) await pool!.query('update eventos set criado_em = $2 where codigo = $1', [r.json.evento.codigo, agora])
     return r
@@ -392,7 +392,7 @@ test('pacotes: criar, editar, desativar, proteger o teste e não mexer em evento
 test('pacote pago só com o pagamento ligado (padrão: desligado)', opcoes, async () => {
   const cookie = await adminLiberado('raziel')
   await config(cookie, { pacotes_pagos_disponiveis: null })
-  const r = await chamar('POST', '/api/eventos', { corpo: { nome: 'E', pacote: 'festa', captura_inicio: h(1), captura_fim: h(4) }, ip: '60.0.0.1' })
+  const r = await chamar('POST', '/api/eventos', { corpo: { nome: 'E', pacote: 'festa', email: 'a@mango.test', captura_inicio: h(1), captura_fim: h(4) }, ip: '60.0.0.1' })
   assert.equal(r.status, 409)
   assert.equal(r.json.erro, 'pagamento_indisponivel')
   assert.equal((await chamar('POST', '/api/eventos', { corpo: { nome: 'E', captura_inicio: h(1), captura_fim: h(4) }, ip: '60.0.0.1' })).status, 201) // teste grátis segue
