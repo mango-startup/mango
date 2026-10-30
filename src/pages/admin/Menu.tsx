@@ -17,6 +17,7 @@ const ICONES: Record<string, ReactNode> = {
   financeiro: <path d="M12 3v18M16 7.5c0-1.4-1.8-2.5-4-2.5s-4 1.1-4 2.5 1.8 2.5 4 2.5 4 1.1 4 2.5-1.8 2.5-4 2.5-4-1.1-4-2.5" />,
   pagamentos: <path d="M3 7h18v10H3zM3 11h18M7 15h3" />,
   pacotes: <path d="M12 3l8 4v10l-8 4-8-4V7zM4 7l8 4 8-4M12 11v10" />,
+  simulador: <path d="M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h2M16 16h0" />,
   configuracoes: <path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 4v6M8 14v6" />,
   saude: <path d="M3 12h4l2-5 4 10 2-5h6" />,
   auditoria: <path d="M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6" />,
@@ -56,6 +57,7 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
       { para: '/admin/financeiro', rotulo: 'Financeiro', icone: 'financeiro' },
       { para: '/admin/pagamentos', rotulo: 'Pagamentos', icone: 'pagamentos' },
       { para: '/admin/pacotes', rotulo: 'Pacotes', icone: 'pacotes' },
+      { para: '/admin/simulador-precos', rotulo: 'Simulador de preços', icone: 'simulador' },
     ],
   },
   {
