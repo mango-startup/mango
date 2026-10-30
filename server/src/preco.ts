@@ -42,13 +42,19 @@ export const PARAMS_PADRAO: ParamsPreco = {
   arredondar90: true,
 }
 
-/** Valor em centavos para `participantes` com `fotos` por pessoa (ou ilimitadas). Até `gratis` participantes, zero. */
+/** Fotos acima do que o teste inclui (ou ilimitadas) tiram o evento do grátis, mesmo com poucos participantes. */
+export function fotosPagas(p: ParamsPreco, fotos: number | 'ilimitado'): boolean {
+  return fotos === 'ilimitado' || fotos > p.fotosTeste
+}
+
+/** Valor em centavos para `participantes` com `fotos` por pessoa (ou ilimitadas). Até `gratis` participantes e com as fotos do teste, zero. */
 export function calcularPreco(participantes: number, p: ParamsPreco, fotos: number | 'ilimitado'): number {
   const total = Math.max(0, Math.floor(participantes))
-  if (total <= p.gratis) return 0
-  const pagos = p.cobrarTodos ? total : total - p.gratis
+  if (total <= p.gratis && !fotosPagas(p, fotos)) return 0
+  const todos = p.cobrarTodos || fotosPagas(p, fotos)
+  const pagos = todos ? total : total - p.gratis
   let porDegrau = 0
-  let inicio = p.cobrarTodos ? 0 : p.gratis
+  let inicio = todos ? 0 : p.gratis
   for (const d of p.degraus) {
     const fim = d.ate ?? Infinity
     porDegrau += Math.max(0, Math.min(total, fim) - inicio) * d.centavos

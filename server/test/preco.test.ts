@@ -5,7 +5,7 @@ import { PARAMS_PADRAO, calcularPreco, validarParams } from '../src/preco.ts'
 // Os mesmos valores de referência do simulador do admin (src/lib/simuladorPreco.ts): se um mudar, o outro também.
 test('preço por participante: valores de referência', () => {
   const casos: [number, (number | 'ilimitado')[], number[]][] = [
-    [5, [10, 15, 24, 36, 'ilimitado'], [0, 0, 0, 0, 0]],
+    [5, [10, 15, 24, 36, 'ilimitado'], [0, 1490, 1490, 1590, 2290]], // com mais fotos que o teste, 5 participantes já pagam
     [6, [10, 15, 24, 36, 'ilimitado'], [1490, 1490, 1490, 1890, 2790]],
     [20, [10, 15, 24, 36, 'ilimitado'], [3090, 3690, 4690, 6190, 9090]],
     [30, [10, 15, 24, 36, 'ilimitado'], [4590, 5490, 7090, 9190, 13590]],

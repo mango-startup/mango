@@ -52,15 +52,16 @@ export const OPCOES_FOTOS = [10, 15, 24, 36]
 
 /**
  * Preço em centavos para `n` participantes com `fotos` por pessoa (ou ilimitadas). Cada pagante custa o preço do
- * degrau em que cai, mais as fotos acima da base. Até `gratis` participantes, não paga nada. O piso vale para o
+ * degrau em que cai, mais as fotos acima da base. Até `gratis` participantes e com as fotos do teste, não paga nada. O piso vale para o
  * total; depois vem o arredondamento.
  */
 export function calcularPreco(n: number, p: ParamsPreco, fotos: number | 'ilimitado'): number {
   const total = Math.max(0, Math.floor(n))
-  if (total <= p.gratis) return 0
-  const pagos = p.cobrarTodos ? total : total - p.gratis
+  if (total <= p.gratis && !fotosPagas(p, fotos)) return 0
+  const todos = p.cobrarTodos || fotosPagas(p, fotos)
+  const pagos = todos ? total : total - p.gratis
   let porDegrau = 0
-  let inicio = p.cobrarTodos ? 0 : p.gratis
+  let inicio = todos ? 0 : p.gratis
   for (const d of p.degraus) {
     const fim = d.ate ?? Infinity
     porDegrau += Math.max(0, Math.min(total, fim) - inicio) * d.centavos
@@ -71,10 +72,16 @@ export function calcularPreco(n: number, p: ParamsPreco, fotos: number | 'ilimit
   return p.arredondar90 ? Math.ceil((comPiso - 90) / 100) * 100 + 90 : comPiso
 }
 
+/** Fotos acima do que o teste inclui (ou ilimitadas) tiram o evento do grátis, mesmo com poucos participantes. */
+export function fotosPagas(p: ParamsPreco, fotos: number | 'ilimitado'): boolean {
+  return fotos === 'ilimitado' || fotos > p.fotosTeste
+}
+
 /** Quantos participantes pagam (para mostrar o preço médio). */
-export function participantesPagos(n: number, p: ParamsPreco): number {
+export function participantesPagos(n: number, p: ParamsPreco, fotos: number | 'ilimitado'): number {
   const total = Math.max(0, Math.floor(n))
-  return total <= p.gratis ? 0 : p.cobrarTodos ? total : total - p.gratis
+  if (total <= p.gratis && !fotosPagas(p, fotos)) return 0
+  return p.cobrarTodos || fotosPagas(p, fotos) ? total : total - p.gratis
 }
 
 /** Tabela pública da Once (once.film/pricing, consultada em 2026-10-29), em dólares: convidados → centavos de dólar. */
