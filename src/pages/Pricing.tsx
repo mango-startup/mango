@@ -4,8 +4,11 @@ import { Botao } from '../components/Botao'
 import { MangoLogo } from '../components/MangoLogo'
 import { api, type DefinicaoPacote } from '../lib/api'
 import { useConfigPublica } from '../lib/configPublica'
-import { precoEmReais } from '../lib/formato'
+import { precoEmReais, precoExato } from '../lib/formato'
 import { useTitulo } from '../lib/useTitulo'
+import { CalculadoraPreco } from '../components/CalculadoraPreco'
+import { usePrecoPublico } from '../lib/precoPublico'
+import { calcularPreco } from '../lib/simuladorPreco'
 
 function retencao(dias: number): string {
   return dias >= 365 ? `${Math.round(dias / 30)} meses` : `${dias} dias`
@@ -18,7 +21,10 @@ function poses(opcoes: number[]): string {
 // /precos — escolha pelo tamanho da festa. Os valores vêm da api, não ficam presos no componente.
 export function PricingPage() {
   useTitulo('Preços')
-  const pagamentoDisponivel = useConfigPublica().pacotes_pagos_disponiveis
+  const config = useConfigPublica()
+  const pagamentoDisponivel = config.pacotes_pagos_disponiveis
+  const dinamico = config.preco_dinamico
+  const params = usePrecoPublico()
   const [pacotes, setPacotes] = useState<DefinicaoPacote[] | null>(null)
   const [falhou, setFalhou] = useState(false)
 
@@ -51,17 +57,37 @@ export function PricingPage() {
       </header>
 
       <main className="mx-auto mt-8 max-w-[1040px]">
-        <h1 className="max-w-[640px] font-display text-[44px] leading-[1.02] [text-wrap:balance] sm:text-[56px]">Um preço por festa, pelo número de convidados</h1>
-        <p className="mt-4 max-w-[520px] text-[17px] leading-normal text-muted">Pagamento único. Sem assinatura, sem app para ninguém instalar.</p>
+        <h1 className="max-w-[640px] font-display text-[44px] leading-[1.02] [text-wrap:balance] sm:text-[56px]">
+          {dinamico ? 'Você paga pelas pessoas e pelas fotos da sua festa' : 'Um preço por festa, pelo número de convidados'}
+        </h1>
+        <p className="mt-4 max-w-[520px] text-[17px] leading-normal text-muted">
+          {dinamico ? `Grátis para testar com até ${params.gratis} pessoas e ${params.fotosTeste} fotos cada. Pagamento único, sem assinatura.` : 'Pagamento único. Sem assinatura, sem app para ninguém instalar.'}
+        </p>
+        {dinamico && <CalculadoraPreco params={params} pagamentoDisponivel={pagamentoDisponivel} />}
+        {dinamico && (
+          <ul className="mt-6 grid gap-3 text-[15px] text-muted sm:grid-cols-3">
+            {[
+              ['Jantar com amigos', 12, 24],
+              ['Aniversário', 40, 24],
+              ['Casamento', 150, 36],
+            ].map(([nome, pessoas, fotos]) => (
+              <li key={nome} className="rounded-[16px] border border-line p-4">
+                <span className="block font-semibold text-paper">{nome}</span>
+                {pessoas} pessoas, {fotos} fotos cada
+                <span className="mt-2 block font-display text-[28px] text-paper tabular-nums">{precoExato(calcularPreco(pessoas as number, params, fotos as number))}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        {falhou && <p className="mt-10 text-[15px] text-danger-ink">Não deu para carregar os preços. Confira sua conexão e recarregue a página.</p>}
-        {!pacotes && !falhou && (
+        {!dinamico && falhou && <p className="mt-10 text-[15px] text-danger-ink">Não deu para carregar os preços. Confira sua conexão e recarregue a página.</p>}
+        {!dinamico && !pacotes && !falhou && (
           <p role="status" className="mt-10 text-[15px] text-muted">
             Carregando...
           </p>
         )}
 
-        {pacotes && (
+        {!dinamico && pacotes && (
           <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {pacotes.map((p) => (
               <li
@@ -106,8 +132,8 @@ export function PricingPage() {
             Reembolso integral enquanto ninguém tiver tirado foto.
           </p>
           <p>
-            <strong className="block font-semibold text-paper">Mais de 200 convidados?</strong>
-            Casamentos e formaturas grandes têm preço combinado.{' '}
+            <strong className="block font-semibold text-paper">{dinamico ? 'Evento muito grande?' : 'Mais de 200 convidados?'}</strong>
+            {dinamico ? 'Formaturas e eventos muito grandes têm preço combinado.' : 'Casamentos e formaturas grandes têm preço combinado.'}{' '}
             <Link to="/ajuda" className="text-paper underline underline-offset-2">
               Fale com a gente
             </Link>
