@@ -10,11 +10,10 @@ export interface Sessao {
   guardarTokenDoConvidado(codigo: string, token: string): void
 }
 
-const CHAVE_ANFITRIAO = 'mango.anfitriao'
-const chaveConvidado = (codigo: string) => `mango.convidado.${codigo.toUpperCase()}`
-
 /** localStorage pode falhar (aba anônima, armazenamento bloqueado); nesse caso a sessão vive só na memória. */
-export function sessaoLocal(): Sessao {
+export function sessaoLocal(prefixo = ''): Sessao {
+  const CHAVE_ANFITRIAO = `${prefixo}mango.anfitriao`
+  const chaveConvidado = (codigo: string) => `${prefixo}mango.convidado.${codigo.toUpperCase()}`
   const memoria = new Map<string, string>()
 
   function ler(chave: string): string | null {

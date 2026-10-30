@@ -2,6 +2,7 @@
 // então falta de sinal, aba fechada ou bateria acabando não perdem a foto: ela sobe quando der.
 import { createStore, del, entries, set } from 'idb-keyval'
 import { ErroApi, api } from './api'
+import { ESPACO } from './laboratorio'
 import type { FotoParaEnvio } from './compress'
 
 interface ItemFila {
@@ -16,7 +17,7 @@ interface ItemFila {
   fotoEnviada: boolean
 }
 
-const store = createStore('mango-fila', 'envios')
+const store = createStore(`${ESPACO}mango-fila`, 'envios')
 
 /** Erros em que tentar de novo não adianta: a foto não vai ser aceita. */
 const ERROS_DEFINITIVOS = new Set(['sem_poses', 'evento_cheio', 'captura_fechada', 'id_em_uso', 'tipo_invalido', 'arquivo_grande', 'id_invalido', 'nao_encontrado'])

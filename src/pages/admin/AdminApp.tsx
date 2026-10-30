@@ -11,6 +11,7 @@ import { Crescimento } from './Crescimento'
 import { EventoDetalhe } from './EventoDetalhe'
 import { Financeiro } from './Financeiro'
 import { Eventos } from './Eventos'
+import { LaboratorioCamera } from './LaboratorioCamera'
 import { Moderacao as ModeracaoAdmin } from './Moderacao'
 import { Pagamentos } from './Pagamentos'
 import { Resumo } from './Resumo'
@@ -38,6 +39,7 @@ export default function AdminApp() {
             <Route path="financeiro" element={<Financeiro />} />
             <Route path="pagamentos" element={<Pagamentos />} />
             <Route path="pacotes" element={<Navigate to="/admin/simulador-precos" replace />} />
+            <Route path="laboratorio-camera" element={<LaboratorioCamera />} />
             <Route path="simulador-precos" element={<SimuladorPrecos />} />
             <Route path="configuracoes" element={<Configuracoes />} />
             <Route path="auditoria" element={<Auditoria />} />
