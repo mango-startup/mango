@@ -17,7 +17,7 @@ Decisão de 16/10/2026 (issue #37): o gateway é o **Stripe Checkout**, página 
 |---|---|
 | `STRIPE_SECRET_KEY` | chave secreta: `sk_test_...` (teste) ou `sk_live_...` (produção) |
 | `STRIPE_WEBHOOK_SECRET` | segredo de assinatura do endpoint (`whsec_...`), **diferente em teste e em produção** |
-| `APP_URL` | endereço público do site, sem barra no fim (produção: `https://mango.razielhub.cloud`) |
+| `APP_URL` | endereço público do site, sem barra no fim (produção: `https://mangocamera.com`) |
 
 As três são obrigatórias juntas. Sem `STRIPE_SECRET_KEY` o pagamento fica desligado e só o pacote grátis funciona. **Chave nunca vai para o repositório, para chat ou para print.** A de produção só existe no servidor.
 

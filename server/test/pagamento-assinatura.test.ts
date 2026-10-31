@@ -49,8 +49,8 @@ test('configuração do Stripe: sem chave o pagamento fica desligado; com chave 
   assert.equal(desligado.stripeSecretKey, null)
   assert.equal(desligado.stripeWebhookSecret, null)
 
-  const completo = lerConfig({ ...base, STRIPE_SECRET_KEY: 'sk_test_abc123', STRIPE_WEBHOOK_SECRET: 'whsec_abc', APP_URL: 'https://mango.razielhub.cloud/' })
-  assert.equal(completo.appUrl, 'https://mango.razielhub.cloud') // sem a barra do fim
+  const completo = lerConfig({ ...base, STRIPE_SECRET_KEY: 'sk_test_abc123', STRIPE_WEBHOOK_SECRET: 'whsec_abc', APP_URL: 'https://mangocamera.com/' })
+  assert.equal(completo.appUrl, 'https://mangocamera.com') // sem a barra do fim
 
   assert.throws(() => lerConfig({ ...base, STRIPE_SECRET_KEY: 'sk_test_abc123', APP_URL: 'https://x.com' }), /STRIPE_WEBHOOK_SECRET/)
   assert.throws(() => lerConfig({ ...base, STRIPE_SECRET_KEY: 'sk_test_abc123', STRIPE_WEBHOOK_SECRET: 'whsec_abc' }), /APP_URL/)
