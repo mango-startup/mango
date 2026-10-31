@@ -327,9 +327,9 @@ function DuranteAFesta() {
 
 // Ato 3: na revelação, o véu sai de cima das fotos conforme elas atravessam a tela.
 const ALBUM = [
-  { id: STRIP_PHOTOS[0], legenda: 'Ana, 23h41' },
-  { id: STRIP_PHOTOS[1], legenda: 'Léo, 0h12' },
-  { id: STRIP_PHOTOS[2], legenda: 'Bia, 1h58' },
+  { src: '/landing/album-1.webp', legenda: 'Ana, 23h41' },
+  { src: '/landing/album-2.webp', legenda: 'Léo, 0h12' },
+  { src: '/landing/album-3.webp', legenda: 'Bia, 1h58' },
 ]
 
 function Revelacao() {
@@ -344,9 +344,17 @@ function Revelacao() {
       </p>
       <div ref={album} className="revelacao mt-10 grid grid-cols-2 gap-3 lg:mt-16 lg:grid-cols-3 lg:gap-6">
         {ALBUM.map((foto, i) => (
-          <figure key={foto.id} className={i === 0 ? 'col-span-2 lg:col-span-1' : ''}>
+          <figure key={foto.src} className={i === 0 ? 'col-span-2 lg:col-span-1' : ''}>
             <div className={`relative overflow-hidden rounded-xl bg-surface ${i === 0 ? 'aspect-[4/3] lg:aspect-[3/4]' : 'aspect-[3/4]'}`}>
-              <img src={photoUrl(foto.id)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              <img
+                src={foto.src}
+                alt=""
+                width={800}
+                height={1067}
+                loading="lazy"
+                decoding="async"
+                className={`h-full w-full object-cover ${i === 0 ? 'object-[50%_30%]' : ''}`}
+              />
               <div
                 aria-hidden="true"
                 className="veu absolute inset-0 bg-[#2a1f14]"
