@@ -20,6 +20,7 @@ const ICONES: Record<string, ReactNode> = {
   simulador: <path d="M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h2M16 16h0" />,
   configuracoes: <path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 4v6M8 14v6" />,
   saude: <path d="M3 12h4l2-5 4 10 2-5h6" />,
+  arquitetura: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5" />,
   auditoria: <path d="M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6" />,
   administradores: <path d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM5 21c0-3.9 3.1-7 7-7s7 3.1 7 7M17 3l1 1.5L20 4" />,
 }
@@ -66,6 +67,7 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
       { para: '/admin/configuracoes', rotulo: 'Configurações', icone: 'configuracoes' },
       { para: '/admin/saude', rotulo: 'Saúde', icone: 'saude' },
       { para: '/admin/auditoria', rotulo: 'Auditoria', icone: 'auditoria' },
+      { para: '/admin/arquitetura', rotulo: 'Arquitetura', icone: 'arquitetura' },
       { para: '/admin/administradores', rotulo: 'Administradores', icone: 'administradores' },
     ],
   },
