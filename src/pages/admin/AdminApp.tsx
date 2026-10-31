@@ -4,6 +4,7 @@ import { Administradores } from './Administradores'
 import { Analise } from './Analise'
 import { Anfitrioes } from './Anfitrioes'
 import { AdminLayout } from './AdminLayout'
+import { Arquitetura } from './Arquitetura'
 import { Auditoria } from './Auditoria'
 import { ComoAnfitriao } from './ComoAnfitriao'
 import { Configuracoes } from './Configuracoes'
@@ -42,6 +43,7 @@ export default function AdminApp() {
             <Route path="laboratorio-camera" element={<LaboratorioCamera />} />
             <Route path="simulador-precos" element={<SimuladorPrecos />} />
             <Route path="configuracoes" element={<Configuracoes />} />
+            <Route path="arquitetura" element={<Arquitetura />} />
             <Route path="auditoria" element={<Auditoria />} />
             <Route path="administradores" element={<Administradores />} />
             <Route path="senha" element={<TrocarSenha />} />
