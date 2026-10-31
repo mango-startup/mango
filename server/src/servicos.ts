@@ -7,7 +7,7 @@ import { ServicoPagamento } from './pagamento.ts'
 import type { ProvedorPagamento } from './pagamento.ts'
 import type { EnviadorEmail } from './email.ts'
 import { COLUNAS_AVISO } from './avisos.ts'
-import type { Avisador, DadosEvento } from './avisos.ts'
+import type { Avisador, DadosEvento, TipoAviso } from './avisos.ts'
 
 /** Configuração e pacotes lidos do banco (com cache curto), compartilhados por todas as rotas. */
 export interface Servicos {
@@ -36,6 +36,13 @@ export interface Gateway {
 export function criarServicos(pool: Pool, agora: () => Date = () => new Date(), gateway: Gateway | null = null, email: EnviadorEmail | null = null, appUrl: string | null = null, avisos: Avisador | null = null): Servicos {
   const config = new ServicoConfig(pool)
   const pacotes = new ServicoPacotes(pool)
+  const avisarPorIds = (tipo: TipoAviso, ids: string[]) => {
+    if (!avisos) return
+    void pool
+      .query<DadosEvento>(`select ${COLUNAS_AVISO} from eventos where id = any($1::uuid[])`, [ids])
+      .then((r) => r.rows.forEach((e) => avisos.avisar(tipo, e)))
+      .catch(() => {})
+  }
   return {
     config,
     pacotes,
@@ -48,13 +55,8 @@ export function criarServicos(pool: Pool, agora: () => Date = () => new Date(), 
       const c = await config.valores()
       await avancarEstados(pool, agora(), {
         rascunhoDias: c.rascunho_validade_dias,
-        aoRevelar: (ids) => {
-          if (!avisos) return
-          void pool
-            .query<DadosEvento>(`select ${COLUNAS_AVISO} from eventos where id = any($1::uuid[])`, [ids])
-            .then((r) => r.rows.forEach((e) => avisos.avisar('album_revelado', e)))
-            .catch(() => {})
-        },
+        aoRevelar: (ids) => avisarPorIds('album_revelado', ids),
+        aoLembrar: (tipo, ids) => avisarPorIds(tipo, ids),
       })
     },
   }

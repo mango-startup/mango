@@ -1,5 +1,5 @@
 /** Avisos do backend para o n8n por webhook (https://docs.n8n.io), fire-and-forget: falha aqui nunca derruba o fluxo do evento. */
-export type TipoAviso = 'evento_criado' | 'evento_pronto' | 'album_revelado'
+export type TipoAviso = 'evento_criado' | 'evento_pronto' | 'album_revelado' | 'festa_amanha' | 'pagamento_pendente'
 
 export interface DadosEvento {
   id: string
@@ -27,7 +27,7 @@ export function criarWebhookN8n(url: string, segredo: string, appUrl: string | n
         id_aviso: crypto.randomUUID(),
         tipo,
         enviado_em: new Date().toISOString(),
-        evento: { ...evento, link_convidado: appUrl ? `${appUrl}/c/${evento.codigo}` : null },
+        evento: { ...evento, link_convidado: appUrl ? `${appUrl}/c/${evento.codigo}` : null, link_site: appUrl },
       })
       void buscar(url, {
         method: 'POST',
