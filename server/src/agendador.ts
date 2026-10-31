@@ -10,6 +10,8 @@ export interface OpcoesAgendador {
   rascunhoDias?: number
   /** Chamado com os ids dos eventos que acabaram de ser revelados pelo relógio. */
   aoRevelar?: (ids: string[]) => void
+  /** Chamado com os ids de eventos que acabaram de ganhar um lembrete (cada um sai uma única vez). */
+  aoLembrar?: (tipo: 'festa_amanha' | 'pagamento_pendente', ids: string[]) => void
 }
 
 export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date(), opcoes: OpcoesAgendador = {}): Promise<void> {
@@ -45,4 +47,20 @@ export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date
      where estado = 'revelado' and expira_em <= $1`,
     [agora],
   )
+
+  // Lembretes: o UPDATE marca e devolve quem acabou de ficar elegível, então duas rodadas nunca repetem o aviso.
+  const festa = await pool.query<{ id: string }>(
+    `update eventos set lembrete_festa_em = $1
+     where estado = 'pronto' and excluido_em is null and lembrete_festa_em is null
+       and captura_inicio > $1 and captura_inicio <= $1::timestamptz + interval '24 hours' returning id::text`,
+    [agora],
+  )
+  if (festa.rows.length) opcoes.aoLembrar?.('festa_amanha', festa.rows.map((r) => r.id))
+  const pagamento = await pool.query<{ id: string }>(
+    `update eventos set lembrete_pagamento_em = $1
+     where estado = 'aguardando_pagamento' and excluido_em is null and lembrete_pagamento_em is null
+       and anfitriao_email is not null and criado_em <= $1::timestamptz - interval '24 hours' returning id::text`,
+    [agora],
+  )
+  if (pagamento.rows.length) opcoes.aoLembrar?.('pagamento_pendente', pagamento.rows.map((r) => r.id))
 }
