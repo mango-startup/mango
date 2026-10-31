@@ -9,7 +9,7 @@ import { sessaoEmMemoria } from '../src/lib/api/sessao.ts'
 import { ErroApi } from '../src/lib/api/tipos.ts'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
-if (/razielhub\.cloud/.test(base)) throw new Error('Este roteiro cria eventos de teste: não rode contra a produção.')
+if (/razielhub\.cloud|mangocamera\.com/.test(base)) throw new Error('Este roteiro cria eventos de teste: não rode contra a produção.')
 
 const anfitriao = criarApiReal({ sessao: sessaoEmMemoria(), base, origem: 'https://exemplo.test' })
 // Dois aparelhos de convidado (cada um com a sua sessão, como no mundo real).

@@ -2,7 +2,7 @@
 
 Para quem vai trocar a api simulada pela real (issue #73). A fonte da verdade de cada rota é [`server/openapi.json`](../server/openapi.json) (conferido por teste contra as rotas reais); este guia explica **como usar**: mapa dos métodos do `MangoApi`, fluxos, pegadinhas e o que ainda falta.
 
-- Produção: `https://mango.razielhub.cloud/api/...` (mesmo domínio do site, então **sem CORS**).
+- Produção: `https://mangocamera.com/api/...` (mesmo domínio do site, então **sem CORS**).
 - Documentação do servidor: [`server/README.md`](../server/README.md). Plano do produto: [`PLANO-MVP.md`](PLANO-MVP.md).
 
 ## 1. Regras gerais
@@ -41,7 +41,7 @@ curl localhost:3000/api/saude                          # {"status":"ok","banco":
 ```ts
 proxy: { '/api': { target: 'http://localhost:3000', changeOrigin: true } },
 ```
-Assim o front chama sempre `/api/...` (caminho relativo), no dev e em produção. Para olhar a produção de verdade, aponte o `target` para `https://mango.razielhub.cloud`, ciente do aviso acima.
+Assim o front chama sempre `/api/...` (caminho relativo), no dev e em produção. Para olhar a produção de verdade, aponte o `target` para `https://mangocamera.com`, ciente do aviso acima.
 
 **Roteiro de verificação:** com a API local no ar, `npm run smoke:api` (ou `node scripts/smoke-api.ts http://localhost:3000`) percorre o ciclo inteiro pela `criarApiReal`: criar evento, entrar, fotografar com reenvio, moderar, revelar, álbum, ZIP, privacidade e excluir (14 verificações). Mexeu em `real.ts` ou numa rota? Rode antes do PR. Recusa rodar contra a produção.
 

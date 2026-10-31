@@ -36,7 +36,7 @@ export function lerConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (stripeSecretKey) {
     if (!/^(sk|rk)_(test|live)_\S+$/.test(stripeSecretKey)) throw new Error('STRIPE_SECRET_KEY inválida: deve começar com sk_test_, sk_live_ ou rk_')
     if (!stripeWebhookSecret || !stripeWebhookSecret.startsWith('whsec_')) throw new Error('STRIPE_SECRET_KEY exige STRIPE_WEBHOOK_SECRET (começa com whsec_)')
-    if (!appUrl || !/^https?:\/\/\S+$/.test(appUrl)) throw new Error('STRIPE_SECRET_KEY exige APP_URL, por exemplo https://mango.razielhub.cloud')
+    if (!appUrl || !/^https?:\/\/\S+$/.test(appUrl)) throw new Error('STRIPE_SECRET_KEY exige APP_URL, por exemplo https://mangocamera.com')
   } else {
     appUrl = appUrl && /^https?:\/\/\S+$/.test(appUrl) ? appUrl : null
   }
