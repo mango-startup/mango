@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import type { Pool } from 'pg'
+import { COLUNAS_AVISO } from '../avisos.ts'
+import type { DadosEvento } from '../avisos.ts'
 import { podeTransicionar } from '../estados.ts'
 import type { Servicos } from '../servicos.ts'
 import { gerarCodigo, gerarToken, hashToken } from '../tokens.ts'
@@ -128,6 +130,11 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
             e.estado === 'pronto' ? `Link para os convidados:\n${servicos.appUrl}/c/${e.codigo}` : 'O link para os convidados fica disponível depois do pagamento.',
           ].join('\n')
           void servicos.email.enviar({ para: emailAnfitriao, assunto: 'Seu link de anfitrião do Mango', texto }).catch(() => {})
+        }
+        if (servicos.avisos) {
+          const dados = { ...r.rows[0], anfitriao_email: emailAnfitriao } as unknown as DadosEvento
+          servicos.avisos.avisar('evento_criado', dados)
+          if (dados.estado === 'pronto') servicos.avisos.avisar('evento_pronto', dados)
         }
         return c.json({ evento: r.rows[0], anfitriao_token: token }, 201)
       } catch (e) {
@@ -275,6 +282,12 @@ export function rotasEventos(pool: Pool, agora: () => Date = () => new Date(), s
     )
     // Outra requisição pode ter mudado o estado entre a leitura e o update.
     if (!r.rows[0]) return erro(c, 409, 'transicao_invalida', 'O estado do evento mudou. Tente de novo.')
+    if (para === 'revelado' && servicos.avisos) {
+      void pool
+        .query<DadosEvento>(`select ${COLUNAS_AVISO} from eventos where id = $1`, [e.id])
+        .then((x) => x.rows[0] && servicos.avisos?.avisar('album_revelado', x.rows[0]))
+        .catch(() => {})
+    }
     return c.json({ evento: r.rows[0] })
   }
 

@@ -1,6 +1,8 @@
 import Stripe from 'stripe'
 import type { Pool, PoolClient } from 'pg'
 import type { ServicoPacotes } from './pacotes.ts'
+import { COLUNAS_AVISO } from './avisos.ts'
+import type { Avisador, DadosEvento } from './avisos.ts'
 
 // Pagamento dos pacotes com o Stripe Checkout (página hospedada: nenhum dado de cartão passa por aqui).
 // Regra central: o evento só sai de "aguardando pagamento" pelo WEBHOOK assinado, depois de reconsultar a sessão
@@ -178,6 +180,8 @@ export interface OpcoesServico {
   /** Endereço público do site, sem barra no fim. */
   appUrl: string
   agora?: () => Date
+  /** Avisos ao n8n quando o pagamento libera o evento. */
+  avisos?: Avisador | null
   /** Linha de log estruturada (padrão: console). Nunca recebe chave nem corpo de requisição. */
   log?: (nivel: 'info' | 'warn' | 'error', dados: Record<string, unknown>) => void
 }
@@ -188,6 +192,7 @@ export class ServicoPagamento {
   private pacotes: ServicoPacotes
   private appUrl: string
   private agora: () => Date
+  private avisos: Avisador | null
   private log: (nivel: 'info' | 'warn' | 'error', dados: Record<string, unknown>) => void
 
   constructor(o: OpcoesServico) {
@@ -196,6 +201,7 @@ export class ServicoPagamento {
     this.pacotes = o.pacotes
     this.appUrl = o.appUrl
     this.agora = o.agora ?? (() => new Date())
+    this.avisos = o.avisos ?? null
     this.log = o.log ?? ((nivel, dados) => console[nivel === 'info' ? 'log' : nivel](JSON.stringify({ origem: 'pagamento', nivel, ...dados })))
   }
 
@@ -277,8 +283,10 @@ export class ServicoPagamento {
         await cliente.query('rollback')
         return 'duplicado'
       }
-      const resultado = await this.aplicar(cliente, ev)
+      const liberados: string[] = []
+      const resultado = await this.aplicar(cliente, ev, liberados)
       await cliente.query('commit')
+      this.avisarLiberados(liberados)
       return resultado
     } catch (e) {
       await cliente.query('rollback').catch(() => {})
@@ -288,11 +296,11 @@ export class ServicoPagamento {
     }
   }
 
-  private async aplicar(cliente: PoolClient, ev: EventoDoGateway): Promise<'processado' | 'ignorado'> {
+  private async aplicar(cliente: PoolClient, ev: EventoDoGateway, liberados: string[]): Promise<'processado' | 'ignorado'> {
     switch (ev.tipo) {
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded':
-        return ev.sessaoId ? this.aplicarSessao(cliente, ev.id, ev.sessaoId) : 'ignorado'
+        return ev.sessaoId ? this.aplicarSessao(cliente, ev.id, ev.sessaoId, liberados) : 'ignorado'
       case 'checkout.session.async_payment_failed':
         return ev.sessaoId ? this.marcar(cliente, ev.sessaoId, 'recusado') : 'ignorado'
       case 'checkout.session.expired':
@@ -304,7 +312,7 @@ export class ServicoPagamento {
     }
   }
 
-  private async aplicarSessao(cliente: PoolClient, eventoStripe: string, sessaoId: string): Promise<'processado' | 'ignorado'> {
+  private async aplicarSessao(cliente: PoolClient, eventoStripe: string, sessaoId: string, liberados: string[]): Promise<'processado' | 'ignorado'> {
     const pag = (
       await cliente.query<LinhaPagamento>('select id, evento_id, stripe_session_id, valor_centavos, status from pagamentos where stripe_session_id = $1 for update', [sessaoId])
     ).rows[0]
@@ -335,6 +343,7 @@ export class ServicoPagamento {
        where id = $1 and estado in ('aguardando_pagamento', 'rascunho') and excluido_em is null returning id`,
       [pag.evento_id, this.agora()],
     )
+    if (liberado.rowCount) liberados.push(pag.evento_id)
     if (!liberado.rowCount) {
       const e = (await cliente.query<{ estado: string; excluido_em: Date | null }>('select estado, excluido_em from eventos where id = $1', [pag.evento_id])).rows[0]
       if (!e || e.excluido_em || e.estado === 'cancelado' || e.estado === 'expirado') {
@@ -344,6 +353,16 @@ export class ServicoPagamento {
       }
     }
     return 'processado'
+  }
+
+  /** Depois do commit: avisa o n8n que o pagamento liberou o evento. Nunca atrapalha o webhook do Stripe. */
+  private avisarLiberados(ids: string[]): void {
+    const avisos = this.avisos
+    if (!avisos || !ids.length) return
+    void this.pool
+      .query<DadosEvento>(`select ${COLUNAS_AVISO} from eventos where id = any($1::uuid[])`, [ids])
+      .then((r) => r.rows.forEach((e) => avisos.avisar('evento_pronto', e)))
+      .catch(() => {})
   }
 
   private async marcar(cliente: PoolClient, sessaoId: string, status: 'recusado' | 'expirado'): Promise<'processado' | 'ignorado'> {

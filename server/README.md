@@ -145,6 +145,17 @@ O preço sai do banco (tabela `pacotes`), nunca do cliente. Voltar da página do
 
 `DATABASE_URL` (obrigatória), `PORT` (3000), `STORAGE_DIR` (`./dados/fotos`), `RATE_LIMIT=off` (desliga os limites), `ADMIN_USUARIOS` e `ADMIN_SENHA_INICIAL` (admins iniciais). Pagamento: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e `APP_URL` (as três juntas; sem a chave o pagamento fica desligado). Nenhum segredo no repo.
 
+## Avisos ao n8n (webhook)
+
+O backend avisa o n8n quando algo acontece com um evento, em vez de o n8n consultar o banco. Só liga com as duas variáveis juntas:
+
+| Variável | O que é |
+|---|---|
+| `N8N_WEBHOOK_URL` | URL de produção do nó Webhook do n8n (`https://n8n.../webhook/...`) |
+| `N8N_WEBHOOK_SEGREDO` | segredo compartilhado; vai no cabeçalho `Authorization: Bearer ...`. No n8n, use "Header Auth" no nó Webhook |
+
+Tipos de aviso (`tipo` no corpo JSON): `evento_criado`, `evento_pronto` (grátis na criação, ou pagamento aprovado) e `album_revelado` (pelo relógio ou pelo botão do anfitrião). O corpo traz `id_aviso` (para deduplicar), `enviado_em` e `evento` (id, código, nome, estado, pacote, limite, datas, valor, e-mail do anfitrião e `link_convidado`). O token secreto do anfitrião **nunca** vai no aviso. O envio é de uma tentativa, sem esperar: falha vira uma linha de log `aviso_n8n` e não afeta o evento nem o webhook do Stripe. Sem retentativa, então o n8n não deve ser a única fonte de e-mails críticos.
+
 ## E-mail ao anfitrião (admin)
 
 O admin escreve ao anfitrião de um evento pela tela do evento. O envio usa o [Resend](https://resend.com) e só liga com estas variáveis no servidor:
