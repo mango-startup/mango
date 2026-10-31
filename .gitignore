@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Fluxos do n8n (JSON com IDs de credenciais; ficam só na máquina)
+.claude/n8n-social/
