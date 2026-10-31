@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-const TITULO_PADRAO = 'Mango — câmera descartável digital para festas'
+const TITULO_PADRAO = 'A festa pelos olhos de quem viveu. 🥭📸'
 
 // Título da aba por página; volta ao padrão quando a página sai da tela.
 export function useTitulo(titulo?: string) {
