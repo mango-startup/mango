@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server'
 import { criarApp } from './app.ts'
+import { criarWebhookN8n } from './avisos.ts'
 import { criarResend } from './email.ts'
 import { limparArquivos } from './limpeza.ts'
 import { lerConfig } from './config.ts'
@@ -23,7 +24,14 @@ if (!gateway) console.warn('STRIPE_SECRET_KEY não definida: pagamento desligado
 const resendKey = process.env.RESEND_API_KEY || null
 const email = resendKey ? criarResend(resendKey, process.env.EMAIL_REMETENTE || 'Mango <contato@mango.razielhub.cloud>') : null
 if (!email) console.warn('RESEND_API_KEY não definida: o admin não envia e-mail aos anfitriões.')
-const servicos = criarServicos(pool, undefined, gateway, email, config.appUrl)
+// Avisos ao n8n: só ligam com a URL do webhook e o segredo juntos.
+const urlN8n = process.env.N8N_WEBHOOK_URL || null
+const segredoN8n = process.env.N8N_WEBHOOK_SEGREDO || null
+if (urlN8n && !/^https?:\/\/\S+$/.test(urlN8n)) throw new Error('N8N_WEBHOOK_URL inválida: deve começar com http:// ou https://')
+if (urlN8n && !segredoN8n) throw new Error('N8N_WEBHOOK_URL exige N8N_WEBHOOK_SEGREDO')
+const avisos = urlN8n && segredoN8n ? criarWebhookN8n(urlN8n, segredoN8n, config.appUrl) : null
+if (!avisos) console.warn('N8N_WEBHOOK_URL não definida: sem avisos ao n8n.')
+const servicos = criarServicos(pool, undefined, gateway, email, config.appUrl, avisos)
 
 // Admins iniciais: criados uma vez, com a senha inicial do ambiente e troca obrigatória no primeiro login.
 if (config.adminSenhaInicial) {

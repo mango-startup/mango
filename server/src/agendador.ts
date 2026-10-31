@@ -8,6 +8,8 @@ import type { Pool } from 'pg'
 export interface OpcoesAgendador {
   /** Dias até excluir rascunho ou pagamento não concluído (configuração `rascunho_validade_dias`). */
   rascunhoDias?: number
+  /** Chamado com os ids dos eventos que acabaram de ser revelados pelo relógio. */
+  aoRevelar?: (ids: string[]) => void
 }
 
 export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date(), opcoes: OpcoesAgendador = {}): Promise<void> {
@@ -23,13 +25,14 @@ export async function avancarEstados(pool: Pick<Pool, 'query'>, agora = new Date
        and captura_fim is not null and captura_fim <= $1`,
     [agora],
   )
-  await pool.query(
+  const reveladas = await pool.query<{ id: string }>(
     `update eventos set estado = 'revelado', revelado_em = $1, atualizado_em = $1,
        expira_em = $1::timestamptz + retencao_dias * interval '1 day'
      where estado = 'captura_encerrada' and excluido_em is null
-       and revelacao_manual = false and revelacao_em <= $1`,
+       and revelacao_manual = false and revelacao_em <= $1 returning id::text`,
     [agora],
   )
+  if (reveladas.rows.length) opcoes.aoRevelar?.(reveladas.rows.map((r) => r.id))
   // Rascunho ou pagamento que ninguém concluiu em 7 dias some (exclusão lógica).
   await pool.query(
     `update eventos set excluido_em = $1::timestamptz, atualizado_em = $1::timestamptz
