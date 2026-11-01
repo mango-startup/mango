@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { carregarConfig } from './lib/configPublica'
 import { AvisoGlobal } from './components/AvisoGlobal'
 import { NavegacaoAnimada } from './components/NavegacaoAnimada'
@@ -19,6 +19,13 @@ import { PricingPage } from './pages/Pricing'
 
 // O admin (e o shadcn/ui que ele usa) vira um chunk à parte: a landing e a câmera não pagam por ele.
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'))
+
+// Links de miniatura escritos como "/=v3" (em vez de "/?v=3") caem na landing.
+function NaoEncontradaOuRaiz() {
+  const { pathname } = useLocation()
+  if (pathname.startsWith('/=')) return <Navigate to="/" replace />
+  return <NotFoundPage />
+}
 
 export default function App() {
   useEffect(() => {
@@ -53,7 +60,7 @@ export default function App() {
         {/* Admin dos donos do Mango: fora da navegação do site e dos buscadores */}
         <Route path="/admin/*" element={<Suspense fallback={null}><AdminApp /></Suspense>} />
 
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<NaoEncontradaOuRaiz />} />
       </Routes>
       </NavegacaoAnimada>
     </BrowserRouter>
